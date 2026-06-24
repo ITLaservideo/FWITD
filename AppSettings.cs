@@ -72,6 +72,23 @@ namespace FWITD {
         }
 
         /// <summary>
+        /// Resolves a value for JS template substitution (see JSProvider's
+        /// <c>{{@AppSettings.key}}</c> placeholders). Scalars render as their plain string
+        /// form (for embedding inside a JS template-literal); arrays/objects render as raw
+        /// JSON (for embedding as a JS literal without surrounding quotes) since
+        /// <see cref="Get{T}"/>'s <c>ToObject&lt;string&gt;</c> conversion cannot coerce them.
+        /// </summary>
+        public static string GetForTemplate(string jsonPath) {
+            JToken token = Json.SelectToken(jsonPath);
+            if (token == null)
+                return "null";
+
+            return token.Type is JTokenType.Array or JTokenType.Object
+                ? token.ToString(Formatting.None)
+                : token.ToObject<string>();
+        }
+
+        /// <summary>
         /// Sets a value in appsettings.json and writes the file back to disk.
         /// </summary>
         public static void Set<T>(string jsonPath, T value) {

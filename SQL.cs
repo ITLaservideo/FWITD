@@ -4,6 +4,10 @@ using System.Data;
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
+#if WINDOWS
+using System.IO;
+#else
+#endif
 
 namespace DotNet.Utility {
     public sealed partial class SQL {
@@ -70,17 +74,21 @@ namespace DotNet.Utility {
         /// </exception>
         public static void Init() {
 #if DEBUG
-            var server = AppSettings.Get<string>("Device.LocalDB.LocalServer");
+            var server = AppSettings.Get<string>("Device.LocalDB.DebugServer");
+            connectionStr = AppSettings.Get<string>("ConnectionString");
 #else
-            var server = AppSettings.Get<string>("Device.LocalDB.RemoteServer");
+            var server = AppSettings.Get<string>("Device.LocalDB.Server");
+            connectionStr = AppSettings.Get<string>("RELEASE_ConnectionString");
 #endif
-            connectionStr = new SqlConnectionStringBuilder {
-                DataSource             = server,
-                InitialCatalog         = AppSettings.Get("Device.LocalDB.Database", "Reportistica"),
-                UserID                 = AppSettings.Get<string>("Device.LocalDB.UserId"),
-                Password               = AppSettings.Get<string>("Device.LocalDB.Password"),
-                TrustServerCertificate = AppSettings.Get("Device.LocalDB.TrustServerCertificate", true)
-            }.ConnectionString;
+            if (server != null) {
+                connectionStr = new SqlConnectionStringBuilder {
+                    DataSource = server,
+                    InitialCatalog = AppSettings.Get("Device.LocalDB.Database", "Reportistica"),
+                    UserID = AppSettings.Get<string>("Device.LocalDB.UserId"),
+                    Password = AppSettings.Get<string>("Device.LocalDB.Password"),
+                    TrustServerCertificate = AppSettings.Get("Device.LocalDB.TrustServerCertificate", true)
+                }.ConnectionString;
+            }
 
             if (connectionStr is null) {
                 var e = new InvalidOperationException("Missing DB ConnectionString from appsettings.json.");
@@ -259,10 +267,10 @@ namespace DotNet.Utility {
                 ExecuteNonQuery(SQL_CREATE_TG_LocalSettings);
             }
             int db_version = Convert.ToInt32(ExecuteScalar(SQL_GET_DB_VERSION));
-
+            string PATH_DBUpdate = $".Assets.{AppSettings.Get<string>("SQL.FolderUpdateDB", "DBUpdate")}.";
             var assembly = Assembly.GetExecutingAssembly();
             var updates = assembly.GetManifestResourceNames()
-                .Where(n => n.Contains(".Assets.DBUpdate.") && n.EndsWith(".sql"))
+                .Where(n => n.Contains(PATH_DBUpdate) && n.EndsWith(".sql"))
                 .Select(resourceName => {
                     var parts = resourceName.Split('.');
                     var stem = parts.Length >= 2 ? parts[^2] : "";

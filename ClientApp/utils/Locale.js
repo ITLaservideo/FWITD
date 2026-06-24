@@ -13,11 +13,11 @@ class Locale {
         });
     }
 
-    static setLang(lang) {
+    static setLang(lang, force = false) {
         const all = window.__LOCALES__ ?? {};
-        if (!all[lang]) { return; }
+        if (!all[lang] && !force) { return; }
         Locale.lang = lang;
-        Locale.data = all[lang];
+        Locale.data = all[lang] ?? {};
         document.documentElement.lang = lang;
         Locale.applyAll();
     }

@@ -49,6 +49,13 @@ Object.defineProperty(AppStatus, "IsPhone", {
     enumerable: true
 });
 
+Object.defineProperty(AppStatus, "CheckForHealth", {
+    value: JSON.parse(`{{@AppSettings.CheckForHealth}}`),
+    writable: false,
+    configurable: false,
+    enumerable: true
+});
+
 //#endregion
 
 //#region {{@DBSettings.[a-zA-Z_-]+}}

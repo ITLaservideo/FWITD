@@ -1,0 +1,10 @@
+CREATE TABLE Auth_Trace (
+    [ID] bigint PRIMARY KEY IDENTITY,
+    [UserIdentifier] varchar(255) NOT NULL,
+    [UserType] INT NOT NULL,
+    [DateAt] DATETIMEOFFSET NOT NULL DEFAULT SYSDATETIMEOFFSET(),
+    [IpAddress] NVARCHAR(45) NULL,
+    [Action] varchar(255) NOT NULL
+);
+
+--SELECT TOP 5 * FROM Auth_Trace WHERE DateAt >= DATEADD(MINUTE, -60, SYSDATETIMEOFFSET()) AND IP=@0 ORDER BY DateAt DESC;

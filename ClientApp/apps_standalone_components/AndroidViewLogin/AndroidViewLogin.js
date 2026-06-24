@@ -94,12 +94,10 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
             text_icon.innerHTML = "&#xe898;";
             // owner.elements.button_login.lastElementChild.innerText = `${owner.elements.button_login.lastElementChild.innerText}...`;
             await new Promise((resolve) => {
-                Lobby.post({
-                    prompt: 7/*login*/,
-                    data1: owner.elements.input_login.value.trim(),
-                    data2: owner.elements.input_pwd.value.trim()
+                Lobby.post("LoginSession/Login", {
+                    email: owner.elements.input_login.value.trim(),
+                    pwd: owner.elements.input_pwd.value.trim()
                 }, (rsp) => {
-                    resolve();
                     if (rsp.error != undefined) {
                         new Notify({
                             text: `${Locale.at("authentication failed")}`,
@@ -113,7 +111,7 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                             text_icon.innerHTML = "&#xe73c;";
                             owner.elements.button_login.classList.toggle("clicked", false);
                         }, 500);
-                    } else if (rsp.data == "waiting device authentication") {
+                    } else if (rsp.email == "waiting device authentication") {
                         new Notify({
                             text: `${Locale.at("required OTP")}`,
                             event: { clientX: s.x, clientY: s.y },
@@ -137,13 +135,14 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                         text_icon.innerHTML = "&#xf656;";
                         setTimeout(async () => {
                             await new Promise((resolve) => {
-                                Lobby.post({ prompt: 14/*open the app*/ }, (rsp) => {
+                                Lobby.post("AppRouter/Navigate",{where:"GestionaleDistributore"}, (rsp) => {
                                     resolve();
                                     //owner.elements.button_login.classList.toggle("clicked", false);
                                 });
                             });
                         }, 500);
                     }
+                    resolve();
                 });
             });
         });
