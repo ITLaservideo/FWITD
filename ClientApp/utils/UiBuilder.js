@@ -398,7 +398,7 @@ class UiBuilder {
             }
         }
         if (options.class != undefined) {
-            tmp.classList.add(options.class);
+            tmp.classList.add(...options.class.split(" ").filter(Boolean));
         }
         if (options.style != undefined) {
             tmp.style = options.style;

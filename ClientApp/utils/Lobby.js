@@ -16,7 +16,7 @@ class Lobby {
     /**
      * @param payload_stringified
      */
-    static #doThePost = "{{@FuncDoThePost}}";
+    static #doThePost = (the_str) => { window.FWBridge.postMessage(the_str); };
     /**
      * 
      * @param {string} url 
@@ -42,7 +42,6 @@ class Lobby {
             Lobby.post(url, payload, resolve);
         });
     }
-    static #confirm_exit_app = undefined;
     static handleWebviewResponse(jsonResponse) {
         // console.error(jsonResponse);
         if (jsonResponse == null) {
@@ -75,27 +74,29 @@ class Lobby {
                     if (typeof SpaHistory !== "undefined" && SpaHistory.popState()) {
                         return;
                     }
-                    if (Lobby.#confirm_exit_app != undefined) {
-                        Lobby.#confirm_exit_app.destroy();
-                    }
-                    Lobby.#confirm_exit_app = UiBuilder.mockDialog({
-                        text1: `${Locale.at("close app")}`,
-                        onConfirm: () => {
-                            Lobby.closeApp();
-                        },
-                        onDeny: () => {
-                        },
-                        onClose: () => {
-                        }
-                    });
+                    Lobby.closeApp();
                 }
             }
         } catch (err) {
             alert("Bad response from native\n" + err);
         }
     }
+    static #confirm_exit_app = undefined;
     static async closeApp() {
-        await new Promise((resolve) => { Lobby.post({ url: "App/CloseApp" }, (rsp) => { resolve(); }); });
+        if (Lobby.#confirm_exit_app != undefined) {
+            Lobby.#confirm_exit_app.destroy();
+        }
+        Lobby.#confirm_exit_app = UiBuilder.mockDialog({
+            text1: `${Locale.at("close app")}`,
+            onConfirm: () => {
+                Lobby.#closeApp();
+            },
+            onDeny: () => {
+            },
+            onClose: () => {
+            }
+        });
     }
+    static async #closeApp() { await new Promise((resolve) => { Lobby.post("AppRouter/CloseApp", {}, (rsp) => { resolve(); }); }); }
 }
 window.Lobby = Lobby;

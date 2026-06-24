@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script>(() => { document.addEventListener("contextmenu", function (e) { e.preventDefault(); }); document.addEventListener("wheel", function (e) { if (e.ctrlKey) { e.preventDefault(); } }, { passive: false }); document.addEventListener("keydown", function (e) { if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) { e.preventDefault(); } }); })();</script>
+    <title>ServerStatus</title>
+</head>
+
+<body>
+    <div class="ss-page" id="ss-page">
+        <div class="ss-header">
+            <div class="ss-title" data-i18n="Server Status"></div>
+            <div class="ss-summary" id="ss-summary"></div>
+        </div>
+        <div class="ss-list" id="ss-list"></div>
+        <div class="ss-footer">
+            <div class="btn ss-retry-btn" id="ss-retry-btn" data-i18n="check status now"></div>
+            <div class="btn ss-lounch-app display-none-important" id="ss-lounch-app" data-i18n="lounch app"></div>
+        </div>
+    </div>
+</body>
+
+</html>
