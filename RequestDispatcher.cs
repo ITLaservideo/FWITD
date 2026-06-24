@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-#if WINDOWS
+#if WPF && WINDOWS
 using Microsoft.Web.WebView2.Wpf;
 #else
 using Microsoft.Maui.Controls;
@@ -10,7 +10,7 @@ using Microsoft.Maui.Controls;
 
 namespace FWITD {
     internal static class RequestDispatcher {
-#if WINDOWS
+#if WPF && WINDOWS
         internal static Dictionary<int, WebView2> webviews = [];
 #else
         internal static Dictionary<int, WebView> webviews = [];
@@ -30,7 +30,7 @@ namespace FWITD {
             }
         }
 
-#if WINDOWS
+#if WINDOWS && WPF
         /// <summary>
         /// Wires WebMessageReceived on the given WebView2 to dispatch
         /// incoming Lobby.post requests to the matching controller method.
@@ -59,20 +59,42 @@ namespace FWITD {
         /// </summary>
         internal static void Register(WebView webView, int id_webview) {
             webviews[id_webview] = webView;
+#if WINDOWS
+            void attachBridge(object? _, EventArgs __) {
+                if (webView.Handler?.PlatformView is not Microsoft.UI.Xaml.Controls.WebView2 winWebView) return;
+                void setupCore() {
+                    winWebView.CoreWebView2.WebMessageReceived += async (_, args) =>
+                        await HandleMessageAsync(args.TryGetWebMessageAsString());
+                }
+                if (winWebView.CoreWebView2 != null)
+                    setupCore();
+                else {
+                    winWebView.CoreWebView2Initialized += (_, _) => setupCore();
+                    _ = winWebView.EnsureCoreWebView2Async();
+                }
+            }
+            webView.HandlerChanged += attachBridge;
+            attachBridge(null, EventArgs.Empty);
+#else
             webView.Navigating += async (_, args) => {
                 if (!args.Url.StartsWith("wawapp://", StringComparison.OrdinalIgnoreCase))
                     return;
                 args.Cancel = true; // must be set before any await
                 string jsonMessage = Uri.UnescapeDataString(args.Url["wawapp://".Length..]);
-                int index__owner_id = jsonMessage.IndexOf("__owner_id");
-                if (index__owner_id == -1)
-                    return;
-                if (!int.TryParse(new Regex("[0-9]+").Match(jsonMessage.Substring(index__owner_id, 20)).Groups[0].Value, out int owner_id))
-                    return;
-                var json_response = await DispatchAsync(jsonMessage, owner_id);
-                if (webviews.TryGetValue(owner_id, out var targetWebView))
-                    await targetWebView.EvaluateJavaScriptAsync($"(() => {{ window.Lobby.handleWebviewResponse({json_response}); }})();");
+                await HandleMessageAsync(jsonMessage);
             };
+#endif
+        }
+
+        internal static async Task HandleMessageAsync(string jsonMessage) {
+            int index__owner_id = jsonMessage.IndexOf("__owner_id");
+            if (index__owner_id == -1)
+                return;
+            if (!int.TryParse(new Regex("[0-9]+").Match(jsonMessage.Substring(index__owner_id, 20)).Groups[0].Value, out int owner_id))
+                return;
+            var json_response = await DispatchAsync(jsonMessage, owner_id);
+            if (webviews.TryGetValue(owner_id, out var targetWebView) && targetWebView.IsLoaded)
+                await targetWebView.EvaluateJavaScriptAsync($"(() => {{ window.Lobby.handleWebviewResponse({json_response}); }})();");
         }
 #endif
 

@@ -10,6 +10,9 @@ namespace FWITD {
         ToDoList = 7,
         TemplateJobs = 8,
         YouTube = 9,
+        AndroidDebug = 10,
+        AndroidGestionaleDistributore = 11,
+        ServerStatus = 12,
     }
 
     internal static class AppConfig {
@@ -17,9 +20,14 @@ namespace FWITD {
         internal static readonly Dictionary<StartApp, ((object? script, string? url) main, (object? script, string? url) extra)> _scripts = new() {
             [StartApp.Dashboard]              = ( main: (JSProvider.JS.injectable_apps.TemplateTools, AppSettings.Get<string>("Urls.DebugWebsite")),
                                                   extra: (null, null)),
+#if WINDOWS
             [StartApp.Cloudflared]            = ( main: (JSProvider.JS.injectable_apps.cloudflared,   AppSettings.Get<string>("Cloudflare.URL_NEW_TUNNEL")),
                                                   extra: (JSProvider.JS.injectable_apps.GoogleDocs,   AppSettings.Get<string>("Google.URL_ListaMacchineConfigurateCloudflare"))),
-            [StartApp.GestionaleDistributore] = ( main: (JSProvider.JS.injectable_apps.cloudflared,   null),
+#else
+            [StartApp.Cloudflared]            = ( main: (JSProvider.JS.injectable_apps.cloudflared, AppSettings.Get<string>("Cloudflare.URL_LOGIN")),
+                                                  extra: (null, null)),
+#endif
+            [StartApp.GestionaleDistributore] = ( main: (JSProvider.JS.injectable_apps.cloudflared,   AppSettings.Get<string>("Urls.DebugWebsite")),
                                                   extra: (null, null)),
             [StartApp.GoogleDocs]             = ( main: (JSProvider.JS.injectable_apps.GoogleDocs,    AppSettings.Get<string>("Google.URL_ListaMacchineConfigurateCloudflare")),
                                                   extra: (null, null)),
@@ -27,7 +35,11 @@ namespace FWITD {
                                                   extra: (null, null)),
             [StartApp.AndroidLogin]           = ( main: (JSProvider.JS.pages.AndroidLogin,            null),
                                                   extra: (null, null)),
+            [StartApp.AndroidDebug]           = ( main: (JSProvider.JS.injectable_apps.TemplateTools, AppSettings.Get<string>("Urls.DebugWebsite")),
+                                                  extra: (null, null)),
             [StartApp.TemplateJobs]           = ( main: (JSProvider.JS.injectable_apps.TemplateJobs,  AppSettings.Get<string>("Urls.DebugWebsite")),
+                                                  extra: (null, null)),
+            [StartApp.AndroidGestionaleDistributore]           = ( main: (JSProvider.JS.injectable_apps.GestionaleDistributore, AppSettings.Get<string>("Urls.GestionaleDistributore")),
                                                   extra: (null, null)),
 #if WINDOWS
             [StartApp.ToDoList]               = ( main: (null, null),
@@ -38,7 +50,9 @@ namespace FWITD {
 #endif
             [StartApp.YouTube]                = ( main: (JSProvider.JS.injectable_apps.YouTube,       AppSettings.Get<string>("Urls.YouTube")),
                                                   extra: (null, null)),
+            [StartApp.ServerStatus]           = ( main: (JSProvider.JS.pages.ServerStatus,       null),
+                                                  extra: (null, null)),
         };
-        #pragma warning restore IDE0055
+#pragma warning restore IDE0055
     }
 }

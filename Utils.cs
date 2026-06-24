@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 namespace FWITD {
@@ -57,6 +58,18 @@ namespace FWITD {
 
                 return result;
             }
+        }
+        /// <summary>
+        /// Build short description, trimmed to max 50 chars
+        /// </summary>
+        /// <returns></returns>
+        internal static string getMachineShortDescription() {
+            string rawDescription = $"{Environment.MachineName} {Environment.OSVersion}";
+            string shortDescription = rawDescription.Trim();
+            if (shortDescription.Length > 50) {
+                shortDescription = shortDescription.Substring(0, 50);
+            }
+            return shortDescription.Trim();
         }
     }
 }
