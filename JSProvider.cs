@@ -12,9 +12,11 @@ namespace FWITD {
         private static string FindProjectRoot() {
             var dir = new DirectoryInfo(AppContext.BaseDirectory);
             while (dir != null) {
-                if (Directory.Exists(Path.Combine(dir.FullName, "FWITD")))
-                    return dir.FullName;
                 dir = dir.Parent;
+                if (dir != null) {
+                    if (Directory.Exists(Path.Combine(dir.FullName, "FWITD")))
+                        return dir.FullName;
+                }
             }
             return AppContext.BaseDirectory;
         }

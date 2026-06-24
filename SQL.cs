@@ -4,6 +4,10 @@ using System.Data;
 using System.Globalization;
 using System.Reflection;
 using System.Text.RegularExpressions;
+#if WINDOWS
+using System.IO;
+#else
+#endif
 
 namespace DotNet.Utility {
     public sealed partial class SQL {
@@ -75,10 +79,10 @@ namespace DotNet.Utility {
             var server = AppSettings.Get<string>("Device.LocalDB.RemoteServer");
 #endif
             connectionStr = new SqlConnectionStringBuilder {
-                DataSource             = server,
-                InitialCatalog         = AppSettings.Get("Device.LocalDB.Database", "Reportistica"),
-                UserID                 = AppSettings.Get<string>("Device.LocalDB.UserId"),
-                Password               = AppSettings.Get<string>("Device.LocalDB.Password"),
+                DataSource = server,
+                InitialCatalog = AppSettings.Get("Device.LocalDB.Database", "Reportistica"),
+                UserID = AppSettings.Get<string>("Device.LocalDB.UserId"),
+                Password = AppSettings.Get<string>("Device.LocalDB.Password"),
                 TrustServerCertificate = AppSettings.Get("Device.LocalDB.TrustServerCertificate", true)
             }.ConnectionString;
 

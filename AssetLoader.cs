@@ -1,6 +1,8 @@
 #define USE_JS_PROJECT_FILES
 #if !WINDOWS
 using Microsoft.Maui.Storage;
+#else
+using System.IO;
 #endif
 
 namespace FWITD {
@@ -24,7 +26,7 @@ namespace FWITD {
 #elif WINDOWS
             return File.ReadAllText(full_path_filename);
 #else
-            //full_path_filename|Android=`/data/user/0/com.companyname.webappwrappery/files/FWITD/ClientApp/apps_injectable//TemplateTools/TemplateTools.js`
+            //full_path_filename|Android=`/data/user/0/com.companyname.fwshell/files/FWITD/ClientApp/apps_injectable//TemplateTools/TemplateTools.js`
             using var stream = await FileSystem.OpenAppPackageFileAsync(ToLogicalName(full_path_filename));
             using var reader = new StreamReader(stream);
             return await reader.ReadToEndAsync();
