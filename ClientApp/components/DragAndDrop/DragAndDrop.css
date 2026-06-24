@@ -1,0 +1,119 @@
+.drag-and-drop-preview {
+    position: fixed;
+    left: 0;
+    top: 0;
+    display: flex;
+    min-width: 50px;
+    min-height: 50px;
+    /*background-color: #ff00004f;*/
+    align-items: center;
+    justify-content: center;
+    align-content: center;
+    border-radius: 100%;
+    z-index: 9999999999999;
+    pointer-events: none;
+    display: none;
+    opacity: 0.8;
+
+    img {
+        --color: #3ee015b0;
+        --border: 3px;
+        --offset: 30px;
+        --gap: 11px;
+        /* border-radius: 50%; */
+        cursor: pointer;
+        padding: calc(var(--border) + var(--gap));
+        border: var(--offset) solid #0000;
+        --_m: radial-gradient(50% 50%, #000 calc(100% - var(--offset)), #0000 calc(100% - var(--border)));
+        -webkit-mask: var(--_m);
+        mask: var(--_m);
+        --_g: #0000 calc(99% - var(--border)), var(--color) calc(100% - var(--border)) 99%, #0000;
+        --_s: var(--offset);
+        --_r: 100% 100% at;
+        background: radial-gradient(var(--_r) 0 0, var(--_g)) calc(100% + var(--_s)) calc(100% + var(--_s)), radial-gradient(var(--_r) 100% 0, var(--_g)) calc(0% - var(--_s)) calc(100% + var(--_s)), radial-gradient(var(--_r) 0 100%, var(--_g)) calc(100% + var(--_s)) calc(0% - var(--_s)), radial-gradient(var(--_r) 100% 100%, var(--_g)) calc(0% - var(--_s)) calc(0% - var(--_s));
+        background-size: 50% 50%;
+        background-repeat: no-repeat;
+        transition: .4s ease-in;
+        max-width: 100px;
+        max-height: 100px;
+        object-fit: scale-down;
+    }
+}
+
+.drag-and-drop-preview.style-aim {
+    &:has(>img[is-droppable="true"]) {
+        opacity: 1;
+
+        img {
+            --_s: 3px;
+        }
+    }
+}
+
+.drag-and-drop-preview.style-glow {
+    &:has(>img[is-droppable="true"]) {
+        opacity: 1;
+        filter: drop-shadow(0 0 33px var(--vscode-charts-green));
+    }
+}
+
+.DandD-in-progress {
+    outline: 3px solid var(--vscode-foreground) !important;
+    border-radius: 3px !important;
+    background-color: transparent !important;
+
+    >table>tbody>tr:not(:has(.container-label-number-motore)) {
+        * {
+            opacity: 0.5 !important;
+            filter: grayscale(1) !important;
+            background-color: transparent !important;
+        }
+    }
+}
+
+.products-category.DandD-in-progress {
+    >* {
+        opacity: 0.6 !important;
+    }
+}
+
+.DandD-disable-user-select-important {
+    -webkit-user-select: none;
+    /* Safari */
+    -khtml-user-select: none;
+    /* Konqueror HTML */
+    -moz-user-select: none;
+    /* Old versions of Firefox */
+    -ms-user-select: none;
+    /* Internet Explorer/Edge */
+    user-select: none;
+}
+
+.DandD-can-drop-here {
+    outline: 4px solid var(--vscode-charts-green) !important;
+    transition: unset !important;
+    border-radius: 4px !important;
+    z-index: 1;
+
+    >* {
+        opacity: 0.1 !important;
+        transition: unset !important;
+        pointer-events: none;
+    }
+}
+
+.DandD-can-drop-here[data-restrictions-id="1"] {
+    outline: 4px solid var(--vscode-charts-red) !important;
+}
+
+.container-singolo-motorino[data-restrictions-id="1"]:has(>.DandD-can-drop-here) {
+    >.DandD-can-drop-here {
+        outline: 4px solid var(--vscode-charts-red) !important;
+    }
+}
+
+span[data-locked-product="1"]:has(>.DandD-can-drop-here) {
+    >.DandD-can-drop-here {
+        outline: 4px solid var(--vscode-charts-red) !important;
+    }
+}

@@ -1,0 +1,60 @@
+.wrapper-bottom-sheet-template {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    top: 0;
+    right: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999999999999;
+    margin: auto;
+    font-family: var(--vscode-font-family);
+    background: rgba(0, 0, 0, 0.5);
+
+    >.bottom-sheet-template {
+        border-top: 1px solid var(--vscode-widget-border);
+        border-right: 1px solid var(--vscode-widget-border);
+        border-left: 1px solid var(--vscode-widget-border);
+        border-radius: 4px;
+        /* border-end-start-radius: 0;
+        border-end-end-radius: 0; */
+        padding: 3px;
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        margin: auto;
+        width: fit-content;
+        height: fit-content;
+        display: flex;
+        justify-content: center;
+        justify-items: center;
+        background-color: var(--vscode-editorWidget-background);
+        box-shadow: var(--vscode-widget-shadow);
+        transform: translateY(600px);
+        transition: transform ease 0.5s;
+        max-height: 95vh;
+        overflow: auto;
+        background: var(--vscode-editorWidget-background);
+
+        >.bst-content {
+            min-height: 30px;
+            min-width: 150px;
+            border-radius: 2px;
+            background-color: var(--vscode-editorWidget-background);
+            color: var(--vscode-settings-headerForeground);
+        }
+    }
+
+    .prefer-this-action {
+        background: linear-gradient(180deg, rgba(74, 144, 255, 0.7) 0%, rgba(74, 144, 255, 1) 100%);
+    }
+}
+
+@media (orientation:portrait) {
+    .wrapper-bottom-sheet-template {
+        >.bottom-sheet-template {
+            top: 0;
+        }
+    }
+}

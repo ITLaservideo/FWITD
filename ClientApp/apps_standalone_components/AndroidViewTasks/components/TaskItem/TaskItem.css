@@ -1,0 +1,41 @@
+.task-item {
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 6px;
+    background: var(--vscode-editorWidget-background);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-left: 6px solid transparent;
+}
+
+.task-item .task-status {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-top: 4px;
+}
+
+.task-item .task-content {
+    flex: 1;
+}
+
+.task-item .task-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.task-item .task-description {
+    font-size: 0.9em;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Status colors */
+.task-item.status-current { border-left-color: var(--vscode-charts-red); }
+.task-item.status-pending { border-left-color: var(--vscode-charts-yellow); }
+.task-item.status-historic { border-left-color: var(--vscode-charts-green); }
+.task-item.status-info { border-left-color: var(--vscode-charts-blue); }
+
+.task-item.status-current .task-status { background: var(--vscode-charts-red); }
+.task-item.status-pending .task-status { background: var(--vscode-charts-yellow); }
+.task-item.status-historic .task-status { background: var(--vscode-charts-green); }
+.task-item.status-info .task-status { background: var(--vscode-charts-blue); }

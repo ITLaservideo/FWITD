@@ -1,0 +1,9 @@
+body {
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-font-family);
+}
+
+* {
+    box-sizing: border-box;
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone="no"?>
+<svg width="50px" height="50px" xmlns="http://www.w3.org/2000/svg" style="scale: 0.8;">
+    <!-- Left half with down arrow -->
+    <g transform="translate(-14, -25)" style='rotate:180deg;'>
+        <polygon points="0,-11 5,0 -5,0" fill="black"></polygon>
+        <rect x="-1" y="0" width="2" height="17" fill="black"></rect>
+    </g>
+
+    <!-- Right half with numbers 1 and 9 -->
+    <text x="34" y="16" font-family="Arial" font-size="20" text-anchor="middle"
+        alignment-baseline="middle">
+        A
+    </text>
+    <text x="34" y="34" font-family="Arial" font-size="20" text-anchor="middle"
+        alignment-baseline="middle">
+        Z
+    </text>
+</svg>

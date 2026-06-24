@@ -1,0 +1,1 @@
+body{display:flex;flex-direction:column;justify-content:flex-start;align-items:center;background-color:var(--vscode-editor-background);color:var(--vscode-editor-foreground);font-family:var(--vscode-font-family)}#app-main-content{padding:4px;width:calc(100vw - 8px);height:calc(100vh - 8px)}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}

@@ -1,0 +1,37 @@
+{
+  "App": {
+    "RequestedStartApp": 0
+  },
+  "RemoteServer": {
+    "HttpBaseAddress": "http://192.168.1.217:8701",
+    "HttpVirtualCoversAddress": "http://192.168.1.217:16895"
+  },
+  "app-version": "1.0.1",
+  "PublicTypeWriter": {
+    "cf-the-email": "",
+    "cf-the-password": "",
+    "cf-the-local-app-url": "127.0.0.1:90"
+  },
+  "Cloudflare": {
+    "URL_NEW_TUNNEL": "https://dash.cloudflare.com/041a676fb0d6c55796af24398bbc8b80/one/networks/connectors/cloudflare-tunnels/add/cfd_tunnel",
+    "URL_DeleteURL": "https://dash.cloudflare.com/041a676fb0d6c55796af24398bbc8b80/open-shop.eu/dns/records"
+  },
+  "Device": {
+    "IsPhone": true,
+    "LocalDB": {
+      "LocalServer": "localhost\\SQLEXPRESS",
+      "RemoteServer": "127.0.0.1",
+      "Database": "Reportistica",
+      "UserId": "sa",
+      "Password": "wsxvbn2sql",
+      "TrustServerCertificate": true
+    }
+  },
+  "Google": {
+    "URL_ListaMacchineConfigurateCloudflare": "https://docs.google.com/document/d/1M-TL5Owh3PqFbwQ9B904XcowIcq_1DemrcEuBXVRUh4/edit?tab=t.0",
+    "URL_TodoGestionaleDistributore": "https://docs.google.com/document/d/1MLhh2o5MsurAh3BgOUcalsoXcXrQh7-WrPidk6KukXA/edit?tab=t.0"
+  },
+  "Urls": {
+    "DebugWebsite": "192.168.1.217:13454"
+  }
+}

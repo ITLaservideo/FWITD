@@ -1,0 +1,33 @@
+:root {
+    --default-button-color: #0e4156d6;
+    --default-button-color-hover: #134f5dd6;
+    --default-button-color-clicked: #07516373;
+
+    --bg-0: #000;
+    --bg-1: #101010;
+    --bg-2: #1e1e1e;
+    --bg-3: #171717;
+    --bg-4: #191919;
+    --bg-5: #424242;
+    --bg-6: #535353;
+
+    --bg-content-0: #ffffdb;
+    --bg-content-1: #ccc;
+    --bg-content-2: #888f8f;
+
+    --bg-img-default-rp: linear-gradient(66deg, transparent 0%, transparent 24%, rgba(195, 195, 195, 0.04) 24%, rgba(195, 195, 195, 0.04) 80%, transparent 80%, transparent 100%), linear-gradient(153deg, transparent 0%, transparent 29%, rgba(195, 195, 195, 0.04) 29%, rgba(195, 195, 195, 0.04) 45%, transparent 45%, transparent 100%), linear-gradient(199deg, transparent 0%, transparent 32%, rgba(195, 195, 195, 0.04) 32%, rgba(195, 195, 195, 0.04) 59%, transparent 59%, transparent 100%), linear-gradient(277deg, transparent 0%, transparent 56%, rgba(195, 195, 195, 0.04) 56%, rgba(195, 195, 195, 0.04) 57%, transparent 57%, transparent 100%), linear-gradient(90deg, rgb(0, 0, 0), rgb(0, 0, 0));
+    --bg-img-default: repeating-linear-gradient(0deg, hsla(202, 0%, 65%, 0.08) 0px, hsla(202, 0%, 65%, 0.08) 1px, transparent 1px, transparent 11px), repeating-linear-gradient(90deg, hsla(202, 0%, 65%, 0.08) 0px, hsla(202, 0%, 65%, 0.08) 1px, transparent 1px, transparent 11px), linear-gradient(90deg, rgb(20, 20, 20), rgb(20, 20, 20));
+    --icon-color: #d7d7d7;
+    --icon-colorized: red;
+    --icon-colorized2: green;
+    --img-icon-colorized_red: brightness(0) saturate(100%) invert(11%) sepia(100%) saturate(7480%) hue-rotate(0deg) brightness(95%) contrast(105%);
+    --img-icon-colorized_green: brightness(0) saturate(100%) invert(48%) sepia(93%) saturate(2470%) hue-rotate(85deg) brightness(95%) contrast(105%);
+    --default-body-background: radial-gradient(circle at top, #151b3b, #050712);
+
+    --dark-UIBIT-background: #1c1f29;
+    --dark-UIBIT-background-button: #36524f;
+    --dark-UIBIT-color: #dcce81;
+    --dark-UIBIT-border: 1px solid #5a6178;
+    --dark-UIBIT-boxShadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    --dark-UIBIT-font-family: general-font, Arial, sans-serif;
+}
