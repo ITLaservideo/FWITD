@@ -1,0 +1,7 @@
+.app-android-view-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: min(90vw, 200px);
+    padding: 40px;
+}

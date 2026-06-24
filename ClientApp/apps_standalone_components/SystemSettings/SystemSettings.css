@@ -1,0 +1,128 @@
+.sys-settings-root {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+    padding: 35px;
+    padding-bottom: 2px;
+    padding-left: 22px;
+}
+
+.sys-settings-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.sys-settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 2px;
+    border-bottom: 1px solid var(--vscode-panel-border, #3a3a3a);
+}
+
+.sys-settings-row:last-child {
+    border-bottom: none;
+}
+
+.sys-settings-label {
+    font-size: 12px;
+    color: var(--vscode-editor-foreground, #d4d4d4);
+    flex: 1;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sys-settings-label.read-only {
+    color: var(--vscode-descriptionForeground, #858585);
+    font-style: italic;
+}
+
+.sys-settings-ro-value {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, #858585);
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sys-settings-input {
+    background: var(--vscode-input-background, #2d2d2d);
+    color: var(--vscode-input-foreground, #ccc);
+    border: 1px solid var(--vscode-input-border, #555);
+    border-radius: 3px;
+    padding: 3px 7px;
+    font-size: 11px;
+    outline: none;
+    width: 120px;
+}
+
+.sys-settings-input:focus {
+    border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+/* Toggle */
+.sys-settings-toggle {
+    position: relative;
+    display: inline-block;
+    width: 34px;
+    height: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.sys-settings-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.sys-settings-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--vscode-input-border, #555);
+    border-radius: 18px;
+    transition: background .2s;
+}
+
+.sys-settings-slider::before {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform .2s;
+}
+
+.sys-settings-toggle input:checked+.sys-settings-slider {
+    background: var(--vscode-button-background, #007fd4);
+}
+
+.sys-settings-toggle input:checked+.sys-settings-slider::before {
+    transform: translateX(16px);
+}
+
+/* Status bar */
+.sys-settings-status {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground, #858585);
+    padding: 3px 2px;
+    min-height: 16px;
+    text-align: right;
+    transition: color .2s;
+}
+
+.sys-settings-status.ok {
+    color: #4caf50;
+}
+
+.sys-settings-status.err {
+    color: #ef5350;
+}

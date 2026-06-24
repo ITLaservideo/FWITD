@@ -1,0 +1,22 @@
+.android-view-analytics .analytics-filters {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.android-view-analytics .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.analytics-kpi,
+.analytics-chart {
+    background: var(--vscode-editorWidget-background);
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.analytics-chart {
+    min-height: 180px;
+}

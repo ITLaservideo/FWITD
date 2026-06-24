@@ -1,0 +1,57 @@
+#define USE_JS_PROJECT_FILES
+#if !WINDOWS
+using Microsoft.Maui.Storage;
+#endif
+
+namespace FWITD {
+    internal class AssetLoader {
+
+        /// <summary>
+        /// Converts an absolute path to a logical bundle name by taking everything
+        /// from the first "FWITD/" segment onward (e.g. "FWITD/ClientApp/styles/foo.css").
+        /// </summary>
+        private static string ToLogicalName(string path) {
+            path = path.Replace('\\', '/');
+            while (path.Contains("//"))
+                path = path.Replace("//", "/");
+            int idx = path.IndexOf("FWITD/", StringComparison.OrdinalIgnoreCase);
+            return idx >= 0 ? path[idx..] : Path.GetFileName(path);
+        }
+
+        internal static async Task<string> LoadAssetFileAsync(string full_path_filename) {
+#if DEBUG && WINDOWS && USE_JS_PROJECT_FILES
+            return await File.ReadAllTextAsync(full_path_filename);
+#elif WINDOWS
+            return File.ReadAllText(full_path_filename);
+#else
+            //full_path_filename|Android=`/data/user/0/com.companyname.webappwrappery/files/FWITD/ClientApp/apps_injectable//TemplateTools/TemplateTools.js`
+            using var stream = await FileSystem.OpenAppPackageFileAsync(ToLogicalName(full_path_filename));
+            using var reader = new StreamReader(stream);
+            return await reader.ReadToEndAsync();
+#endif
+        }
+
+        internal static async Task<string> LoadAssetFileAsBase64Async(string filename) {
+#if DEBUG && WINDOWS && USE_JS_PROJECT_FILES
+            var bytes = await File.ReadAllBytesAsync(filename);
+            return Convert.ToBase64String(bytes);
+#elif WINDOWS
+            var bytes = File.ReadAllBytes(filename);
+            return Convert.ToBase64String(bytes);
+#else
+            using var stream = await FileSystem.OpenAppPackageFileAsync(ToLogicalName(filename));
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            return Convert.ToBase64String(ms.ToArray());
+#endif
+        }
+
+        internal static async Task<string> LoadFileAsBase64Async(string filename) {
+            string path = Path.Combine(AppContext.BaseDirectory, filename);
+            using var stream = File.OpenRead(path);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            return Convert.ToBase64String(ms.ToArray());
+        }
+    }
+}

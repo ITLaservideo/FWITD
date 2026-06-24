@@ -1,0 +1,29 @@
+.Framework-test-component {
+    width: 1000px;
+    max-width: 90vw;
+
+    .list-icons {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        justify-content: center;
+        align-items: center;
+    }
+}
+
+.f-icon {
+    outline: 1px solid var(--vscode-charts-red);
+
+    &::before {
+        border: 1px solid var(--vscode-charts-green);
+    }
+}
+
+.f-icon-i {
+    outline: 1px solid var(--vscode-charts-red);
+
+    &::before {
+        border: 1px solid var(--vscode-charts-green);
+    }
+}
