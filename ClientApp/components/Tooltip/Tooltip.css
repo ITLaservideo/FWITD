@@ -1,0 +1,21 @@
+.jctt-tooltip-template {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 99999999999999999999999999999;
+    font-family: var(--vscode-font-family);
+    color: var(--vscode-symbolIcon-colorForeground);
+
+    >.jctt-text {
+        max-width: 500px;
+        max-height: 500px;
+        border: 1px solid var(--vscode-editorHoverWidget-border);
+        filter: drop-shadow(0 0 0.75em #000);
+        pointer-events: none;
+        padding: 4px;
+        z-index: 99999;
+        white-space: pre-line;
+        background: var(--vscode-editorHoverWidget-background);
+        border-radius: 4px;
+    }
+}

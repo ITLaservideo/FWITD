@@ -1,0 +1,162 @@
+.form {
+    font-size: min(4vw, 4vh);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-left: 2em;
+    padding-right: 2em;
+    padding-bottom: .4em;
+    /* background-color: var(--bg-3); */
+    border-radius: 25px;
+    transition: .4s ease-in-out;
+    text-align: center;
+    margin: 2em;
+    color: var(--vscode-editor-foreground);
+    /* font-size: 1.2em; */
+    align-items: center;
+    padding-bottom: 20px;
+    width: fit-content;
+    margin: auto;
+    margin-top: 2vw;
+
+    /* &:hover {
+        transform: scale(1.05);
+        border: 1px solid black;
+    } */
+
+    .input-icon {
+        height: 1.3em;
+        width: 1.3em;
+        fill: var(--vscode-icon-foreground);
+    }
+
+    .btns-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    #heading {
+        text-align: center;
+        margin: 2em;
+        color: var(--vscode-editor-foreground);
+        text-transform: capitalize;
+        font-size: min(4vw, 4vh);
+    }
+
+    .field {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        border-radius: 25px;
+        /* min-width: 270px;  */
+        min-width: min(40vw, 40vh);
+        min-height: min(min(10vw, 10vh), 40px);
+        padding: 0.6em;
+        border: none;
+        outline: none;
+        color: var(--vscode-editor-foreground);
+        background-color: var(--vscode-input-background);
+        box-shadow: inset 2px 5px 10px rgb(5, 5, 5);
+    }
+
+    .input-field {
+        background: none;
+        border: none;
+        outline: none;
+        width: 100%;
+        color: var(--vscode-editor-foreground);
+    }
+
+    center {
+        .pfp {
+            border-radius: 35em;
+            fill: var(--vscode-icon-foreground);
+        }
+
+        .Name {
+            color: var(--vscode-editor-foreground);
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+            padding: 15px;
+            font-size: 20px;
+            margin-top: 10px;
+        }
+
+        .socialbar {
+            background-color: var(--vscode-sideBar-background);
+            border-radius: 3em;
+            padding: 5px;
+            margin-top: 15px;
+            margin-bottom: 15px;
+            color: var(--vscode-editor-foreground);
+            box-shadow: 3px 3px 15px rgb(58, 58, 58), -3px -3px 15px rgb(0, 0, 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            >div {
+                width: 45px;
+                height: 45px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                /* outline: 1px solid red; */
+            }
+        }
+
+        .bi {
+            fill: var(--vscode-foreground);
+        }
+
+        #github:hover {
+            >svg {
+                fill: #c9510c;
+            }
+        }
+
+        #instagram:hover {
+            >svg {
+                fill: #d62976;
+            }
+        }
+
+        #facebook:hover {
+            >svg {
+                fill: #3b5998;
+            }
+        }
+
+        #twitter:hover {
+            >svg {
+                fill: #00acee;
+            }
+        }
+
+        #google:hover {
+            >svg {
+                fill: #4081ec;
+            }
+        }
+    }
+}
+
+.twj-button {
+    min-width: min(22vw, 22vh);
+    min-height: min(min(11vw, 11vh), 60px);
+}
+
+#button-login {
+    justify-content: space-between;
+
+    >.f-icon-i {
+        margin-left: min(2vw, 2vh);
+    }
+
+    min-width: 120px;
+
+    >span {
+        margin: auto;
+    }
+}

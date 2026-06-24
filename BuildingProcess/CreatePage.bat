@@ -1,0 +1,1 @@
+powershell -ExecutionPolicy Bypass -File "%~dp0\scripts\A_CreateNewPage.ps1"

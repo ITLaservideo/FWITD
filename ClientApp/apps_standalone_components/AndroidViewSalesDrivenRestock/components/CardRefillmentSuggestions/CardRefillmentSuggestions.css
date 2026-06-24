@@ -1,0 +1,196 @@
+.card-refill-suggestion {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 180px;
+    min-width: 240px;
+    border-radius: 12px;
+    /* background: #e0e0e0; */
+    background: linear-gradient(#00000022, transparent);
+    overflow: hidden;
+    transition: 100ms ease;
+    box-shadow: rgba(0, 0, 0, 0.15) 2px 3px 4px;
+    /* box-shadow: 0 25px 25px rgba(0, 0, 0, 0.25); */
+    cursor: pointer;
+    margin-bottom: 5px;
+    margin-left: auto;
+    margin-right: auto;
+
+    .info-section {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        height: 145px;
+        overflow: hidden;
+
+        .icona-prodotto {
+            max-width: 135px;
+            max-height: 135px;
+            position: absolute;
+            left: 0px;
+            top: 0;
+            z-index: -1;
+        }
+
+        .left-side {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            height: 100%;
+            z-index: 1;
+            padding-left: 18px;
+
+            .f-icon-i {
+                position: absolute;
+                left: 40px;
+                top: 10px;
+                font-size: 60px;
+            }
+        }
+
+
+        .right-side {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: flex-start;
+            height: 100%;
+            padding-right: 8px;
+            /* z-index: 1; */
+            /* overflow: hidden; */
+        }
+
+        .right-side>div {
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            /* background-color: #a1a1a1; */
+            backdrop-filter: blur(150px);
+            z-index: 1;
+            padding: 4px;
+        }
+    }
+
+    [fw-id="barcode"] {
+        padding: 0 !important;
+        position: relative;
+        margin-top: 9px;
+
+        img {
+            position: absolute;
+            width: 100%;
+            top: 0px;
+        }
+    }
+
+    .description-prodotto {
+        width: 97%;
+        position: absolute;
+        left: 0;
+        /* background: #a1a1a1f2; */
+        padding: 4px;
+        max-height: 63px;
+        overflow: auto;
+        bottom: 0;
+        display: block !important;
+        /* backdrop-filter: blur(10px); */
+    }
+
+    .bottom-section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: calc(100% - 24px);
+        gap: 2px;
+        background-color: var(--vscode-editorMarkerNavigationError-background);
+        box-shadow: inset 0px 2px 5px var(--vscode-widget-shadow);
+        padding-left: 12px;
+        padding-right: 12px;
+        min-height: 38px;
+        height: fit-content;
+
+        .circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: var(--vscode-editor-background);
+            outline: 2px solid var(--vscode-widget-border);
+        }
+
+        .the-i {
+            gap: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            min-height: 35px;
+            border-bottom: 1px solid #00000029;
+
+            >div {
+                display: flex;
+                gap: 4px;
+                flex-wrap: wrap;
+            }
+        }
+    }
+
+    [fw-id="number-of-sales"] {
+        font-weight: bolder;
+        font-size: 31px;
+    }
+
+    [fw-id="numero-motore"] {
+        font-style: italic;
+    }
+}
+
+.card-refill-suggestion.selected {
+    opacity: 0.9;
+
+    .bottom-section {
+        background-color: var(--vscode-list-inactiveSelectionBackground);
+        box-shadow: unset;
+    }
+
+    .left-side {
+        opacity: 0.6;
+    }
+
+    .circle {
+        position: relative;
+        background-color: unset;
+
+        &::before {
+            content: '';
+            width: 15px;
+            height: 2px;
+            background-color: var(--vscode-editor-foreground);
+            position: absolute;
+            left: 11px;
+            top: 14px;
+            rotate: 125deg;
+        }
+
+        &::after {
+            content: '';
+            width: 10px;
+            height: 2px;
+            background-color: var(--vscode-editor-foreground);
+            position: absolute;
+            left: 6px;
+            top: 17px;
+            rotate: 40deg;
+        }
+    }
+
+    [fw-id="number-of-sales"],
+    [fw-id="numero-motore"] {
+        font-weight: unset;
+        font-size: unset;
+    }
+
+    [fw-id="barcode"] {
+        backdrop-filter: unset !important;
+    }
+}
