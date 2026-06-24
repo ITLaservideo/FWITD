@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-#if WINDOWS
+#if WPF && WINDOWS
 using Microsoft.Web.WebView2.Wpf;
 #else
 using Microsoft.Maui.Controls;
@@ -10,7 +10,7 @@ using Microsoft.Maui.Controls;
 
 namespace FWITD {
     internal static class RequestDispatcher {
-#if WINDOWS
+#if WPF && WINDOWS
         internal static Dictionary<int, WebView2> webviews = [];
 #else
         internal static Dictionary<int, WebView> webviews = [];
@@ -30,7 +30,7 @@ namespace FWITD {
             }
         }
 
-#if WINDOWS
+#if WPF && WINDOWS
         /// <summary>
         /// Wires WebMessageReceived on the given WebView2 to dispatch
         /// incoming Lobby.post requests to the matching controller method.
