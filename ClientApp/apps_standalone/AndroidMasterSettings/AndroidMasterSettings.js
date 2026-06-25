@@ -1,43 +1,35 @@
 const debug = false;
-/**
- * StartApp.AndroidAppDemo = 5
- */
 class App {
+    /**
+     * Holds references to important HTML elements.
+     */
     elements = {
-        /**
-         * @type Element
-         */
         app_main_content: null,
     }
-    instances = {
-        /**
-         * @type BottomNavBar
-         */
-        BottomNavBar: null,
-        /**
-         * @type AppRouter
-         */
-        AppRouter: null,
-    }
+    /**
+     * Represents the current status of the application.
+     */
+    static app_status = {
+    };
     constructor() {
-        AppStatus.displayVersion();
+        App.init();
         this.#getReferencesElements();
         this.#asyncContructor();
+    }
+    static async init() {
+        App.app_status = await new Promise((resolve) => {
+            Lobby.post({ prompt: 3/*app status*/ }, (rsp) => {
+                resolve(rsp.ps);
+            });
+        });
     }
     #getReferencesElements() {
         const owner = this;
         owner.elements.app_main_content = document.getElementById("app-main-content");
-        owner.instances.AppRouter = new AppRouter(owner.elements.app_main_content, {
-            AndroidViewAccount,
-            AndroidViewAnalytics,
-            AndroidViewHome,
-            AndroidViewInventory,
-            AndroidViewTasks,
-            DataAnalizis1,
-        });
     }
     async #asyncContructor() {
         const owner = this;
+        //TODO start page
         await this.#createNavBar();
     }
     async #createNavBar() {
@@ -48,35 +40,35 @@ class App {
                     icon_code: "ef3e",
                     title: "analytics",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.DataAnalizis1);
+                        owner.navigate(enumAppRouting.DataAnalizis1);
                     }
                 },
                 {
                     icon_code: "f86e",
                     title: "inventory",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewInventory);
+                        owner.navigate(enumAppRouting.AndroidViewInventory);
                     }
                 },
                 {
                     icon_code: "e88a",
                     title: "home",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewHome);
+                        owner.navigate(enumAppRouting.AndroidViewHome);
                     }
                 },
                 {
                     icon_code: "e172",
                     title: "tasks",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewTasks);
+                        owner.navigate(enumAppRouting.AndroidViewTasks);
                     }
                 },
                 {
                     icon_code: "ebb7",
                     title: "2502089",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewAccount);
+                        owner.navigate(enumAppRouting.AndroidViewAccount);
                     }
                 },
             ]
@@ -84,3 +76,6 @@ class App {
         document.body.appendChild(owner.instances.BottomNavBar.elementReference());
     }
 }
+// setTimeout(() => {
+//     window.the_main_app //access the app instance
+// }, 0);

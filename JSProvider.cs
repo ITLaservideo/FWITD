@@ -60,6 +60,8 @@ namespace FWITD {
                 JS.utils.Locale,
                 JS.utils.Icons,
                 JS.utils.Logger,
+                JS.utils.AppRouter,
+                JS.utils.SpaHistory,
                 JS.components.BottomSheet,
                 JS.components.MousePopUp,
                 JS.components.Tooltip,
@@ -184,10 +186,10 @@ namespace FWITD {
                 { components.DataAnalizis1, Array.Empty<components>() },
                 { components.SystemSettings, Array.Empty<components>() },
             };
-            internal enum pages { AndroidAppDemo, AndroidLogin, left_panel, some_page, test_page }
+            internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, AndroidMusic, left_panel, some_page, test_page }
             internal enum injectable_apps { cloudflared, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
             internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, FrameworkTestComponent, Insight, ListBox, MousePopUp, Notify, OTPComponent, PieChart, PosizioneMotore, SideBarLeft, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip }
-            internal enum utils { Icons, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
+            internal enum utils { AppRouter, Icons, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
             internal enum frameworks { AppStatus, FrameworkGC }
             private static Dictionary<JS.pages, string> cache_path_files = new Dictionary<pages, string>();
 
