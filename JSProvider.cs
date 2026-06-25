@@ -122,7 +122,7 @@ namespace FWITD {
                 }
             }
             string the_js = $"{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";
-
+            Directory.CreateDirectory(Path.Combine(path_scriptsBase, "FWITD/out"));
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.js"), the_js);
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.html"), p_fp);
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.css"), the_css);
@@ -151,6 +151,7 @@ namespace FWITD {
 
             try {
 #if DEBUG && WINDOWS
+                Directory.CreateDirectory(Path.Combine(path_scriptsBase, "FWITD/out"));
                 File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.js"), the_js);
 #endif
                 cache_scripts.Add(cache_id, the_js);

@@ -10,6 +10,7 @@ namespace FWITD {
         ToDoList = 7,
         TemplateJobs = 8,
         YouTube = 9,
+        AndroidDebug = 10,
     }
 
     internal static class AppConfig {
@@ -26,6 +27,8 @@ namespace FWITD {
             [StartApp.AndroidAppDemo]         = ( main: (JSProvider.JS.pages.AndroidAppDemo,          null),
                                                   extra: (null, null)),
             [StartApp.AndroidLogin]           = ( main: (JSProvider.JS.pages.AndroidLogin,            null),
+                                                  extra: (null, null)),
+            [StartApp.AndroidDebug]           = ( main: (JSProvider.JS.injectable_apps.TemplateTools, AppSettings.Get<string>("Urls.LocalWebsite")),
                                                   extra: (null, null)),
             [StartApp.TemplateJobs]           = ( main: (JSProvider.JS.injectable_apps.TemplateJobs,  AppSettings.Get<string>("Urls.DebugWebsite")),
                                                   extra: (null, null)),
