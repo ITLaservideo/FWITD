@@ -3,6 +3,7 @@
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using static FWITD.JSProvider;
 
 namespace FWITD {
     internal static class JSProvider {
@@ -48,9 +49,16 @@ namespace FWITD {
         internal static CSSThemes current_css_theme = CSSThemes.vscode_dark;
         private static readonly Dictionary<string, string> cache_scripts = [];
 #if DEBUG
-        private static readonly string app_constructor_initialization = $"setTimeout(() => {{ try {{ window.the_main_app = new App(); }} catch (the_mfkng_e) {{ {{ alert(JSON.stringify(the_mfkng_e)); console.error(the_mfkng_e); }} }} }}, 0);";
+        private static readonly string app_constructor_initialization = $"setTimeout(() => {{ try {{ window.the_main_app = new App(); }} catch (the_mfkng_e) {{ alert(the_mfkng_e?.message ?? the_mfkng_e); console.error(the_mfkng_e); }} }}, 0);";
 #else
-        private static readonly string app_constructor_initialization = $"setTimeout(() => {{ try {{ window.the_main_app = new App(); }} catch (the_mfkng_e) {{ {{ console.error(the_mfkng_e); }} }} }}, 0);";
+        private static readonly string app_constructor_initialization = $"setTimeout(() => {{ try {{ window.the_main_app = new App(); }} catch (the_mfkng_e) {{ console.error(the_mfkng_e); }} }}, 0);";
+#endif
+#if ANDROID
+        private static readonly string fw_bridge_shim = ""; // window.FWBridge is the native JavascriptInterface
+#elif WINDOWS
+        private static readonly string fw_bridge_shim = "window.FWBridge={postMessage:m=>window.chrome.webview.postMessage(m)};";
+#else
+        private static readonly string fw_bridge_shim = "window.FWBridge={postMessage:m=>{console.error(m);window.location.href='wawapp://'+encodeURIComponent(m);}};";
 #endif
         private static object[] buildJSComponents(object the_app, string the_app_script) {
             HashSet<object> result = [
@@ -123,7 +131,7 @@ namespace FWITD {
                     p_fp = p_fp.Replace(o.Key, o.Value);
                 }
             }
-            string the_js = $"{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";
+            string the_js = $"{fw_bridge_shim}{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";
             Directory.CreateDirectory(Path.Combine(path_scriptsBase, "FWITD/out"));
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.js"), the_js);
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.html"), p_fp);
@@ -141,15 +149,21 @@ namespace FWITD {
                 return cache_scripts[cache_id];
             }
             var p_js = (await AssetLoader.LoadAssetFileAsync($"{path_script_apps_injectable}/{file_name}/{file_name}{minimized_folder_extension}js")).Replace("@fromwho", file_name);
+            var p_html = (await AssetLoader.LoadAssetFileAsyncIfExists($"{path_script_apps_injectable}/{file_name}/{file_name}{minimized_folder_extension}html"));
+            if (p_html != null) {
+                var js_html = JS.linkJSToFWHTML(p_js, p_html);
+                p_js = js_html.Item1.Replace("${injector_html}", $"{js_html.Item2}");
+            }
             object[] js_components = buildJSComponents(the_app, p_js);
             var (css_theme_vars, css_animations, shared_all_css, js_FrameworkGC, js_css) = await loadSharedAssets(js_components, id_webview);
 
             //var js_css_r_c = await JS.getJSRelativeComponents(the_page); todo
             var p_script = js_FrameworkGC + Environment.NewLine + js_css.Key + Environment.NewLine + await JS.loadAllOtherJSFiles($"{path_script_apps_injectable}/{file_name}") + p_js;// + js_css_r_c.Key;
-            string the_css = css_theme_vars + shared_all_css + css_animations + js_css.Value; //+ p_css + js_css_r_c.Value;
+            var p_css = (await AssetLoader.LoadAssetFileAsyncIfExists($"{path_script_apps_injectable}/{file_name}/{file_name}{minimized_folder_extension}css"));
+            string the_css = css_theme_vars + shared_all_css + css_animations + js_css.Value + (p_css ?? ""); //+ js_css_r_c.Value;
             string injectCss = $"(()=>{{const stylex_1 = document.createElement('style');stylex_1.textContent  = `{the_css}`;setTimeout(() => {{ document.head.appendChild(stylex_1); }}, 0);}})();";
 
-            string the_js = $"{injectCss};{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";
+            string the_js = $"{fw_bridge_shim};{injectCss};{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";
 
             try {
 #if DEBUG && WINDOWS
@@ -186,8 +200,8 @@ namespace FWITD {
                 { components.DataAnalizis1, Array.Empty<components>() },
                 { components.SystemSettings, Array.Empty<components>() },
             };
-            internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, AndroidMusic, left_panel, some_page, test_page }
-            internal enum injectable_apps { cloudflared, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
+            internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, left_panel, some_page, test_page }
+            internal enum injectable_apps { cloudflared, GoogleDocs, LetSTry, TemplateJobs, TemplateTools, YouTube }
             internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, FrameworkTestComponent, Insight, ListBox, MousePopUp, Notify, OTPComponent, PieChart, PosizioneMotore, SideBarLeft, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip }
             internal enum utils { AppRouter, Icons, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
             internal enum frameworks { AppStatus, FrameworkGC }
@@ -212,6 +226,18 @@ namespace FWITD {
                 return component_name_to_js[component];
             }
             internal static async Task<string> loadAllOtherJSFiles(string path) {
+#if ANDROID
+                var assets = Android.App.Application.Context.Assets;
+                if (assets == null) return "";
+                string logical = path.Replace('\\', '/');
+                while (logical.Contains("//")) logical = logical.Replace("//", "/");
+                int fi = logical.IndexOf("FWITD/", StringComparison.OrdinalIgnoreCase);
+                if (fi < 0) return "";
+                logical = logical[fi..].TrimEnd('/');
+                var result = new StringBuilder();
+                await loadJsFromSubdirsAsync(assets, logical, result);
+                return result.ToString();
+#else
                 if (!Directory.Exists(path)) {
                     return "";
                 }
@@ -234,14 +260,37 @@ namespace FWITD {
                             string fileContent = await AssetLoader.LoadAssetFileAsync((jsFile));
                             result.AppendLine(fileContent);
                         } catch (Exception ex) {
-                            // Log or handle file read errors silently
                             System.Diagnostics.Debug.WriteLine($"Error reading file {jsFile}: {ex.Message}");
                         }
                     }
                 }
-
                 return result.ToString();
+#endif
             }
+#if ANDROID
+            private static async Task loadJsFromSubdirsAsync(
+                    Android.Content.Res.AssetManager assets, string dir, StringBuilder result) {
+                var entries = assets.List(dir);
+                if (entries == null || entries.Length == 0) return;
+                foreach (var entry in entries) {
+                    if (entry.Equals("components", StringComparison.OrdinalIgnoreCase)) continue;
+                    string subdir = $"{dir}/{entry}";
+                    var children = assets.List(subdir);
+                    if (children == null || children.Length == 0) continue; // it's a file, not a dir
+                    foreach (var child in children) {
+                        if (child.EndsWith($"{minimized_folder_extension}js", StringComparison.OrdinalIgnoreCase)
+                                && (minimized_folder_extension == ".min." || !child.EndsWith(".min.js", StringComparison.OrdinalIgnoreCase))) {
+                            try {
+                                result.AppendLine(await AssetLoader.LoadAssetFileAsync($"{subdir}/{child}"));
+                            } catch (Exception ex) {
+                                System.Diagnostics.Debug.WriteLine($"Error reading {subdir}/{child}: {ex.Message}");
+                            }
+                        }
+                    }
+                    await loadJsFromSubdirsAsync(assets, subdir, result);
+                }
+            }
+#endif
             private static readonly Dictionary<components, KeyValuePair<string, string>> component_name_to_js_component = new Dictionary<components, KeyValuePair<string, string>>();
             internal static async Task<KeyValuePair<string, string>> getJSComponentPair(components component, string? default_path = null) {
                 default_path ??= $"{path_App}components/";
@@ -421,11 +470,6 @@ namespace FWITD {
                     } else {
                         if (component == utils.Lobby) {
                             var res_js = js.Replace("{{@HttpImagesAddress}}", $"{RemoteServer.HttpVirtualCoversAddress}/");
-#if WINDOWS
-                            res_js = res_js.Replace("\"{{@FuncDoThePost}}\"", "(the_str)=>{window.chrome.webview.postMessage(the_str);}");
-#else
-                            res_js = res_js.Replace("\"{{@FuncDoThePost}}\"", "(the_str)=>{window.location.href = \"wawapp://\" + encodeURIComponent(the_str);}");
-#endif
                             component_name_to_js_util.TryAdd(component, res_js);
                         } else {
                             component_name_to_js_util.TryAdd(component, js);

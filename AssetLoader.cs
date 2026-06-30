@@ -33,6 +33,25 @@ namespace FWITD {
 #endif
         }
 
+        internal static async Task<string?> LoadAssetFileAsyncIfExists(string full_path_filename) {
+#if DEBUG && WINDOWS && USE_JS_PROJECT_FILES
+            if (!File.Exists(full_path_filename)) return null;
+            return await File.ReadAllTextAsync(full_path_filename);
+#elif WINDOWS
+            if (!File.Exists(full_path_filename)) return null;
+            return File.ReadAllText(full_path_filename);
+#else
+            var logicalName = ToLogicalName(full_path_filename);
+            try {
+                using var stream = await FileSystem.OpenAppPackageFileAsync(logicalName);
+                using var reader = new StreamReader(stream);
+                return await reader.ReadToEndAsync();
+            } catch (FileNotFoundException) {
+                return null;
+            }
+#endif
+        }
+
         internal static async Task<string> LoadAssetFileAsBase64Async(string filename) {
 #if DEBUG && WINDOWS && USE_JS_PROJECT_FILES
             var bytes = await File.ReadAllBytesAsync(filename);

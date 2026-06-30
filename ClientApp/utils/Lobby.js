@@ -16,7 +16,7 @@ class Lobby {
     /**
      * @param payload_stringified
      */
-    static #doThePost = "{{@FuncDoThePost}}";
+    static #doThePost = (the_str) => { window.FWBridge.postMessage(the_str); };
     /**
      * 
      * @param {string} url 
