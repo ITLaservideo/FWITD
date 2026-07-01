@@ -137,7 +137,7 @@ namespace FWITD {
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.js"), the_js);
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.html"), p_fp);
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.css"), the_css);
-            cache_scripts.Add(cache_id, Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}"));
+            cache_scripts.Add(cache_id, Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.html"));
 #else
 
             var the_css_file_path = await AssetLoader.SaveToTempFileAsync(the_css, $"{file_name}.css");
