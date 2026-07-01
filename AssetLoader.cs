@@ -74,5 +74,37 @@ namespace FWITD {
             await stream.CopyToAsync(ms);
             return Convert.ToBase64String(ms.ToArray());
         }
+
+        private static object access_locks_streams = new object();
+        private static readonly Dictionary<string, FileStream> _lockStreams = new Dictionary<string, FileStream>();
+
+        private static readonly string folder_path_cache = Path.Combine(FileSystem.CacheDirectory,
+            new Guid("656ae83f-8ace-4d71-a515-181e9399531e").ToString());
+        internal static async Task<string> SaveToTempFileAsync(string html, string fileName = "demo.html") {
+            var tempPath = Path.Combine(folder_path_cache, fileName);
+            if (!Directory.Exists(folder_path_cache)) {
+                Directory.CreateDirectory(folder_path_cache);
+            }
+            if (!File.Exists(tempPath) || await File.ReadAllTextAsync(tempPath) != html) {
+                lock (access_locks_streams) {
+                    if (_lockStreams.ContainsKey(fileName)) {
+                        _lockStreams[fileName].Dispose();
+                        _lockStreams.Remove(fileName);
+                    }
+                }
+                await File.WriteAllTextAsync(tempPath, html);
+            }
+            lock (access_locks_streams) {
+                if (!_lockStreams.ContainsKey(fileName)) {
+                    _lockStreams.Add(fileName, new FileStream(
+                        tempPath,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read       // allow reading, block writing/deleting, as long as the app is alive it serves the files to the webview
+                    ));
+                }
+            }
+            return tempPath;
+        }
     }
 }

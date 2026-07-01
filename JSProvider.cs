@@ -132,11 +132,19 @@ namespace FWITD {
                 }
             }
             string the_js = $"{fw_bridge_shim}{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";
+#if DEBUG && WINDOWS 
             Directory.CreateDirectory(Path.Combine(path_scriptsBase, "FWITD/out"));
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.js"), the_js);
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.html"), p_fp);
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.css"), the_css);
             cache_scripts.Add(cache_id, Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}"));
+#else
+
+            var the_css_file_path = await AssetLoader.SaveToTempFileAsync(the_css, $"{file_name}.css");
+            var the_js_file_path = await AssetLoader.SaveToTempFileAsync(the_js, $"{file_name}.js");
+            var the_html_file_path = await AssetLoader.SaveToTempFileAsync(p_fp, $"{file_name}.html");
+            cache_scripts.Add(cache_id, the_html_file_path);
+#endif
             return cache_scripts[cache_id];
         }
         public async static Task<string> getScriptApp(JS.injectable_apps the_app, int id_webview = 1) {
