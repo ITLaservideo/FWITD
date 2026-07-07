@@ -24,9 +24,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         if (this.options.floating != false) {
             this.elementReference = this.#elementReferenceOverwritten;
         }
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     async #consumeOptions() {
         const options = this.options;

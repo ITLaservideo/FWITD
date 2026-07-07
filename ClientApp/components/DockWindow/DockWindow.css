@@ -10,7 +10,7 @@
     border-radius: 12px 12px 0 0;
     border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
     border-bottom: none;
-    box-shadow: 0 -6px 28px rgb(0 0 0 / 10%), 0 -2px 8px rgb(0 0 0 / 6%);
+    box-shadow: 0 -6px 28px var(--vscode-widget-shadow), 0 -2px 8px var(--vscode-widget-shadow);
     animation: dock-slide-up 0.25s cubic-bezier(0.34, 1.4, 0.64, 1);
     padding-top: 20px;
     min-width: 50px;
@@ -19,7 +19,8 @@
         position: absolute;
         top: 0px;
         right: 0px;
-        .button-close{
+
+        .button-close {
             font-size: 10px;
         }
     }

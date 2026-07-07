@@ -38,6 +38,42 @@
     }
 }
 
+@-moz-keyframes unpop-from-below {
+    100% {
+        bottom: -30%;
+    }
+}
+
+@-webkit-keyframes unpop-from-below {
+    100% {
+        bottom: -30%;
+    }
+}
+
+@-o-keyframes unpop-from-below {
+    100% {
+        bottom: -30%;
+    }
+}
+
+@keyframes unpop-from-below {
+    100% {
+        bottom: -30%;
+    }
+}
+
+@keyframes scale {
+
+    0%,
+    100% {
+        transform: none
+    }
+
+    50% {
+        transform: scale3d(1.1, 1.1, 1)
+    }
+}
+
 @keyframes pulse-text {
     0% {
         font-size: 14px;

@@ -1,6 +1,7 @@
 namespace FWITD {
     public enum StartApp {
         Dashboard = 0,
+        DashboardLettoreBarcode = 3225,
         Cloudflared = 1,
         GestionaleDistributore = 2,
         ReservedAppDoNotChangeMe = 3,
@@ -13,6 +14,7 @@ namespace FWITD {
         AndroidDebug = 10,
         AndroidGestionaleDistributore = 11,
         ServerStatus = 12,
+        ImageEditor = 13,
     }
 
     internal static class AppConfig {
@@ -33,6 +35,8 @@ namespace FWITD {
                                                   extra: (null, null)),
             [StartApp.AndroidAppDemo]         = ( main: (JSProvider.JS.pages.AndroidAppDemo,          null),
                                                   extra: (null, null)),
+            [StartApp.DashboardLettoreBarcode]         = ( main: (JSProvider.JS.pages.DashboardLettoreBarcode,          null),
+                                                  extra: (null, null)),
             [StartApp.AndroidLogin]           = ( main: (JSProvider.JS.pages.AndroidLogin,            null),
                                                   extra: (null, null)),
             [StartApp.AndroidDebug]           = ( main: (JSProvider.JS.injectable_apps.TemplateTools, AppSettings.Get<string>("Urls.DebugWebsite")),
@@ -51,6 +55,8 @@ namespace FWITD {
             [StartApp.YouTube]                = ( main: (JSProvider.JS.injectable_apps.YouTube,       AppSettings.Get<string>("Urls.YouTube")),
                                                   extra: (null, null)),
             [StartApp.ServerStatus]           = ( main: (JSProvider.JS.pages.ServerStatus,       null),
+                                                  extra: (null, null)),
+            [StartApp.ImageEditor]           = ( main: (JSProvider.JS.pages.ImageEditor,            null),
                                                   extra: (null, null)),
         };
 #pragma warning restore IDE0055

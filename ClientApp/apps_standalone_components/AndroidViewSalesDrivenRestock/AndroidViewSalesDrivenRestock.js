@@ -39,9 +39,6 @@ class AndroidViewSalesDrivenRestock extends FrameworkGC(`${injector_html}`) {
                 }
             }, 0);
         });
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     /**
      * store here the elements references of the html  
@@ -56,6 +53,7 @@ class AndroidViewSalesDrivenRestock extends FrameworkGC(`${injector_html}`) {
     appstatus = {
         status_intervalls_dropdown: null
     }
+    #calcolaBackHandler = null;
     async #initialize() {
         const owner = this;
         if (owner.already_initialized_fr == true) {
@@ -258,11 +256,18 @@ class AndroidViewSalesDrivenRestock extends FrameworkGC(`${injector_html}`) {
             owner.#data = rsp.datatables;
             owner.#digestData();
             btn_calcola.classList.toggle("clicked", false);
-            SpaHistory.pushState(() => {
+            if (owner.#calcolaBackHandler && typeof SpaHistory !== "undefined") {
+                SpaHistory.popState(owner.#calcolaBackHandler);
+            }
+            owner.#calcolaBackHandler = () => {
+                owner.#calcolaBackHandler = null;
                 owner.elements["avsdr-content-filtering"].innerText = '';
                 owner.elements['avsdr-content-viewer'].innerText = "";
                 owner.elements["avsdr-content-filtering"].appendChild(owner.elements.tabs_container);
-            });
+            };
+            if (typeof SpaHistory !== "undefined") {
+                SpaHistory.pushState(owner.#calcolaBackHandler);
+            }
         });
     }
     //#region avsdr-content-viewer
@@ -407,6 +412,18 @@ class AndroidViewSalesDrivenRestock extends FrameworkGC(`${injector_html}`) {
         //owner.#addExportingButtonS();
     }
     //#endregion
+    /**
+     * @param {number} timeout_ms
+     */
+    destroy(timeout_ms = 0) {
+        if (this.#calcolaBackHandler) {
+            if (typeof SpaHistory !== "undefined") {
+                SpaHistory.popState(this.#calcolaBackHandler);
+            }
+            this.#calcolaBackHandler = null;
+        }
+        super.destroy(timeout_ms);
+    }
     // owner.self_ref;//access element reference here
     // owner.elementReference();//alternative way to access element reference
     // owner.destroy();//call destroy method when needed

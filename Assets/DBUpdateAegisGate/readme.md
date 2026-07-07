@@ -22,7 +22,15 @@ password `pwd`
 - `exp@me.it`
 - `pro@me.it`
 ```sql
-insert into Auth_Users(Email,Description,PhoneNumber,Password,UserType) values('base@me.it','user Base','+39 no','3+Z7Nfdrie9FDObar/XJ9g==:TF5GmSBgs44qjy8pGihcjZfUx2dMLqIRKzRAOwZZzw4=',2);--Base
-insert into Auth_Users(Email,Description,PhoneNumber,Password,UserType) values('exp@me.it','user sperimentale','+39 no','3+Z7Nfdrie9FDObar/XJ9g==:TF5GmSBgs44qjy8pGihcjZfUx2dMLqIRKzRAOwZZzw4=',3);--sperimentale
-insert into Auth_Users(Email,Description,PhoneNumber,Password,UserType) values('pro@me.it','user Pro','+39 no','3+Z7Nfdrie9FDObar/XJ9g==:TF5GmSBgs44qjy8pGihcjZfUx2dMLqIRKzRAOwZZzw4=',4);--Pro
+insert into Auth_Users(Email,UserType) values('base@me.it',2);--Base
+insert into Auth_Users(Email,UserType) values('exp@me.it',3);--sperimentale
+insert into Auth_Users(Email,UserType) values('pro@me.it',4);--Pro
+
+insert into Auth_Credentials(UserID,PasswordHash) select UserID,'3+Z7Nfdrie9FDObar/XJ9g==:TF5GmSBgs44qjy8pGihcjZfUx2dMLqIRKzRAOwZZzw4=' from Auth_Users where Email='base@me.it';
+insert into Auth_Credentials(UserID,PasswordHash) select UserID,'3+Z7Nfdrie9FDObar/XJ9g==:TF5GmSBgs44qjy8pGihcjZfUx2dMLqIRKzRAOwZZzw4=' from Auth_Users where Email='exp@me.it';
+insert into Auth_Credentials(UserID,PasswordHash) select UserID,'3+Z7Nfdrie9FDObar/XJ9g==:TF5GmSBgs44qjy8pGihcjZfUx2dMLqIRKzRAOwZZzw4=' from Auth_Users where Email='pro@me.it';
+
+insert into User_Profiles(UserID,Description,PhoneNumber) select UserID,'user Base','+39 no' from Auth_Users where Email='base@me.it';
+insert into User_Profiles(UserID,Description,PhoneNumber) select UserID,'user sperimentale','+39 no' from Auth_Users where Email='exp@me.it';
+insert into User_Profiles(UserID,Description,PhoneNumber) select UserID,'user Pro','+39 no' from Auth_Users where Email='pro@me.it';
 ```

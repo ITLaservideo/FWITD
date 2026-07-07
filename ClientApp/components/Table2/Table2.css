@@ -12,7 +12,7 @@
     overflow: hidden;
     margin-bottom: 15px;
     margin-top: 2px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--vscode-widget-shadow);
     margin-left: auto;
     margin-right: auto;
     opacity: 0;
@@ -124,7 +124,7 @@
 
     td {
         padding: 4px;
-        border: 1px solid #cbcbcb21;
+        border: 1px solid var(--vscode-tree-tableColumnsBorder);
         vertical-align: middle;
         text-align: left;
     }
@@ -156,7 +156,7 @@
                 left: 0;
                 top: 0;
                 bottom: 0;
-                background-color: #007fff3d;
+                background-color: color-mix(in srgb, var(--vscode-focusBorder) 24%, transparent);
                 opacity: 0;
                 animation: opacity1 .1s ease-in forwards;
                 pointer-events: none;

@@ -11,9 +11,6 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
         super(options);
         this.#initialize();
         this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
 
     elements = {
@@ -234,8 +231,9 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
 }
 
 
-// for UiBuilder
-setTimeout(() => {
-    const ss = new DataAnalizis1({});
-    document.body.appendChild(ss.elementReference());
-}, 0);
+//#START RESERVED AREA FOR UI_BUILDER
+// setTimeout(() => {
+//     const ss = new DataAnalizis1({});
+//     document.body.appendChild(ss.elementReference());
+// }, 0);
+//#END RESERVED AREA FOR UI_BUILDER

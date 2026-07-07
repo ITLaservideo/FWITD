@@ -17,7 +17,16 @@ class SpeedDial {
      */
     #onClose = [];
     /**
-     * @param {Object} options 
+     * @param {Object} options
+     * @param {Element} options.target - required, element that toggles the speed dial open/closed on click
+     * @param {"top"|"bot"|"left"|"left-middle"|"right"|"right-middle"|"around"} [options.anchor="top"] - where the selections fan out relative to `target`
+     * @param {Array<Object>} options.selections - required, one entry per fan-out button
+     * @param {Function} options.selections[].onClick - required, callback(event) invoked when this selection is clicked
+     * @param {string} [options.selections[].hint] - hover hint text; required unless `text` is given
+     * @param {string} [options.selections[].text] - label text shown on the button; required unless `hint` is given
+     * @param {string} [options.selections[].icon] - image file name loaded from `/Icons/`
+     * @param {string} [options.selections[].icon_code] - font icon code point (e.g. `"e88e"`), used when `icon` is not set
+     * @param {number} [options.min_width_selections] - min-width (px) applied to every selection button
      * @param {Function|Array<Function>} [options.onClose] - callback(s) to be called on destroy
      * @param {Function} [options.onReady] - callback to be called when component is ready
      */
@@ -73,14 +82,16 @@ class SpeedDial {
      * 
      * @param {Object} options 
      */
+    // Arrow-function field so removeEventListener works with the same reference
+    #onTriggererClick = (event) => {
+        //this.triggerer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        this.#triggerSD(event);
+    };
     #updateUi(options) {
         const owner = this;
         owner.triggerer = options.target;
         console.assert(options.target != undefined, "missing target for the speed dial");
-        owner.triggerer.addEventListener("click", (event) => {
-            //owner.triggerer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            owner.#triggerSD(event);
-        });
+        owner.triggerer.addEventListener("click", owner.#onTriggererClick);
         owner.#selection_template = owner.#self_ref.getElementsByClassName("sdt-template-button")[0];
         switch (options.anchor) {
             case "bot":
@@ -346,6 +357,7 @@ class SpeedDial {
      * @param {number} timeout_ms 0 by default
      */
     async destroy(timeout_ms = 0) {
+        this.triggerer?.removeEventListener("click", this.#onTriggererClick);
         setTimeout(() => {
             this.#self_ref.remove();
         }, timeout_ms);

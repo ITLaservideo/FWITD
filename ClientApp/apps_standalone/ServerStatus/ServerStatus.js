@@ -58,7 +58,7 @@ class App {
         });
         contianer.appendChild(btn);
         const btn2 = UiBuilder.createButton({
-            onClick: () => Lobby.closeApp(),
+            onClick: () => Lobby.closeApp(true),
             icon_code: "f508",
             hint: Locale.at("close app")
         });

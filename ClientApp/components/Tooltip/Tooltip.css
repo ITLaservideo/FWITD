@@ -10,7 +10,7 @@
         max-width: 500px;
         max-height: 500px;
         border: 1px solid var(--vscode-editorHoverWidget-border);
-        filter: drop-shadow(0 0 0.75em #000);
+        filter: drop-shadow(0 0 0.75em var(--vscode-widget-shadow));
         pointer-events: none;
         padding: 4px;
         z-index: 99999;

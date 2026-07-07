@@ -28,7 +28,19 @@ class Icons {
         return Icons.create(code_point)
     }
 
-    static setSrcIcon(target, icon_name) {
-        return;
+    static #iconCache = new Map();
+    /**
+     * @param {HTMLImageElement} target
+     * @param {string} icon_name file name (optionally prefixed with `/`) inside `ClientApp/icons`, e.g. `/search.svg`
+     */
+    static async setSrcIcon(target, icon_name) {
+        const cached = Icons.#iconCache.get(icon_name);
+        if (cached != undefined) {
+            target.src = cached;
+            return;
+        }
+        const rsp = await Lobby.postAsync("App/GetIconByName", { icon_name });
+        Icons.#iconCache.set(icon_name, rsp.src);
+        target.src = rsp.src;
     }
 }

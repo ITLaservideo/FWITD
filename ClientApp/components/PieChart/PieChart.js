@@ -82,14 +82,18 @@ class PieChart {
             }
         }
 
-        const i = setInterval(() => {
+        owner.#depCheckInterval = setInterval(() => {
             if (PieChart.dependencies_resolved == false) {
                 return;
             }
-            clearInterval(i);
+            clearInterval(owner.#depCheckInterval);
             continueInitialization();
         }, 1000);
     }
+    /**
+     * @type {number}
+     */
+    #depCheckInterval;
     #getElements() {
         const owner = this;
         owner.#canvas = owner.#self_ref.getElementsByClassName("cspct-canvas")[0];
@@ -213,6 +217,9 @@ class PieChart {
             return;
         }
         this.destroyed = true;
+        if (this.#depCheckInterval != undefined) {
+            clearInterval(this.#depCheckInterval);
+        }
         if (this.#self_ref != undefined) {
             PieChart.#executeDestroy(this.#self_ref, timeout_ms);
         } else {

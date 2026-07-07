@@ -82,7 +82,10 @@ class Lobby {
         }
     }
     static #confirm_exit_app = undefined;
-    static async closeApp() {
+    static async closeApp(just_do_it = false) {
+        if (just_do_it) {
+            Lobby.#closeApp();
+        }
         if (Lobby.#confirm_exit_app != undefined) {
             Lobby.#confirm_exit_app.destroy();
         }

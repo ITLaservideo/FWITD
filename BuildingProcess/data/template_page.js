@@ -1,4 +1,7 @@
 const debug = false;
+/**
+ * @version 1.0
+ */
 class App {
     elements = {
         app_main_content: document.getElementById("app-main-content"),
@@ -7,7 +10,7 @@ class App {
         this.#init();
         this.#asyncInit();
     }
-    #init(){
+    #init() {
         AppStatus.displayVersion();
         //TODO constructor
     }

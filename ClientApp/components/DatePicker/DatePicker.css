@@ -109,7 +109,7 @@
     }
 
     .calendar-date:hover {
-        background-color: #55555538;
+        background-color: var(--vscode-list-hoverBackground);
     }
 
     .calendar-date.empty {

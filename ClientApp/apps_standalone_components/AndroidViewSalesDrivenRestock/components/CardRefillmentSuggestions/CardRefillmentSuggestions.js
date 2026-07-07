@@ -17,9 +17,6 @@ class CardRefillmentSuggestions extends FrameworkGC(`${injector_html}`) {
         super(options);
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         this.#initialize();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     /**
      * store here the elements references of the html  

@@ -10,19 +10,56 @@ class AndroidViewInventory extends FrameworkGC(`${injector_html}`) {
     constructor(options) {
         super(options);
         this.#initialize();
-        this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     elements = {
         filters: this.self_ref.querySelector("[data-ref='filters']"),
         list: this.self_ref.querySelector("[data-ref='list']"),
         sidePanel: this.self_ref.querySelector("[data-ref='sidePanel']")
     };
+    #currentSubview = null;
+    #subviewBackHandler = null;
     async #initialize() {
         const owner = this;
         return;
+    }
+    /**
+     * destroys any currently open subview and pops its pending back-state.
+     * @param {Object} [options]
+     * @param {boolean} [options.skipReload] - when true, does not restore the main list (caller is about to render something else)
+     */
+    #closeCurrentSubview(options) {
+        const owner = this;
+        const skipReload = options?.skipReload ?? false;
+        if (owner.#subviewBackHandler) {
+            if (typeof SpaHistory !== "undefined") {
+                SpaHistory.popState(owner.#subviewBackHandler);
+            }
+            owner.#subviewBackHandler = null;
+        }
+        if (owner.#currentSubview) {
+            owner.#currentSubview.destroy();
+            owner.#currentSubview = null;
+        }
+        if (!skipReload) {
+            owner.reload();
+        }
+    }
+    /**
+     * replaces "avi-main" with the given subview instance and registers a back-state to close it.
+     * @param {Object} instance - a FrameworkGC-based component instance
+     */
+    #openSubview(instance) {
+        const owner = this;
+        owner.#closeCurrentSubview({ skipReload: true });
+        owner.elements["avi-main"].innerText = '';
+        owner.elements["avi-main"].appendChild(instance.self_ref);
+        owner.#currentSubview = instance;
+        owner.#subviewBackHandler = () => {
+            owner.#closeCurrentSubview();
+        };
+        if (typeof SpaHistory !== "undefined") {
+            SpaHistory.pushState(owner.#subviewBackHandler);
+        }
     }
     async openSalesDrivenRestock(event) {
         /**
@@ -31,14 +68,9 @@ class AndroidViewInventory extends FrameworkGC(`${injector_html}`) {
         const element_with_this_event = this;
         element_with_this_event.classList.add("clicked");
         const owner = element_with_this_event.fwInstanceReference;
-        //owner.elements["avi-main"].innerText = 'caricamento . . .';
         const i = new AndroidViewSalesDrivenRestock({});
-        owner.elements["avi-main"].innerText = '';
-        owner.elements["avi-main"].appendChild(i.self_ref);
+        owner.#openSubview(i);
         element_with_this_event.classList.remove("clicked");
-        SpaHistory.pushState(() => {
-            owner.reload();
-        });
     }
     async openListaMotorini(event) {
         /**
@@ -47,24 +79,21 @@ class AndroidViewInventory extends FrameworkGC(`${injector_html}`) {
         const element_with_this_event = this;
         element_with_this_event.classList.add("clicked");
         const owner = element_with_this_event.fwInstanceReference;
-        //owner.elements["avi-main"].innerText = 'caricamento . . .';
         const i = new AndroidVeiwStatoMotori({});
-        owner.elements["avi-main"].innerText = '';
-        owner.elements["avi-main"].appendChild(i.self_ref);
+        owner.#openSubview(i);
         element_with_this_event.classList.remove("clicked");
-        SpaHistory.pushState(() => {
-            owner.reload();
-        });
     }
     async reload() {
         const owner = this;
         owner.elements["avi-main"].innerText = '';
         owner.elements["avi-main"].appendChild(owner.elements["avi-main-routes"]);
     }
-
-    async #addEventListeners() {
-        const owner = this;
-        //TODO add event listeners for component here
+    /**
+     * @param {number} timeout_ms
+     */
+    destroy(timeout_ms = 0) {
+        this.#closeCurrentSubview({ skipReload: true });
+        super.destroy(timeout_ms);
     }
     // owner.self_ref;//access element reference here
     // owner.elementReference();//alternative way to access element reference
