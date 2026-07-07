@@ -380,6 +380,27 @@ class DragAndDrop {
                     clearInterval(interval);
                     interval = undefined;
                 });
+                /*TBD
+                // the drag can end (mouseup/touchend) anywhere in the document, not just
+                // while the pointer is still over this container, in which case the
+                // container-scoped listeners above never fire and `interval` would keep
+                // running forever (and keep `container`/`rect` alive if the container is
+                // later removed from the DOM). Make sure it's always cleared when the
+                // drag actually ends, mirroring the body-level cleanup used elsewhere in
+                // this file (see load()).
+                document.body.addEventListener('mouseup', () => {
+                    clearInterval(interval);
+                    interval = undefined;
+                });
+                document.body.addEventListener('touchend', () => {
+                    clearInterval(interval);
+                    interval = undefined;
+                });
+                document.body.addEventListener('touchcancel', () => {
+                    clearInterval(interval);
+                    interval = undefined;
+                });
+                */
             }
 
 

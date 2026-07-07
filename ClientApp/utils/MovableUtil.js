@@ -1,5 +1,5 @@
 class MovableUtil {
-    static makeItMovable(grabbing_element, who_to_move, has_text = true, reading = {}, onElementMoved = undefined) {
+    static makeItMovable(grabbing_element, who_to_move, has_text = true, reading = {}, onElementMoved = undefined, onMovementEnded = undefined) {
         grabbing_element.style['cursor'] = 'grab';
         const monitor = (e) => {
             MovableUtil.#movingStartFeedback(grabbing_element);
@@ -46,6 +46,9 @@ class MovableUtil {
                 document.body.removeEventListener("mousemove", track_move);
                 document.body.removeEventListener("touchend", action_ended);
                 document.body.removeEventListener("touchmove", track_move);
+                if (onMovementEnded != undefined) {
+                    onMovementEnded();
+                }
             }
             document.body.addEventListener("mouseup", action_ended);
             document.body.addEventListener("mousemove", track_move);

@@ -62,8 +62,9 @@ namespace FWITD {
             HashSet<object> result = [
                 JS.frameworks.AppStatus,
                 JS.utils.UiBuilder,
-                JS.components.Notify,
                 JS.utils.Locale,
+                //JS.utils.MovableUtil,
+                JS.components.Notify,
                 JS.utils.Icons,
                 JS.utils.Logger,
                 JS.utils.AppRouter,
@@ -206,9 +207,9 @@ namespace FWITD {
                 { components.DataAnalizis1, Array.Empty<components>() },
                 { components.SystemSettings, Array.Empty<components>() },
             };
-            internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, left_panel, ServerStatus, some_page, test_page }
-            internal enum injectable_apps { cloudflared, GestionaleDistributore, GoogleDocs, LetSTry, TemplateJobs, TemplateTools, YouTube }
-            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, FrameworkTestComponent, Insight, ListBox, MousePopUp, Notify, OTPComponent, PieChart, PosizioneMotore, SideBarLeft, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip }
+            internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, DashboardLettoreBarcode, ImageEditor, left_panel, ServerStatus, some_page, test_page }
+            internal enum injectable_apps { cloudflared, GestionaleDistributore, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
+            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, FrameworkTestComponent, ImageEditor, Insight, KeyBoard, ListBox, MousePopUp, Notify, OTPComponent, PieChart, PosizioneMotore, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip, WizardStepper }
             internal enum utils { AppRouter, Icons, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
             internal enum frameworks { AppStatus, FrameworkGC }
             private static Dictionary<JS.pages, string> cache_path_files = new Dictionary<pages, string>();

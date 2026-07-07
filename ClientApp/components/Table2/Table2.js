@@ -15,9 +15,6 @@ class Table2 extends FrameworkGC(`${injector_html}`) {
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         window.the_f_table = this;
         this.#initialize(jsonArr, options, override_options);
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     /**
      * store here the elements references of the html  
@@ -1019,6 +1016,7 @@ class Table2 extends FrameworkGC(`${injector_html}`) {
                             const blob = new Blob([code], { type: "application/javascript" });
                             const workerUrl = URL.createObjectURL(blob);
                             owner.#doing_heavy_task.worker = new Worker(workerUrl);
+                            URL.revokeObjectURL(workerUrl);//worker already started loading the script, safe to free the blob now
                             owner.#doing_heavy_task.worker.onmessage = function (e) {
                                 const results = e.data;
                                 owner.data.raw_data.length = 0;
@@ -1091,7 +1089,7 @@ class Table2 extends FrameworkGC(`${injector_html}`) {
                 enablePointerEvents(input);
                 return;
             } else {
-                const keyboard_i = new Keyboard({
+                const keyboard_i = new KeyBoard({
                     input_target: input,
                     only_numbers: false,
                     onClickOutside: () => {
@@ -1191,6 +1189,18 @@ class Table2 extends FrameworkGC(`${injector_html}`) {
         }
         localStorage.setItem("show-images-in-tables", visible);
         owner.updateViewingData();
+    }
+    /**
+     * @param {number} timeout_ms
+     */
+    destroy(timeout_ms = 0) {
+        const owner = this;
+        clearTimeout(owner.#doing_heavy_task.trigger_search_id);
+        if (owner.#doing_heavy_task.worker != undefined) {
+            owner.#doing_heavy_task.worker.terminate();
+            owner.#doing_heavy_task.worker = undefined;
+        }
+        super.destroy(timeout_ms);
     }
     // owner.self_ref;//access element reference here
     // owner.elementReference();//alternative way to access element reference

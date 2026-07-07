@@ -7,7 +7,8 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
      * @param {HTMLElement} options.target - element to attach the mouseenter listener to
      * @param {string} [options.label] - top label
      * @param {HTMLElement} [options.element] - element to display inside the container
-     * @param {Object|Object[]} [options.createButtons] - UiBuilder.createButton config(s)
+     * @param {Object|Object[]} [options.createButtons] - one or more option objects, each passed as-is to `UiBuilder.createButton()` (see its JSDoc for the full shape: `onClick`/`onRightClick`, `title`/`icon`/`icon_code`, `hint`, `class`, `style`, `theme`, ...)
+     * @param {'left'|'right'|'top'|'bottom'} [options.side='left'] - preferred side of the target to show the popup on; falls back to the opposite side (left<->right, top<->bottom) if there isn't enough room
      * @param {Function|Array<Function>} [options.onClose] - callback(s) on destroy
      * @param {Function} [options.onReady] - callback when component is ready
      */
@@ -18,9 +19,6 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
             "SpeedActions: provide options.element and/or options.createButtons"
         );
         this.#initialize();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
 
     elements = {
@@ -41,6 +39,8 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
     #buttons = [];
     /** @type {HTMLElement} */
     #target = null;
+    /** @type {'left'|'right'|'top'|'bottom'} */
+    #side = 'left';
 
     // Arrow-function fields so removeEventListener works with the same reference
     #onTargetEnter = () => SpeedActions.#show(this);
@@ -50,6 +50,7 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
         const owner = this;
         owner.#target = owner.options.target;
         console.assert(owner.#target instanceof HTMLElement, "SpeedActions: options.target must be an HTMLElement");
+        owner.#side = ['right', 'top', 'bottom'].includes(owner.options.side) ? owner.options.side : 'left';
 
         if (owner.options.createButtons) {
             const configs = Array.isArray(owner.options.createButtons)
@@ -123,15 +124,39 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
         const pad_x = Math.max(W * 0.1, 10);
         const pad_y = Math.max(H * 0.1, 10);
 
-        // Prefer left side of target, fall back to right if insufficient space
-        let c_left = tr.left - W - gap;
-        if (c_left < pad_x) {
-            c_left = tr.right + gap;
+        // Prefer instance.#side, fall back to the opposite side if insufficient space
+        let c_left, c_top;
+        if (instance.#side === 'top' || instance.#side === 'bottom') {
+            if (instance.#side === 'bottom') {
+                c_top = tr.bottom + gap;
+                if (c_top + H > window.innerHeight - pad_y) {
+                    c_top = tr.top - H - gap;
+                }
+            } else {
+                c_top = tr.top - H - gap;
+                if (c_top < pad_y) {
+                    c_top = tr.bottom + gap;
+                }
+            }
+            // Horizontally center container on target, clamped to viewport
+            c_left = tr.left + (tr.width / 2) - (W / 2);
+            c_left = Math.max(pad_x, Math.min(c_left, window.innerWidth - W - pad_x));
+        } else {
+            if (instance.#side === 'right') {
+                c_left = tr.right + gap;
+                if (c_left + W > window.innerWidth - pad_x) {
+                    c_left = tr.left - W - gap;
+                }
+            } else {
+                c_left = tr.left - W - gap;
+                if (c_left < pad_x) {
+                    c_left = tr.right + gap;
+                }
+            }
+            // Vertically center container on target, clamped to viewport
+            c_top = tr.top + (tr.height / 2) - (H / 2);
+            c_top = Math.max(pad_y, Math.min(c_top, window.innerHeight - H - pad_y));
         }
-
-        // Vertically center container on target, clamped to viewport
-        let c_top = tr.top + (tr.height / 2) - (H / 2);
-        c_top = Math.max(pad_y, Math.min(c_top, window.innerHeight - H - pad_y));
 
         // Root is the 120% invisible zone around the container only
         const safe_left = c_left - pad_x;
@@ -167,6 +192,15 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
         }, 100);
     }
 
+    /**
+     * hides the popup now if this instance is the one currently shown (no-op otherwise)
+     */
+    hide() {
+        if (SpeedActions.#current_instance === this) {
+            SpeedActions.#hide();
+        }
+    }
+
     destroy(timeout_ms = 0) {
         this.#target?.removeEventListener('mouseenter', this.#onTargetEnter);
         this.#target?.removeEventListener('mouseleave', this.#onTargetLeave);
@@ -178,7 +212,7 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
 }
 
 
-// for UiBuilder
+//#START RESERVED AREA FOR UI_BUILDER
 // setTimeout(() => {
 //     const mock_target = document.createElement('div');
 //     mock_target.innerText = 'Hover me for SpeedActions';
@@ -210,3 +244,4 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
 //     });
 //     //document.body.appendChild(ss.elementReference());
 // }, 0);
+//#END RESERVED AREA FOR UI_BUILDER

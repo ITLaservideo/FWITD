@@ -107,7 +107,7 @@ class UiBuilder {
             UiBuilder.addHint({
                 hint: options.hint,
                 target: outer_container,
-                anchor: "top"
+                anchor: options.anchor ?? "top"
             });
         }
         return outer_container;
@@ -257,12 +257,13 @@ class UiBuilder {
         }, 0);
     }
     /**
-     * 
-     * @param {Object} options 
+     * Attaches hover/touch/click listeners to target that show a tooltip via window.custom_tooltip.
+     * Calling this again on the same target stacks a duplicate set of listeners — use addOrUpdateHint instead.
+     * @param {Object} options
      * @param {string} options.hint
-     * @param {Element} options.target 
+     * @param {Element} options.target
      * @param {Function} [options.conditionsMet]
-     * @param {string} options.anchor top|left|right|bottom 
+     * @param {"top"|"left"|"right"|"bottom"} options.anchor
      */
     static addHint(options) {
         const target = options.target;
@@ -317,20 +318,41 @@ class UiBuilder {
         }
     }
     /**
-     * @param {Object} options 
-     * @param {Function} options.onClick
+     * Adds a hint to target via addHint, or if one is already attached, updates its
+     * hint/anchor/conditionsMet in place. Safe to call repeatedly on the same target
+     * without stacking duplicate listeners.
+     * @param {Object} options
+     * @param {string} options.hint
+     * @param {Element} options.target
+     * @param {Function} [options.conditionsMet]
+     * @param {"top"|"left"|"right"|"bottom"} options.anchor
+     */
+    static addOrUpdateHint(options) {
+        const target = options.target;
+        const existing = target['hint_builder_options'];
+        if (existing != undefined) {
+            Object.assign(existing, options);
+            return;
+        }
+        UiBuilder.addHint(options);
+    }
+    /**
+     * @param {Object} options
+     * @param {Function} [options.onClick]
      * @param {Function} [options.onRightClick]
-     * @param {bool} [options.not_indexable]
+     * @param {boolean} [options.not_indexable]
      * @param {string} [options.hint]
-     * @param {string} [options.icon] - Must be specified if `options.title` is undefined
-     * @param {string} [options.icon_code] - Must be specified if `options.title` is undefined
-     * @param {string} [options.title] - Must be specified if `options.icon` is undefined
+     * @param {Element} [options.target] Hint anchor target; defaults to the created button when `options.hint` is set
+     * @param {"top"|"left"|"right"|"bottom"} [options.anchor] Hint anchor position, used together with `options.hint`
+     * @param {string} [options.icon] Must be specified if `options.title` is undefined
+     * @param {string} [options.icon_code] Must be specified if `options.title` is undefined
+     * @param {string} [options.title] Must be specified if `options.icon` is undefined
      * @param {string} [options.class]
      * @param {string} [options.style] text
      * @param {string} [options.automationID] `automation-id` attribute
-     * @param {number} [options.theme] null | 1
-     * @param  {boolean} [options.auto_disable_on_click] if true, the button will be automatically disabled (by adding a "clicked" class) when clicked, and re-enabled after 1 second. Default is false.
-     * @returns {Element}
+     * @param {1|2} [options.theme] 2 shiny
+     * @param {boolean} [options.auto_disable_on_click=false] If true, the button will be automatically disabled (by adding a "clicked" class) when clicked, and re-enabled after 1 second.
+     * @returns {HTMLDivElement}
      * @throws {Error} If both `options.title` and `options.icon` are undefined, or if neither `options.onClick` nor `options.onRightClick` are provided
      */
     static createButton(options) {
@@ -438,7 +460,8 @@ class UiBuilder {
             } else {
                 UiBuilder.addHint({
                     hint: options.hint,
-                    target: tmp
+                    target: tmp,
+                    anchor: options.anchor,
                 });
             }
         }
@@ -630,7 +653,14 @@ class UiBuilder {
         container.appendChild(dropdown);
 
         // Close dropdown if clicked outside
-        document.addEventListener("click", (e) => {
+        document.addEventListener("click", function onDocumentClick(e) {
+            if (!document.body.contains(container)) {
+                // container was discarded without ever being explicitly torn down
+                // (this builder has no destroy hook) - self-unregister so this
+                // closure doesn't keep listening (and keep the whole subtree alive) forever
+                document.removeEventListener("click", onDocumentClick);
+                return;
+            }
             if (!container.contains(e.target)) {
                 optionsList.classList.add("hidden");
                 selected.classList.toggle(`dd-visible-${direction_open}`, false);
@@ -905,7 +935,14 @@ class UiBuilder {
         container.appendChild(dropdown);
 
         // Close dropdown if clicked outside
-        document.addEventListener("click", (e) => {
+        document.addEventListener("click", function onDocumentClick(e) {
+            if (!document.body.contains(container)) {
+                // container was discarded without ever being explicitly torn down
+                // (this builder has no destroy hook) - self-unregister so this
+                // closure doesn't keep listening (and keep the whole subtree alive) forever
+                document.removeEventListener("click", onDocumentClick);
+                return;
+            }
             if (!container.contains(e.target)) {
                 optionsList.classList.add("hidden");
                 self_aware.btns_container?.classList.add("hidden");
@@ -1261,7 +1298,58 @@ class UiBuilder {
 
         return container;
     }
-    static mockDialog({ text1, onConfirm, onClose = null, onDeny = null, prefer_selection = 1, onConfirmText = null, onDenyText = null, hideOnDeny = false }) {
+    /**
+     * Renders any JSON-serializable value as a two-column key/value grid, recursing into
+     * nested objects/arrays as sub-grids. Keys starting with "_" are skipped, matching the
+     * convention used elsewhere for internal/private fields.
+     * @param {*} data
+     * @returns {HTMLElement}
+     */
+    static previewJSON(data) {
+        const container = document.createElement("div");
+        container.className = "auto-grid";
+        if (data == null || typeof data !== "object" || data instanceof Date) {
+            container.classList.add("auto-grid-empty");
+            container.innerText = data == null ? "-" : String(data);
+            return container;
+        }
+        const entries = Array.isArray(data)
+            ? data.map((value, index) => [String(index), value])
+            : Object.entries(data).filter(([key]) => !key.startsWith("_"));
+        if (entries.length === 0) {
+            container.classList.add("auto-grid-empty");
+            container.innerText = "-";
+            return container;
+        }
+        for (const [key, value] of entries) {
+            const row_key = document.createElement("div");
+            row_key.className = "auto-grid-key";
+            row_key.innerText = key;
+            container.appendChild(row_key);
+            const row_value = document.createElement("div");
+            row_value.className = "auto-grid-value";
+            if (value != null && typeof value === "object" && !(value instanceof Date)) {
+                row_value.appendChild(UiBuilder.previewJSON(value));
+            } else {
+                row_value.innerText = value == null ? "-" : String(value);
+            }
+            container.appendChild(row_value);
+        }
+        return container;
+    }
+    /**
+     * @param {Object} options
+     * @param {string} [options.text1] message shown above `body`/the buttons - required unless `body` is given
+     * @param {Function} options.onConfirm called (with the click event) once confirmed, after the sheet closes
+     * @param {Function} [options.onClose] called whenever the sheet closes, including cancel/dismiss
+     * @param {Function} [options.onDeny] called once denied, after the sheet closes
+     * @param {number} [options.prefer_selection] 0 highlights the deny button as the preferred action, anything else highlights confirm
+     * @param {string} [options.onConfirmText] overrides the confirm button's label
+     * @param {string} [options.onDenyText] overrides the deny button's label
+     * @param {boolean} [options.hideOnDeny] hides the deny button entirely
+     * @param {HTMLElement} [options.body] optional element inserted between the message and the buttons
+     */
+    static mockDialog({ text1 = null, onConfirm, onClose = null, onDeny = null, prefer_selection = 1, onConfirmText = null, onDenyText = null, hideOnDeny = false, body = null }) {
         const self_aware = {
             bottom_sheet_instance: null
         };
@@ -1269,16 +1357,35 @@ class UiBuilder {
         Object.assign(container.style, {
             display: 'flex',
             flexDirection: 'column',
-            alignItems: 'center',
-            alignContent: 'center',
-            justifyContent: 'center',
+            width: '100%',
+            maxHeight: '80vh',
+            boxSizing: 'border-box',
             padding: '28px',
             paddingBottom: '20px'
         });
-        const msg = document.createElement("span");
-        msg.innerText = text1;
-        msg.style.padding = "15px";
-        container.appendChild(msg);
+        // title + body: scrollable together, shrinks to make room for the always-visible buttons row below
+        const scrollable = document.createElement("div");
+        Object.assign(scrollable.style, {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            alignContent: 'center',
+            justifyContent: 'flex-start',
+            width: '100%',
+            flex: '1 1 auto',
+            minHeight: '0',
+            overflowY: 'auto',
+        });
+        container.appendChild(scrollable);
+        if (text1 != null) {
+            const msg = document.createElement("span");
+            msg.innerText = text1;
+            msg.style.padding = "15px";
+            scrollable.appendChild(msg);
+        }
+        if (body != null) {
+            scrollable.appendChild(body);
+        }
         const container_btns = document.createElement("div");
         Object.assign(container_btns.style, {
             display: 'flex',
@@ -1287,6 +1394,7 @@ class UiBuilder {
             alignContent: 'center',
             justifyContent: 'space-around',
             width: '100%',
+            flexShrink: '0',
         });
         container.appendChild(container_btns);
         const button_undo = UiBuilder.createButton({
@@ -1594,16 +1702,31 @@ class UiBuilder {
         });
 
         // --- close ---
-        closeBtn.addEventListener("click", () => {
+        const selfDestroy = () => {
             if (overflowCheckTimer) clearTimeout(overflowCheckTimer);
             window.removeEventListener("resize", onResizeWindow);
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
             document.removeEventListener("touchmove", onTouchMove);
             document.removeEventListener("touchend", onTouchEnd);
+            document.body.removeEventListener("keyup", onKeyUp);
+            if (typeof SpaHistory !== "undefined") {
+                SpaHistory.popState(backHandler);
+            }
             container.remove();
             if (typeof onDestroy === 'function') onDestroy();
-        });
+        };
+        const onKeyUp = (e) => {
+            if (e.key === "Escape") selfDestroy();
+        };
+        const backHandler = () => {
+            selfDestroy();
+        };
+        closeBtn.addEventListener("click", selfDestroy);
+        document.body.addEventListener("keyup", onKeyUp);
+        if (typeof SpaHistory !== "undefined") {
+            SpaHistory.pushState(backHandler);
+        }
 
         document.body.appendChild(container);
         scheduleOverflowCheck();
@@ -1612,8 +1735,12 @@ class UiBuilder {
     //#region "new implementation"
 
     /**
-     * 
-     * @param {Object} options 
+     * @type {(e: MouseEvent) => void}
+     */
+    static #activeDropDownCloseHandler = null;
+    /**
+     *
+     * @param {Object} options
      * @param {MouseEvent} options.event - The event to get mouse position
      * @param {String[]} options.title - Array of option titles
      * @param {Function[]} options.next - Array of callback functions corresponding to each option
@@ -1630,6 +1757,13 @@ class UiBuilder {
         const existingDropdown = document.getElementById('UiBuilderDropdown-instance');
         if (existingDropdown) {
             existingDropdown.remove();
+        }
+        if (UiBuilder.#activeDropDownCloseHandler) {
+            // the previous dropdown was just force-removed above without going through
+            // its own handleClickOutside cleanup - unregister it too, otherwise repeated
+            // calls before an outside click ever fires stack up dangling listeners
+            document.removeEventListener('click', UiBuilder.#activeDropDownCloseHandler);
+            UiBuilder.#activeDropDownCloseHandler = null;
         }
 
         // Create dropdown container
@@ -1664,6 +1798,10 @@ class UiBuilder {
                 next[index] && next[index]();
                 // Remove dropdown
                 dropdown.remove();
+                if (UiBuilder.#activeDropDownCloseHandler) {
+                    document.removeEventListener('click', UiBuilder.#activeDropDownCloseHandler);
+                    UiBuilder.#activeDropDownCloseHandler = null;
+                }
             });
 
             dropdown.appendChild(option);
@@ -1696,8 +1834,10 @@ class UiBuilder {
             if (!dropdown.contains(e.target)) {
                 dropdown.remove();
                 document.removeEventListener('click', handleClickOutside);
+                UiBuilder.#activeDropDownCloseHandler = null;
             }
         };
+        UiBuilder.#activeDropDownCloseHandler = handleClickOutside;
         setTimeout(() => {
             document.addEventListener('click', handleClickOutside);
         }, 0);
@@ -1755,4 +1895,14 @@ class UiBuilder {
         }, 0);
     }
     //#endregion
+    static toUInt = (str) => {
+        if (str === null || str === undefined || str === '') {
+            return 0;
+        }
+        try {
+            return Math.min(Math.max(Number(`${str}`.match(/[0-9]+/)?.at(0)), 0), 9999999999);
+        } catch (error) {
+            return '';
+        }
+    }
 }

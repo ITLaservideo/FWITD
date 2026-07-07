@@ -11,9 +11,6 @@ class AndroidViewAccount extends FrameworkGC(`${injector_html}`) {
         super(options);
         this.#initialize();
         this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
         window.instance_AndroidViewAccount = this;
         setTimeout(() => {
             this.elements.userInfo.innerText = App.app_status.user_info;
