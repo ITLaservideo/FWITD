@@ -19,12 +19,12 @@
     justify-content: space-evenly;
     margin-top: auto;
     margin-bottom: 3px;
-    background: rgba(255, 255, 255, .2);
+    background: color-mix(in srgb, var(--vscode-editorWidget-background) 20%, transparent);
     border-radius: 16px;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, .1);
+    box-shadow: 0 4px 30px var(--vscode-widget-shadow);
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
-    border: 1px solid rgba(255, 255, 255, .3);
+    border: 1px solid var(--vscode-widget-border);
     margin-left: auto;
     margin-right: auto;
     position: fixed;

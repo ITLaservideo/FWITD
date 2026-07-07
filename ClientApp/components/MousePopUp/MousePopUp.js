@@ -18,6 +18,7 @@ class MousePopUp {
     my_id;
     static #html_placeholder = null; // promise initialized on import
     #onClose = [];
+    #func_delete_me;
     /**
      * @param {Object} options
      * @param {String[]}  options.action_titles
@@ -56,6 +57,7 @@ class MousePopUp {
                 }
             }
         }
+        owner.#func_delete_me = func_delete_me;
         document.body.addEventListener("keyup", func_delete_me);
         if (options.title != undefined) {
             owner.#self_ref.getElementsByClassName("template-title-placeholder")[0].innerText = UiBuilder.parseHTMLToDisplay(options.title);
@@ -394,6 +396,9 @@ class MousePopUp {
             return;
         }
         this.destroyed = true;
+        if (this.#func_delete_me != undefined) {
+            document.body.removeEventListener("keyup", this.#func_delete_me);
+        }
         if (this.#self_ref != undefined) {
             MousePopUp.#executeDestroy(this.#self_ref, timeout_ms);
         } else {

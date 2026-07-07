@@ -12,9 +12,6 @@ class AndroidVeiwStatoMotori extends FrameworkGC(`${injector_html}`) {
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         this.#initialize();
         this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     /**
      * store here the elements references of the html  

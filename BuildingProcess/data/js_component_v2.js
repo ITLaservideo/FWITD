@@ -12,9 +12,6 @@ class ComponentTemplate extends FrameworkGC(`${injector_html}`) {
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         this.#initialize();
         this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     /**
      * store here the elements references of the html  
@@ -55,11 +52,18 @@ class ComponentTemplate extends FrameworkGC(`${injector_html}`) {
         alert("clicked");
     }
     //#endregion
+
+    destroy(timeout_ms = 0) {
+        // this.#target?.removeEventListener('mouseenter', this.#onTargetEnter);
+        // this.#target?.removeEventListener('mouseleave', this.#onTargetLeave);
+        super.destroy(timeout_ms);
+    }
 }
 
 
-// for UiBuilder
+//#START RESERVED AREA FOR UI_BUILDER
 // setTimeout(() => {
 //     const ss = new ComponentTemplate({});
 //     document.body.appendChild(ss.elementReference());
 // }, 0);
+//#END RESERVED AREA FOR UI_BUILDER

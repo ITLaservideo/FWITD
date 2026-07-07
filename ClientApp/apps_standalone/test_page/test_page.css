@@ -295,6 +295,8 @@ body {
     border: 1px solid rgb(130 119 119 / 20%);
     color: var(--vscode-foreground);
     padding: 4px 8px;
+    user-select: none;
+    -moz-user-select: none;
 
     &:hover {
         color: var(--vscode-button-foreground);

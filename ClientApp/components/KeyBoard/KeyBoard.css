@@ -1,0 +1,253 @@
+.user-select-none-important {
+    -webkit-user-select: none !important;
+    /* Safari */
+    -khtml-user-select: none !important;
+    /* Konqueror HTML */
+    -moz-user-select: none !important;
+    /* Old versions of Firefox */
+    -ms-user-select: none !important;
+    /* Internet Explorer/Edge */
+    user-select: none !important;
+}
+
+.template-keyboard {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: 0;
+    display: flex;
+    justify-content: center;
+    z-index: 9999999999999999999999;
+    transition: opacity .25s ease;
+
+    .f-icon-i {
+        font-size: 28px;
+    }
+
+    &.tkb-closing {
+        opacity: 0 !important;
+
+        .tkb-container {
+            transform: translateY(40px);
+        }
+    }
+
+    .tkb-label {
+        position: absolute;
+        top: 10px;
+        z-index: 1;
+        background: var(--vscode-input-background);
+        left: 25px;
+        padding-left: 8px;
+        padding-right: 8px;
+        border-top-left-radius: 4px;
+        border-top-right-radius: 4px;
+        color: var(--vscode-descriptionForeground);
+        text-wrap: nowrap;
+        max-width: 261px;
+        overflow: hidden;
+        font-size: 18px;
+    }
+
+    .tkb-container {
+        border-radius: 10px;
+        background: var(--vscode-editorWidget-background);
+        display: flex;
+        width: 750px;
+        height: fit-content;
+        flex-direction: column;
+        padding: 30px 15px;
+        font: 28px arial;
+        box-shadow: 0px 40px 45px var(--vscode-widget-shadow);
+        margin-top: 10vh;
+        margin-bottom: auto;
+        scale: 1.4;
+        transition: transform .25s ease;
+
+        #preview-input {
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border-radius: 12px;
+            padding: 7px;
+            margin-bottom: 20px;
+            cursor: url(/Images/Icone2024/ui_2024/delete.svg) 13 13, help;
+            position: relative;
+            overflow: clip;
+            padding-right: 50px;
+            min-height: 32px;
+
+            &:empty {
+                pointer-events: none;
+
+                &::before {
+                    opacity: 0;
+                }
+            }
+
+            &::before {
+                font-family: "FrameworkIcons";
+                content: "\e872";
+                position: absolute;
+                transform: translate(-11px, -0.5px) scale(0.9);
+                right: 0;
+                border-radius: 7px;
+            }
+
+            &::after {
+                content: '|';
+                color: var(--vscode-input-foreground);
+                /* margin-left: 2px; */
+                animation: tkb-caret-blink 1s step-start infinite;
+            }
+        }
+
+        .bis1 {
+            display: none;
+        }
+
+        span {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            margin-top: 15px;
+            position: relative;
+
+            img {
+                pointer-events: none;
+            }
+
+            &::after {
+                content: '';
+                width: calc(100% + 20px);
+                height: 125%;
+                background-color: transparent;
+                position: absolute;
+                right: -10px;
+            }
+        }
+    }
+
+    div[class*='tkb-line'] {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .tkb-line0 {
+        margin-bottom: 10px;
+    }
+
+    .tkb-line0,
+    .tkb-line1,
+    .tkb-line3 {
+        padding: 0 15px;
+    }
+
+    .tkb-line2 {
+        padding: 0 30px;
+    }
+
+    div[class*='tkb-line'] span {
+        box-shadow: 0px 3px 3px var(--vscode-widget-shadow);
+        color: var(--vscode-foreground);
+        padding: 15px;
+        background: var(--vscode-input-background);
+        border-radius: 12px;
+        /* text-shadow: 0px 0px 40px #ffffff, 0px 0px 80px #000000; */
+        min-width: 25px;
+        width: fit-content;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    div[class*='tkb-line'] span:hover {
+        /* box-shadow: 0px 2px 10px #040404; */
+        /* background: #d4d4d4d0; */
+        /* text-shadow: 1px 2px 60px #317b33, 0px 0px 60px rgb(50 199 71 / 90%), 0px 0px 60px rgba(0, 188, 212, .9), 10px 10px 60px rgba(0, 188, 212, .9); */
+        cursor: pointer;
+    }
+
+    div[class*='tkb-line'] span:active {
+        transform: scale(1.1);
+        background: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
+    }
+
+    .tkb-line3 span:first-of-type {
+        width: 35px;
+        padding: 10px 15px;
+    }
+
+    .tkb-line3 span:last-of-type {
+        width: 35px;
+        padding: 10px 15px;
+    }
+
+    #arrow,
+    #tkb-backspace {
+        fill: var(--vscode-foreground);
+        width: 35px;
+        height: 35px;
+        /*-webkit-filter: drop-shadow(0px 2px 20px #71D4FE);*/
+        /*filter: drop-shadow(0px 2px 20px #71D4FE);*/
+    }
+
+    #arrow:hover,
+    #tkb-backspace:hover {
+        -webkit-filter: drop-shadow(0px 2px 15px var(--vscode-focusBorder));
+        filter: drop-shadow(0px 2px 15px var(--vscode-focusBorder));
+    }
+
+    .not-char {
+        background: color-mix(in srgb, var(--vscode-focusBorder) 22%, var(--vscode-input-background)) !important;
+    }
+
+    .enhance-selected {
+        background: var(--vscode-button-background) !important;
+        color: var(--vscode-button-foreground) !important;
+        text-align: center !important;
+        transition: background-color .15s ease, color .15s ease !important;
+    }
+}
+
+#tkb-conferma {
+    animation: wiggle 5s infinite linear;
+    background: var(--vscode-charts-green);
+    color: var(--vscode-editorWidget-background);
+}
+
+@keyframes wiggle {
+
+    0%,
+    90%,
+    94%,
+    98% {
+        -webkit-transform: rotate(0deg);
+        transform: rotate(0deg);
+    }
+
+    92% {
+        -webkit-transform: rotate(1deg);
+        transform: rotate(1deg);
+    }
+
+    96% {
+        -webkit-transform: rotate(-1deg);
+        transform: rotate(-1deg);
+    }
+}
+
+@keyframes tkb-caret-blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #preview-input::after {
+        animation: none;
+    }
+}

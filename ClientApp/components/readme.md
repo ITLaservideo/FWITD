@@ -19,6 +19,9 @@ components/
     MyWidget.js         ← required
     MyWidget.css        ← required
     MyWidget.min.*      ← required (release build)
+    lib/                ← optional extra JS, loaded automatically
+      extra.js
+      extra.min.js
 ```
 
 To add a new component, create the folder + files and add the name to the `JS.components` enum.
@@ -37,6 +40,7 @@ The component class. The placeholder `${injector_html}` is replaced with the pro
 
 Component-scoped styles. When loaded via `getJSComponentPair` (the current path), the CSS is returned separately and merged into the page's CSS bundle, not inlined into the JS.
 
-## Current components
+### Sub-subdirectories (`lib/`, etc.) — optional
 
-`BottomNavBar`, `BottomSheet`, `DatePicker`, `DockWindow`, `DragAndDrop`, `Insight`, `ListBox`, `MousePopUp`, `Notify`, `PieChart`, `SideBarLeft`, `SpeedActions`, `SpeedDial`, `Table`, `Table2`, `ThemeSelector`, `Tooltip`
+Any `.js` files found in sub-subdirectories (recursively, excluding folders named `components`) are loaded and prepended to the component's script, same mechanism as in `apps_injectable`/`apps_standalone`. Since a component folder can't have child components (see above), this is the only way to split a large widget's script into modules.
+

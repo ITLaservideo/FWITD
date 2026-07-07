@@ -16,7 +16,7 @@
     z-index: 99999999999999999999999999;
     /* padding-left: 4px; */
     /* padding-right: 4px; */
-    filter: drop-shadow(0 0 33px black);
+    filter: drop-shadow(0 0 33px var(--vscode-widget-shadow));
     justify-content: flex-start;
     padding: var(--padding);
 

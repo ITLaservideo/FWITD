@@ -10,9 +10,6 @@ class OTPComponent extends FrameworkGC(`${injector_html}`) {
     constructor(options) {
         super(options);
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
         // this.#createDebugger();
     }
     // #createDebugger() {
@@ -228,8 +225,10 @@ class OTPComponent extends FrameworkGC(`${injector_html}`) {
         }
     }
 }
-// for UiBuilder
+
+//#START RESERVED AREA FOR UI_BUILDER
 // const the_test = setTimeout(() => {
 //     const ss = new OTPComponent({});
 //     document.body.appendChild(ss.elementReference());
 // }, 0);
+//#END RESERVED AREA FOR UI_BUILDER

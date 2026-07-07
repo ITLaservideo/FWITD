@@ -12,9 +12,6 @@ class AndroidViewSettings extends FrameworkGC(`${injector_html}`) {
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         this.#initialize();
         this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
         const ts = new ThemeSelector({ auto_deploy: false, label: "change theme", floating: false });
         this.self_ref.appendChild(ts.elementReference());
         //add event listener onBack

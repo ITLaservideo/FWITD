@@ -537,7 +537,7 @@ class Table {
                 enablePointerEvents(input);
                 return;
             } else {
-                const keyboard_i = new Keyboard({
+                const keyboard_i = new KeyBoard({
                     input_target: input,
                     only_numbers: false,
                     onClickOutside: () => {

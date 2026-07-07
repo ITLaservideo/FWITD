@@ -29,9 +29,6 @@ class PosizioneMotore extends FrameworkGC(`${injector_html}`) {
         }
         this.#initialize();
         this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     /**
      * 

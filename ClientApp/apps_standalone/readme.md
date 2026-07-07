@@ -48,15 +48,3 @@ Page-local components not shared with other pages. Declared in `JS.page_to_compo
 ## Build output
 
 Assembled files are written to `FWITD/out/{PageName}.html/.js/.css`. The HTML file links the JS and CSS by filename with a `?v=` cache-bust timestamp. The result path is cached in memory (cache cleared on each request in `DEBUG + WINDOWS`).
-
-## Current pages
-
-| Enum value | Description |
-|---|---|
-| `AndroidAppDemo` | Full Android-style demo UI |
-| `AndroidLogin` | Login screen |
-| `AndroidMasterSettings` | Master settings page |
-| `AndroidMusic` | Music player page |
-| `left_panel` | Side panel / navigation |
-| `some_page` | Generic placeholder page |
-| `test_page` | Framework component test harness |
