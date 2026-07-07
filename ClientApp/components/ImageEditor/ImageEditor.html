@@ -1,0 +1,79 @@
+<div class="ie-container">
+    <div class="ie-close" (click)="onClickCancel">✕</div>
+    <div class="ie-instructions">{{Drag the circles at the corners to crop the image}},&nbsp;
+        {{use the slider to straighten it}}</div>
+    <div class="ie-workspace">
+        <div class="ie-toolbox ie-labels-compact" fw-id="toolbox">
+            <div class="ez-button ie-tool-button" fw-id="btn_toggle_labels" (click)="onClickToggleLabels">
+                <div class="f-icon-i" fw-id="toggle_labels_icon">&#xf3d2;</div>
+                <span>{{Etichette}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" (click)="onClickReset">
+                <div class="f-icon-i">&#xf053;</div>
+                <span>{{Reset}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" fw-id="btn_flip_h" (click)="onClickFlipHorizontal">
+                <div class="f-icon-i">&#xe41e;</div>
+                <span>{{Rifletti orizz.}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" fw-id="btn_flip_v" (click)="onClickFlipVertical">
+                <div class="f-icon-i">&#xea38;</div>
+                <span>{{Rifletti vert.}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" fw-id="btn_color_key" (click)="onClickRemoveBackground">
+                <div class="f-icon-i">&#xf20a;</div>
+                <span>{{Rimuovi sfondo}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" fw-id="btn_erase" (click)="onClickErase">
+                <div class="f-icon-i">&#xe6d0;</div>
+                <span>{{Cancella}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" fw-id="btn_restore" (click)="onClickRestore">
+                <div class="f-icon-i">&#xe3f3;</div>
+                <span>{{Ripristina}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" fw-id="btn_smoothing">
+                <div class="f-icon-i">&#xf50c;</div>
+                <span>{{Levigatura}}</span>
+            </div>
+        </div>
+        <div class="ie-main-column">
+            <div class="ie-toolbox-top" fw-id="toolbox_top">
+                <div class="ez-button ie-tool-button" fw-id="btn_undo" (click)="onClickUndo">
+                    <div class="f-icon-i">&#xe166;</div>
+                    <span>{{Annulla}} (CTRL + Z)</span>
+                </div>
+                <div class="ez-button ie-tool-button" fw-id="btn_redo" (click)="onClickRedo">
+                    <div class="f-icon-i">&#xe15a;</div>
+                    <span>{{Ripeti}} (CTRL + Y)</span>
+                </div>
+            </div>
+            <div class="ie-crop-wrapper" fw-id="crop_wrapper">
+                <div class="ie-crop-area" fw-id="crop_area">
+                    <div class="ie-image-clip">
+                        <img class="ie-image" fw-id="img_to_crop" draggable="false" alt="" />
+                    </div>
+                </div>
+            </div>
+            <div class="ie-rotation" fw-id="rotation_area">
+                <span class="ie-rotation-label">{{Ruota}}</span>
+                <span class="ie-rotation-step" (click)="onClickRotationReset">↺</span>
+                <span class="ie-rotation-step" (click)="onClickRotationStepDown">−</span>
+                <input type="range" class="ie-rotation-slider" fw-id="rotation_slider" min="-90" max="90" value="0"
+                    step="1" />
+                <span class="ie-rotation-step" (click)="onClickRotationStepUp">+</span>
+                <span class="ie-rotation-value" fw-id="rotation_value">0°</span>
+            </div>
+            <div class="ie-actions">
+                <div class="ez-button ie-tool-button" fw-id="export_button" style="opacity: 0;">
+                    <div class="f-icon-i">&#xf090;</div>
+                    <span>{{Esporta}}</span>
+                </div>
+                <div class="ez-button" (click)="onClickConfirm">
+                    <div class="f-icon-i">&#xe5ca;</div>
+                    <span>{{Conferma}}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

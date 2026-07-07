@@ -13,9 +13,6 @@ class DockWindow extends FrameworkGC(`${injector_html}`) {
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         this.#initialize();
         this.#addEventListeners();
-        if (typeof this.options.onReady === "function") {
-            this.options.onReady();
-        }
     }
     /**
      * store here the elements references of the html  
@@ -26,12 +23,11 @@ class DockWindow extends FrameworkGC(`${injector_html}`) {
          * @type HTMLElement
          */
         self_ref: this.self_ref,
-   
         /**
          * @type HTMLElement
          */
         elscax: null,
-     }
+    }
     async #initialize() {
         const owner = this;
         if (this.options.content != null) {
@@ -66,8 +62,10 @@ class DockWindow extends FrameworkGC(`${injector_html}`) {
 }
 
 
-// for UiBuilder
+
+//#START RESERVED AREA FOR UI_BUILDER
 // setInterval(() => {
 //     const ss = new DockWindow({});
 //     document.body.appendChild(ss.elementReference());
 // }, 1000);
+//#END RESERVED AREA FOR UI_BUILDER

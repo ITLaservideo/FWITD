@@ -9,7 +9,8 @@ Page-level **view components** — larger, feature-specific pieces of UI that be
 | Scope | Tied to a specific page / domain feature | Reusable across all app types |
 | Loaded from | `path_script_apps_standalone_components` | `path_App + "components/"` |
 | Registration | `JS.components_views` dictionary | `JS.components` enum (auto-detected) |
-| Can have children | Yes — via `components/` subfolder | No nested children |
+| Can have child components | Yes — via `components/` subfolder | No |
+| Can have extra `.js` modules (`lib/`, etc.) | Yes | Yes |
 
 ## Folder structure
 
@@ -23,6 +24,9 @@ apps_standalone_components/
     components/         ← optional — child components for this view
       ChildWidget/
         ChildWidget.js / .html / .css / .min.*
+    lib/                ← optional extra JS, loaded automatically
+      extra.js
+      extra.min.js
 ```
 
 Each component lives in a subfolder named after the `JS.components` enum value. To add a new view component, create the folder + files, add the name to `JS.components`, and register any children in `JS.components_views`.
@@ -44,6 +48,10 @@ Component-scoped styles. Returned as the `Value` of the `KeyValuePair` from `get
 ### `components/` subfolder — optional
 
 Child components specific to this view. Declared in the `components_views` dictionary entry for the parent. Loaded from `{path_standalone_components}{ViewName}/components`.
+
+### Other sub-subdirectories (`lib/`, etc.) — optional
+
+Any `.js` files found in sub-subdirectories (recursively, excluding folders named `components`, since those are reserved for child components above) are loaded and prepended to the view's script — same mechanism as in `apps_injectable`/`apps_standalone`.
 
 ## Current view components
 

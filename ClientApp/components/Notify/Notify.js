@@ -1,30 +1,56 @@
 
 /**
- * @version 1.1
- * @ignore css / html
- */
-class Notify {
-    /**
-     * @type Node
-     */
-    #self_ref;
+* @version 2.0
+*/
+class Notify extends FrameworkGC(`${injector_html}`) {
     /**
      * @type number
      */
     id_timeout_auto_destroy = null;
-    static #max_retries = 300; //100 -> 150seconds
-    static #html_placeholder = null;
+    /**
+     * gap, in px, kept between consecutive stacked (non-event-positioned) notifications
+     */
+    static #stack_gap_px = 10;
+    /**
+     * currently-visible, bottom-left-stacked notifications, in stacking order (bottom-most first);
+     * event-positioned notifications (near a click/cursor) are never added here since they don't stack
+     * @type {Notify[]}
+     */
+    static #stacked_instances = [];
     /**
      * @param {object} options
-     * @param {string} options.title 
-     * @param {string} options.text 
+     * @param {string} options.title
+     * @param {string} options.text
      * @param {string} options.extra_data slightly visible
      * @param {number} options.type  0 ok | 1 warning | -1 error | question_mark_book
-     * @param {Function} options.next 
-     * @param {number} options.ms_timeout 
+     * @param {Function} options.next
+     * @param {number} options.ms_timeout
+     * @param {Function|Array<Function>} [options.onClose] - callback(s) to be called on destroy
+     * @param {Function} [options.onReady] - callback to be called when component is ready
      */
     constructor(options) {
+        super(options);
+        console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         this.#initialize(options);
+    }
+    /**
+     * store here the elements references of the html
+     * automatically gathers elements with attribute ` fw-id="xxx" ` after super()
+     */
+    elements = {
+        /**
+         * @type HTMLElement
+         */
+        self_ref: this.self_ref,
+
+        /**
+         * @type HTMLElement
+         */
+        generic_icon: null,
+        /**
+         * @type HTMLElement
+         */
+        close_svg: null,
     }
     static convertToPlain(html) {
         if (html == undefined) {
@@ -35,22 +61,28 @@ class Notify {
         return tempDivElement.innerText;
     }
     #initialize(options) {
-        this.#self_ref = (Notify.#html_placeholder).cloneNode(true);
-        const color = Notify.switchColor(options.type);
-        const icon = Notify.switchIcon(options.type);
         const owner = this;
-        this.#self_ref.style.borderColor = color;
-        this.#self_ref.style.display = "flex";
-        this.#self_ref.getElementsByClassName("function-svg")[0].style.background = color;
-        this.#self_ref.getElementsByClassName("title")[0].innerText = Notify.convertToPlain(options.title);
+        const color = Notify.switchColor(options.type);
+        const icon_code = Notify.switchIcon(options.type);
+        owner.self_ref.style.borderColor = color;
+        owner.self_ref.style.display = "flex";
+        owner.self_ref.getElementsByClassName("function-svg")[0].style.background = color;
+        owner.self_ref.getElementsByClassName("title")[0].innerText = Notify.convertToPlain(options.title);
         if (options.text != undefined) {
-            this.#self_ref.getElementsByClassName("text")[0].innerText = Notify.convertToPlain(options.text);
+            owner.self_ref.getElementsByClassName("text")[0].innerText = Notify.convertToPlain(options.text);
         }
-        this.#self_ref.getElementsByClassName("extra-data")[0].innerText = Notify.convertToPlain(options.extra_data);
-        let img = this.#self_ref.getElementsByTagName("img")[0];
-        img.src = img.src.replace("check.svg", icon);
-        img.onclick = options.next;
-        this.id_timeout_auto_destroy = Notify.#destroy(this, this.#self_ref, options.ms_timeout);
+        owner.self_ref.getElementsByClassName("extra-data")[0].innerText = Notify.convertToPlain(options.extra_data);
+        owner.elements.generic_icon.onClick = options.next;
+        owner.elements.generic_icon.innerHTML = icon_code;
+        let close_btn = owner.elements.close_svg;
+        if (close_btn != undefined) {
+            close_btn.onclick = () => {
+                owner.destroy(0);
+            };
+        }
+        owner.id_timeout_auto_destroy = window.setTimeout(() => {
+            owner.destroy(0);
+        }, options.ms_timeout);
         if (options.event != null || (window.consumables != undefined && window.consumables.event != undefined)) {
             let x = 0;
             let y = 0;
@@ -64,71 +96,101 @@ class Notify {
                 window.consumables.event = undefined;
             }
             setTimeout(() => {
-                this.#self_ref.style.cssText += ' bottom: unset !important;';
-                owner.#self_ref.style.cssText += ' opacity: 1 !important;';
+                owner.self_ref.style.cssText += ' bottom: unset !important;';
+                owner.self_ref.style.cssText += ' opacity: 1 !important;';
                 if (options.style == 3) {
-                    this.#self_ref.style.setProperty('left', `${x - (this.#self_ref.clientWidth / 2)}px`);
-                    this.#self_ref.style.setProperty('top', `${y - 40}px`);
+                    owner.self_ref.style.setProperty('left', `${x - (owner.self_ref.clientWidth / 2)}px`);
+                    owner.self_ref.style.setProperty('top', `${y - 40}px`);
                 } else {
-                    this.#self_ref.style.setProperty('left', `${x - 250}px`);
-                    this.#self_ref.style.setProperty('top', `${y - 120}px`);
+                    owner.self_ref.style.setProperty('left', `${x - 250}px`);
+                    owner.self_ref.style.setProperty('top', `${y - 120}px`);
                 }
-                UiBuilder.checkOverflow(owner.#self_ref);
+                UiBuilder.checkOverflow(owner.self_ref);
             }, 0);
         } else {
+            owner.#is_stacked = true;
             setTimeout(() => {
-                owner.#self_ref.style.cssText += ' opacity: 1 !important;';
+                owner.self_ref.style.cssText += ' opacity: 1 !important;';
             }, 0);
         }
-        this.applicaStili(options.style);
+        owner.applicaStili(options.style);
         requestAnimationFrame(() => {
-            document.getElementsByTagName("body")[0].appendChild(this.#self_ref);
+            document.getElementsByTagName("body")[0].appendChild(owner.self_ref);
+            if (owner.#is_stacked) {
+                Notify.#addToStack(owner);
+            }
         });
     }
+    /**
+     * @type {boolean}
+     */
+    #is_stacked = false;
+    /**
+     * this instance's own `bottom` offset (px, on top of the base 2%), recorded so a later
+     * addition can stack above its actual top edge even after earlier removals left a gap
+     * @type {number}
+     */
+    #stack_offset_px = 0;
+    /**
+     * finds the lowest free slot that fits `owner` - reusing a gap left behind by an earlier
+     * removal when one is large enough, instead of always growing on top of everything - and
+     * adds it to the stack there
+     * @param {Notify} owner
+     */
+    static #addToStack(owner) {
+        const height = owner.self_ref.offsetHeight;
+        const occupied = [...Notify.#stacked_instances].sort((a, b) => a.#stack_offset_px - b.#stack_offset_px);
+        let candidate = 0;
+        for (const other of occupied) {
+            if (candidate + height + Notify.#stack_gap_px <= other.#stack_offset_px) {
+                break; // gap before `other` is big enough, use it
+            }
+            candidate = other.#stack_offset_px + other.self_ref.offsetHeight + Notify.#stack_gap_px;
+        }
+        owner.#stack_offset_px = candidate;
+        owner.self_ref.style.setProperty('bottom', `calc(2% + ${candidate}px)`);
+        Notify.#stacked_instances.push(owner);
+    }
+    /**
+     * removes `owner` from the stack, if present. The remaining notifications keep their
+     * current position (no reflow) - only future ones will stack around the new gap.
+     * @param {Notify} owner
+     */
+    static #removeFromStack(owner) {
+        const index = Notify.#stacked_instances.indexOf(owner);
+        if (index === -1) {
+            return;
+        }
+        Notify.#stacked_instances.splice(index, 1);
+    }
     applicaStili(num) {
+        const owner = this;
         switch (num) {
             case 3:
-                this.#self_ref.classList.toggle("typ3-3", true)
+                owner.self_ref.classList.toggle("typ3-3", true)
+                break;
+            case 21:
+                owner.self_ref.classList.toggle("typ3-21", true)
                 break;
             default:
                 break;
         }
     }
     /**
-     * 
-     * @param {Notify} notifica 
-     * @param {string} timeoutf
-     */
-    static #destroy(notifica, clone, timeout) {
-        return window.setTimeout(() => {
-            if (clone != null) {
-                clone.classList.add("unpop-from-below");
-                setTimeout(() => {
-                    clone.remove();
-                }, timeout);
-            } else {
-                if (Notify.#html_placeholder == undefined) {
-                    if (Notify.#max_retries > 0) {
-                        notifica.cancelAutoDestroy(); //it's executing now what u gonna cancel???
-                        setTimeout(() => {
-                            Notify.#destroy(notifica, notifica.#self_ref, timeout);
-                        }, 100);
-                    }
-                }
-            }
-        }, timeout);
-    }/**
-     * 
-     * @param {number} timeout_ms 0 by default
+     * @param {number} timeout_ms 0 by default - how long to let the close animation play before actual removal
      */
     destroy(timeout_ms = 0) {
-        this.cancelAutoDestroy();
-        this.id_timeout_auto_destroy = Notify.#destroy(this, this.#self_ref, timeout_ms);
+        const owner = this;
+        owner.cancelAutoDestroy();
+        Notify.#removeFromStack(owner);
+        owner.self_ref.classList.add("unpop-from-below");
+        super.destroy(Math.max(timeout_ms, 300));
     }
     cancelAutoDestroy() {
-        if (this.id_timeout_auto_destroy != null) {
-            window.clearTimeout(this.id_timeout_auto_destroy);
-            this.id_timeout_auto_destroy = null;
+        const owner = this;
+        if (owner.id_timeout_auto_destroy != null) {
+            window.clearTimeout(owner.id_timeout_auto_destroy);
+            owner.id_timeout_auto_destroy = null;
         }
     }
     static switchColor(num) {
@@ -146,19 +208,69 @@ class Notify {
     static switchIcon(num) {
         switch (num) {
             case 0:
-                return "check.svg";
+                return "&#xe5ca;";
+            // return "check.svg";
             case 1:
-                return "chat_error.svg";
+                return "&#xf7ac;";
+            // return "chat_error.svg";
             case -1:
-                return "warning.svg";
+                return "&#xe002;";
+            // return "warning.svg";
             default:
-                return "question_mark_book.svg";
+                return "&#xe88e;";
+            // return "question_mark_book.svg";
         }
     }
-    static load() {
-        const tmp_div = document.createElement("div");
-        tmp_div.innerHTML = policy.createHTML(`${injector_html}`);
-        Notify.#html_placeholder = tmp_div.firstElementChild;
+    /**
+     * clicking the notification pins it: cancels the auto-destroy timer and shows a pin icon so
+     * it stays on screen until the user closes it manually
+     * @param {Event} event
+     */
+    cancelAutoClose(event) {
+        /**
+         * @type HTMLElement
+         */
+        const element_with_this_event = this;
+        /**
+         * @type Notify
+         */
+        const owner = element_with_this_event.fwInstanceReference;
+        if (owner.id_timeout_auto_destroy == null) {
+            return; // already pinned (or already closing) - nothing to do
+        }
+        owner.cancelAutoDestroy();
+        const pinned_icon = Icons.create("e6aa");
+        pinned_icon.style = "position: absolute;right: 2px;top: 2px;rotate: 24deg;"
+        pinned_icon.classList.add("notify-pinned-icon");
+        owner.self_ref.appendChild(pinned_icon);
+        owner.elements.close_svg.style = "font-size: 27px;padding: 18px;opacity: 1;display: flex;";
     }
 }
-Notify.load();
+
+
+//#START RESERVED AREA FOR UI_BUILDER
+// const mock_titles = ["Operazione completata", "Attenzione", "Errore di rete", "Nuovo aggiornamento disponibile", "Salvataggio riuscito"];
+// const mock_texts = ["Tutto è andato a buon fine.", "Controlla i dati inseriti.", "Impossibile contattare il server.", "Riprova tra qualche minuto.", undefined];
+// const mock_types = [0, 1, -1, 2]; // 0 ok, 1 warning, -1 error, anything else -> question_mark_book
+// const mock_styles = [0, 3, 21];
+// function spawnRandomNotify() {
+//     const type = mock_types[Math.floor(Math.random() * mock_types.length)];
+//     new Notify({
+//         title: mock_titles[Math.floor(Math.random() * mock_titles.length)],
+//         text: mock_texts[Math.floor(Math.random() * mock_texts.length)],
+//         extra_data: Math.random() > 0.5 ? `#${Math.floor(Math.random() * 9000 + 1000)}` : undefined,
+//         type: type,
+//         next: () => console.log("notify clicked"),
+//         ms_timeout: 1500 + Math.random() * 4000,
+//         style: mock_styles[Math.floor(Math.random() * mock_styles.length)],
+//     });
+// }
+// for (let i = 0; i < 18; i++) {
+//     try {
+//         setTimeout(spawnRandomNotify, i * 800);
+//     } catch (error) {
+//         console.error("wtf:", error.message);
+//     }
+// }
+
+//#END RESERVED AREA FOR UI_BUILDER

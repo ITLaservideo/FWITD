@@ -134,11 +134,6 @@ class SideBarLeft extends FrameworkGC(`${injector_html}`) {
                     overlay.style.display = `block`;
                 }, 0);
             }
-            if (owner.options.onReady != undefined) {
-                setTimeout(() => {
-                    owner.options.onReady();
-                }, 0);
-            }
         }, 0);
     }
     async #addEventListeners() {

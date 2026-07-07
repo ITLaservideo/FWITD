@@ -74,16 +74,19 @@ namespace DotNet.Utility {
         /// </exception>
         public static void Init() {
 #if DEBUG
-            var server = AppSettings.Get<string>("Device.LocalDB.DebugServer");
             connectionStr = AppSettings.Get<string>("ConnectionString");
 #else
-            var server = AppSettings.Get<string>("Device.LocalDB.Server");
             connectionStr = AppSettings.Get<string>("RELEASE_ConnectionString");
 #endif
-            if (server != null) {
+            if (connectionStr == null) {
                 connectionStr = new SqlConnectionStringBuilder {
-                    DataSource = server,
-                    InitialCatalog = AppSettings.Get("Device.LocalDB.Database", "Reportistica"),
+#if DEBUG
+                    DataSource = AppSettings.Get<string>("Device.LocalDB.DebugServer"),
+                    InitialCatalog = AppSettings.Get("Device.LocalDB.DebugCatalog", "Reportistica"),
+#else
+                    DataSource = AppSettings.Get<string>("Device.LocalDB.Server"),
+                    InitialCatalog = AppSettings.Get("Device.LocalDB.Catalog", "Reportistica"),
+#endif
                     UserID = AppSettings.Get<string>("Device.LocalDB.UserId"),
                     Password = AppSettings.Get<string>("Device.LocalDB.Password"),
                     TrustServerCertificate = AppSettings.Get("Device.LocalDB.TrustServerCertificate", true)
@@ -253,7 +256,11 @@ namespace DotNet.Utility {
         private static void EnsureTablesAndDataExist() {
             DataTable exist = ExecuteQuery(SQL_EXIST_TABLE, ["TG_LocalSettings"]);
             if (exist.Rows.Count <= 0) {
-                string dbName = AppSettings.Get("Device.LocalDB.Database", "Reportistica");
+#if DEBUG
+                string dbName = AppSettings.Get("Device.LocalDB.DebugCatalog", "Reportistica");
+#else
+                string dbName = AppSettings.Get("Device.LocalDB.Catalog", "Reportistica");
+#endif
                 CreateDatabaseIfNotExists(dbName);
                 exist = ExecuteQuery(SQL_EXIST_TABLE, ["TG_LocalSettings"]);
                 if (exist.Rows.Count <= 0)
@@ -266,22 +273,31 @@ namespace DotNet.Utility {
             if (DBNull.Value == exist.Rows[0][0]) {
                 ExecuteNonQuery(SQL_CREATE_TG_LocalSettings);
             }
-            int db_version = Convert.ToInt32(ExecuteScalar(SQL_GET_DB_VERSION));
-            string PATH_DBUpdate = $".Assets.{AppSettings.Get<string>("SQL.FolderUpdateDB", "DBUpdate")}.";
+            int db_version = SQL.ToInt32(ExecuteScalar(SQL_GET_DB_VERSION)); //0
+            string PATH_DBUpdate = $"FWITD.Assets.{AppSettings.Get<string>("SQL.FolderUpdateDB", "DBUpdate")}.";//FWITD.Assets.DBUpdateAegisGate.
             var assembly = Assembly.GetExecutingAssembly();
-            var updates = assembly.GetManifestResourceNames()
+            var _allResourceNames = assembly.GetManifestResourceNames().ToList();
+            var _sqlResourceNames = _allResourceNames
                 .Where(n => n.Contains(PATH_DBUpdate) && n.EndsWith(".sql"))
+                .ToList();
+            var _parsedResources = _sqlResourceNames
                 .Select(resourceName => {
-                    var parts = resourceName.Split('.');
-                    var stem = parts.Length >= 2 ? parts[^2] : "";
+                    int prefixIndex = resourceName.IndexOf(PATH_DBUpdate, StringComparison.Ordinal);
+                    var stem = prefixIndex >= 0 ? resourceName[(prefixIndex + PATH_DBUpdate.Length)..] : "";
                     var match = RegexDbVersion().Match(stem);
-                    return new { ResourceName = resourceName, Match = match };
+                    return new { ResourceName = resourceName, Stem = stem, Match = match };
                 })
+                .ToList();
+            var _matchedResources = _parsedResources
                 .Where(x => x.Match.Success)
+                .ToList(); //count = 0
+            var _versionedResources = _matchedResources
                 .Select(x => new {
                     x.ResourceName,
                     Version = int.Parse(x.Match.Groups[1].Value)
                 })
+                .ToList();
+            var updates = _versionedResources
                 .Where(x => x.Version > db_version)
                 .OrderBy(x => x.Version)
                 .ToList();
