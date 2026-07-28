@@ -35,6 +35,27 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
     static #is_visible = false;
     static #current_instance = null;
 
+    /** @type {HTMLElement|null} */
+    static #pin_button = null;
+
+    /**
+     * Shared "pin" state: while pinned, `#hide()` no longer closes the popup on
+     * mouseleave — it only dims it (opacity 0.1) as a visual cue.
+     */
+    static pinned = {
+        value: false,
+        /**
+         * @param {boolean} [force] - if omitted, flips the current value
+         * @returns {boolean} the resulting value
+         */
+        toggle(force) {
+            const next = force !== undefined ? force : !SpeedActions.pinned.value;
+            SpeedActions.pinned.value = next;
+            SpeedActions.#pin_button?.classList.toggle('sa-pinned', next);
+            return next;
+        }
+    };
+
     /** @type {HTMLElement[]} */
     #buttons = [];
     /** @type {HTMLElement} */
@@ -75,10 +96,18 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
                 clearTimeout(SpeedActions.prevent_hiding);
                 SpeedActions.prevent_hiding = null;
             }
+            SpeedActions.the_one_instance.self_ref.style.opacity = '';
             // console.error("prevent closing")
         });
         SpeedActions.the_one_instance.self_ref.addEventListener('mouseleave', () => {
             SpeedActions.#hide();
+        });
+        SpeedActions.the_one_instance.self_ref.addEventListener('keydown', (event) => {
+            if (event.key == "Escape") {
+                SpeedActions.pinned.toggle(false);
+            } else {
+                SpeedActions.pinned.toggle(true);
+            }
         });
     }
 
@@ -95,6 +124,7 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
         // Remove dot from previous target if switching
         if (SpeedActions.#current_instance && SpeedActions.#current_instance !== instance) {
             SpeedActions.#current_instance.#target.classList.remove('sa-target-active');
+            SpeedActions.pinned.toggle(false);
         }
 
         SpeedActions.#current_instance = instance;
@@ -113,8 +143,23 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
         }
         instance.#buttons.forEach(btn => container.appendChild(btn));
 
+        if (SpeedActions.#pin_button === null) {
+            SpeedActions.#pin_button = UiBuilder.createButton({
+                icon_code: 'e6aa',
+                hint: Locale.at('prevent auto-closing'),
+                class: 'speed-actions-pin-btn',
+                onClick: () => SpeedActions.pinned.toggle(),
+                theme: 1,
+                anchor: "right",
+            });
+        }
+        if (instance.options.unpinnable != true) {
+            container.appendChild(SpeedActions.#pin_button);
+        }
+
         // Render hidden to measure container dimensions
         root.style.visibility = 'hidden';
+        root.style.opacity = '';
         root.classList.add('sa-visible');
 
         const tr = instance.#target.getBoundingClientRect();
@@ -185,6 +230,10 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
             // console.warn("hide " + new Date().toISOString());
             const one = SpeedActions.the_one_instance;
             if (!one || !SpeedActions.#is_visible) return;
+            if (SpeedActions.pinned.value) {
+                one.self_ref.style.opacity = '0.7';
+                return;
+            }
             SpeedActions.#is_visible = false;
             SpeedActions.#current_instance.#target.classList.remove('sa-target-active');
             SpeedActions.#current_instance = null;

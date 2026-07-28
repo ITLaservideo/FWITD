@@ -50,6 +50,7 @@ class ExportDataButton extends FrameworkGC(`${injector_html}`) {
             target: owner.self_ref,
             createButtons: createButtons,
             side: "right",
+            unpinnable: true,
             label: owner.options.label,
             onReady: () => console.log('SpeedActions ready'),
         });

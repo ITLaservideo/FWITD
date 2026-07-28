@@ -40,6 +40,15 @@
     pointer-events: all;
 }
 
+.speed-actions-container,
+.speed-actions-pin-btn {
+
+    &:focus,
+    &:focus-visible {
+        outline: none;
+    }
+}
+
 .speed-actions-label {
     font-size: 0.75em;
     opacity: 0.6;
@@ -47,6 +56,29 @@
     white-space: nowrap;
     border-bottom: 1px solid var(--vscode-editorWidget-border);
     margin-bottom: 2px;
+    padding-right: 15px;
+}
+
+.speed-actions-pin-btn {
+    position: absolute;
+    top: -20px;
+    right: -13px;
+    padding: 0;
+    transition: all ease 0.1s;
+    /* transform: rotate(45deg); */
+}
+
+.speed-actions-container:has(>.speed-actions-label) {
+    .speed-actions-pin-btn {
+        top: -9px;
+        right: -3px;
+    }
+}
+
+.speed-actions-pin-btn.sa-pinned {
+    color: var(--vscode-editorGutter-addedBackground);
+    top: -18px;
+    transform: rotate(45deg);
 }
 
 .sa-target-active {
