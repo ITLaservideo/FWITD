@@ -1,40 +1,4 @@
 const debug = true;
-//#region LiveLogger
-/**
- * Pushed to directly from the C# side (FM32_25/Ui.cs :: Ui.log) via ExecuteScriptAsync,
- * independently of any App instance, so it has to live at module/window scope.
- */
-window.live_logger = {
-    /**
-     * @type {ListBox}
-     */
-    listbox: null,
-    log(text, type_log) {
-        if (this.listbox == undefined) {
-            return;
-        }
-        // type_log matches FM32_25/Ui.cs :: Ui.TypeLog's ToString() values
-        switch (type_log) {
-            case "warn":
-                this.listbox.addItem(text, { color: "var(--vscode-editorWarning-foreground)" });
-                break;
-            case "danger":
-                this.listbox.addItem(text, { color: "var(--vscode-errorForeground)" });
-                break;
-            case "success":
-                this.listbox.addItem(text, { color: "var(--vscode-charts-green)" });
-                break;
-            case "info":
-                this.listbox.addItem(text, { color: "var(--vscode-editorInfo-foreground)" });
-                break;
-            case "none":
-            default:
-                this.listbox.addItem(text);
-                break;
-        }
-    }
-};
-//#endregion
 //#region Commands
 /**
  * test commands exposed as cards - each maps 1:1 to a FM32_25Controller route.
@@ -43,7 +7,7 @@ window.live_logger = {
  */
 const COMMANDS = [
     { title: "enable business mode", desc: "switch the reader to NFC business mode", route: "FM32_25/EnableBusinessMode", section: "general" },
-    { title: "authenticate mifare 1k", desc: "attempt Mifare Classic 1K authentication", route: "FM32_25/AuthenticateMifareClassic1k", section: "general" },
+    // { title: "authenticate mifare 1k", desc: "attempt Mifare Classic 1K authentication", route: "FM32_25/AuthenticateMifareClassic1k", section: "general" },
     { title: "stop card", desc: "send the stop-card command", route: "FM32_25/StopCard", section: "general" },
     { title: "get system info", desc: "query firmware / hardware / serial number", route: "FM32_25/GetSystemInfo", section: "general" },
     //{ title: "dump DR log", desc: "print the internal data-response log", route: "FM32_25/LogDRLog", section: "general" }, @deprecated
@@ -51,13 +15,13 @@ const COMMANDS = [
 
     { title: "listen mifare 1k", desc: "wait for a Mifare Classic 1K card", route: "FM32_25/ListenForMifare1kCard", section: "read" },
     { title: "listen identity cards", desc: "wait for an MRZ + NFC identity document", route: "FM32_25/ListenIdentityCards", section: "read" },
-    // { title: "(quick test) read CIE / passport", desc: "hover to pick which mock identity to simulate", route: "FM32_25/ReadCIEAUS", section: "read", disabled: true }, @deprecated
 
     { title: "write service card", desc: "ex: `tag000001` \ntag + 6 digits", route: "FM32_25/WriteMifare1kCards", section: "write" },
     { title: "write data command", desc: "hover to type data to overwrite onto the last card's sector 0", route: "FM32_25/WriteDataCommand", section: "write" },
     { title: "change password", desc: "hover to set a custom 12-digit hex password, or leave empty to reset to default", route: "FM32_25/ChangePasswordToCommand", section: "write" },
 
     { title: "test input mrz", desc: "provide an mrz\n verify wether is accepted", route: "FM32_25/TestMRZInput", section: "test_bypass" },
+    { title: "(quick test) read CIE / passport", desc: "hover to pick which MRZ to use", route: "FM32_25/ReadCardMrz", section: "test_bypass", disabled: false },
 ];
 //#endregion
 /**
@@ -151,9 +115,9 @@ class App {
                 grid.appendChild(card);
                 continue;
             }
-            if (cmd.route === "FM32_25/ReadCIEAUS") {
+            if (cmd.route === "FM32_25/ReadCardMrz") {
                 // hover-driven identity picker instead of a plain click-to-run command
-                throw new Error("deprecated");
+                //throw new Error("deprecated");
                 owner.#wireQuickTestNFCCard(card);
             } else if (cmd.route === "FM32_25/WriteMifare1kCards") {
                 // hover-driven tag/range form instead of a plain click-to-run command
@@ -182,15 +146,12 @@ class App {
         }
     }
     //#endregion
-    //#region ReadCIEAUS
-    //@note deprecated - #buildCommandCards throws before wiring this up, kept for reference
+    //#region ReadCardMrz
     async #wireQuickTestNFCCard(card) {
         const owner = this;
-        const rsp = await Lobby.postAsync("FM32_25/GetQuickTestNFCCards", {});
-        if (rsp.error != undefined) {
-            return;
-        }
-        const entries = rsp.data ?? [];
+        const entries = [
+            { Name: "FG", Mrz: "C<ITACA83458ST9<<<<<<<<<<<<<<<0206204M3406201ROU<<<<<<<<<<<8TUDOR<<FABIAN<GABRIEL<<<<<<<<<" }
+        ];
         if (entries.length === 0) {
             return;
         }
@@ -199,20 +160,20 @@ class App {
             label: Locale.at("select identity"),
             createButtons: entries.map((entry) => ({
                 title: entry.Name,
-                onClick: (event) => owner.#runReadCIEAUS(entry.Index, event),
+                onClick: (event) => owner.#runReadCardMrz(entry.Mrz, event),
             })),
             side: "bottom"
         });
     }
-    async #runReadCIEAUS(which, event) {
+    async #runReadCardMrz(mrz, event) {
         const owner = this;
         if (!owner.#portIsOpen) {
             return;
         }
-        window.live_logger.log(`⚡ ${Locale.at("read CIE / passport")}: ${which}`);
-        const rsp = await Lobby.postAsync("FM32_25/ReadCIEAUS", { which: String(which) });
+        LiveLogger.log(`⚡ ${Locale.at("read CIE / passport")}: ${mrz}`);
+        const rsp = await Lobby.postAsync("FM32_25/ReadCardMrz", { mrz: String(mrz) });
         if (rsp.error != undefined) {
-            window.live_logger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
         }
     }
@@ -245,7 +206,11 @@ class App {
         from_input.step = "1";
         from_input.value = "0";
         from_input.className = "dlb-write-input";
-
+        UiBuilder.addHint({
+            hint: Locale.at("-1 -> continues from last write"),
+            anchor: "left",
+            target: from_input,
+        })
         const to_input = document.createElement("input");
         to_input.type = "number";
         to_input.step = "1";
@@ -308,14 +273,14 @@ class App {
         if (!owner.#portIsOpen) {
             return;
         }
-        window.live_logger.log(`⚡ ${Locale.at("write service card")}: ${tag} [${from_include}-${to_include}]`);
+        LiveLogger.log(`⚡ ${Locale.at("write service card")}: ${tag} [${from_include}-${to_include}]`);
         const rsp = await Lobby.postAsync("FM32_25/WriteMifare1kCards", {
             tag: String(tag),
             from_include: String(from_include),
             to_include: String(to_include),
         });
         if (rsp.error != undefined) {
-            window.live_logger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
             return;
         }
@@ -332,7 +297,7 @@ class App {
         if (rsp.error != undefined) {
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
         }
-        window.live_logger.log(`${Locale.at("write service card")}: ${Locale.at("cancelled")}`);
+        LiveLogger.log(`${Locale.at("write service card")}: ${Locale.at("cancelled")}`);
         owner.#resetWriteMifareUI();
     }
     /**
@@ -342,7 +307,7 @@ class App {
      */
     onWriteMifareCardsDone() {
         const owner = this;
-        window.live_logger.log(`${Locale.at("write service card")}: ${Locale.at("done")}`, "success");
+        LiveLogger.log(`${Locale.at("write service card")}: ${Locale.at("done")}`, "success");
         owner.#resetWriteMifareUI();
     }
     #resetWriteMifareUI() {
@@ -411,13 +376,13 @@ class App {
         if (!owner.#portIsOpen || !command) {
             return;
         }
-        window.live_logger.log(`⚡ ${Locale.at("send raw command")}: ${command}`);
+        LiveLogger.log(`⚡ ${Locale.at("send raw command")}: ${command}`);
         const rsp = await Lobby.postAsync("FM32_25/SendRawCommand", {
             command: String(command),
             permanent_setting: Boolean(permanent_setting),
         });
         if (rsp.error != undefined) {
-            window.live_logger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
         }
     }
@@ -427,12 +392,33 @@ class App {
         const owner = this;
         const container = document.createElement("div");
         container.className = "dlb-write-form";
-        container.innerText = `${Locale.at("new lines are replaced with ` `")}\n${Locale.at("max memory 742 bytes/characters")}`;
+        const inner = document.createElement("span");
+        inner.innerText = `${Locale.at("new lines are replaced with ` `")}\n${Locale.at("max memory 752bytes")}`;
+        container.appendChild(inner);
+        UiBuilder.addHint({
+            target: inner,
+            anchor: "left",
+            hint: `Plain ASCII is 1 byte per char\n\n[A-Za-z0-9 !"#$%&'()*+,-./:;<=>?@[]^_\`{|}~\n\nNon-ASCII costs more: é = 2 bytes, 中 = 3 bytes, 😀 = 4 bytes.`
+        });
 
         const what_input = document.createElement("input");
         what_input.type = "text";
         what_input.value = "";
         what_input.className = "dlb-write-input";
+        let really_don_t_spam = null;
+        const notifyIfTooLarge = (event) => {
+            const bytes = new TextEncoder().encode(what_input.value.trim());
+            if (bytes.length > 752) {
+                clearTimeout(really_don_t_spam);
+                really_don_t_spam = setTimeout(() => {
+                    const coo = what_input.getBoundingClientRect();
+                    new Notify({ text: Locale.at("data will be truncated"), event: { clientX: coo.x - 50, clientY: coo.y + 50 }, type: 1, style: 3 });
+                }, 500);
+            }
+        };
+        what_input.addEventListener("keyup", notifyIfTooLarge);
+        // the pasted text isn't in what_input.value yet when "paste" fires, defer to after it lands
+        what_input.addEventListener("paste", (event) => setTimeout(() => notifyIfTooLarge(event), 0));
 
         const send_btn = UiBuilder.createButton({
             title: Locale.at("send"),
@@ -472,10 +458,10 @@ class App {
         if (!owner.#portIsOpen || what == undefined) {
             return;
         }
-        window.live_logger.log(`⚡ ${Locale.at("write data command")}: ${what}`);
+        LiveLogger.log(`⚡ ${Locale.at("write data command")}: ${what}`);
         const rsp = await Lobby.postAsync("FM32_25/WriteDataCommand", { what: String(what) });
         if (rsp.error != undefined) {
-            window.live_logger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
         }
     }
@@ -527,10 +513,10 @@ class App {
         if (!owner.#portIsOpen) {
             return;
         }
-        window.live_logger.log(`⚡ ${Locale.at("change password")}: ${what || Locale.at("default")}`);
+        LiveLogger.log(`⚡ ${Locale.at("change password")}: ${what || Locale.at("default")}`);
         const rsp = await Lobby.postAsync("FM32_25/ChangePasswordToCommand", { what: String(what ?? "") });
         if (rsp.error != undefined) {
-            window.live_logger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
         }
     }
@@ -586,7 +572,7 @@ class App {
         this.#DataCrunch1(rsp.res)
         this.#DataCrunch2(rsp.res)
         // if (info && (info.IDNumber || info.PassportNumber)) {
-        //     window.live_logger.log(`  ${info.DocumentType} | ${info.LastName ?? "-"} ${info.FirstName ?? "-"} | ${info.IDNumber || info.PassportNumber} | ${Locale.at("nationality")}:${info.Nationality ?? "-"}`);
+        //     LiveLogger.log(`  ${info.DocumentType} | ${info.LastName ?? "-"} ${info.FirstName ?? "-"} | ${info.IDNumber || info.PassportNumber} | ${Locale.at("nationality")}:${info.Nationality ?? "-"}`);
         // }
     }
     #DataCrunch2(da_info) {
@@ -768,7 +754,7 @@ class App {
         });
         listbox.addItem(Locale.at("..."));
         owner.elements.log_container.appendChild(listbox.elementReference());
-        window.live_logger.listbox = listbox;
+        LiveLogger.listbox = listbox;
     }
     //#endregion
     //#region GenericCommand
@@ -780,27 +766,28 @@ class App {
         if (!owner.#portIsOpen) {
             return;
         }
-        window.live_logger.log(`⚡ ${Locale.at(cmd.title)}`);
+        LiveLogger.log(`⚡ ${Locale.at(cmd.title)}`);
         const rsp = await Lobby.postAsync(cmd.route, {});
         if (rsp.error != undefined) {
-            window.live_logger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
             return;
         }
         if (cmd.route === "FM32_25/GetSystemInfo") {
-            window.live_logger.log(`  ${rsp.ProductName ?? "-"} | fw:${rsp.FirmwareVersion ?? "-"} | hw:${rsp.HardwareVersion ?? "-"} | sn:${rsp.SerialNumber ?? "-"}`);
+            LiveLogger.log(`  ${rsp.ProductName ?? "-"} | fw:${rsp.FirmwareVersion ?? "-"} | hw:${rsp.HardwareVersion ?? "-"} | sn:${rsp.SerialNumber ?? "-"}`);
         }
     }
     //#endregion
     //#region ActionsRow
     #buildActionsRow() {
         const owner = this;
-        owner.#portStatusBtn = UiBuilder.createButton({
-            title: `${Locale.at("port closed")}`,
-            class: "dlb-action-btn",
-            onClick: (event) => { owner.#selectPort(event); },
-        });
+        // hover-driven port picker (SpeedActions) instead of a plain click-to-run command
+        owner.#portStatusBtn = document.createElement("div");
+        owner.#portStatusBtn.classList.add("twj-button", "dlb-action-btn");
+        owner.#portStatusBtn.setAttribute("tabindex", "0");
+        owner.#portStatusBtn.innerText = Locale.at("port closed");
         owner.elements.actions_row.appendChild(owner.#portStatusBtn);
+        owner.#wirePortSelectSpeedActions();
         owner.#closeBtn = UiBuilder.createButton({
             title: Locale.at("close port"),
             class: "dlb-action-btn disabled",
@@ -834,7 +821,7 @@ class App {
     }
     //#endregion
     //#region PortLifecycle
-    async #selectPort(event) {
+    async #wirePortSelectSpeedActions() {
         const owner = this;
         const rsp = await Lobby.postAsync("FM32_25/ListPorts", {});
         if (rsp.error != undefined) {
@@ -842,16 +829,13 @@ class App {
             return;
         }
         const ports = rsp.data ?? [];
-        if (ports.length === 0) {
-            UiBuilder.Notify(Locale.at("no ports found"), event);
-            return;
-        }
-        new MousePopUp({
-            title: Locale.at("select which port to open"),
-            action_titles: ports,
-            next: ports.map((port_name) => () => owner.#openPort(port_name)),
-            event: event,
-            style: 3,
+        new SpeedActions({
+            target: owner.#portStatusBtn,
+            label: Locale.at("select which port to open"),
+            createButtons: ports.length > 0
+                ? ports.map((port_name) => ({ title: port_name, onClick: () => owner.#openPort(port_name) }))
+                : [{ title: Locale.at("no ports found"), onClick: (event) => UiBuilder.Notify(Locale.at("no ports found"), event) }],
+            side: "bottom",
         });
     }
     async #openPort(port_name) {
