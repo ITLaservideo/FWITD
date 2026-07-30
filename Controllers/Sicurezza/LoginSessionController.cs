@@ -1,4 +1,5 @@
 ﻿using FWITD.Services;
+using QStorage;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,15 +10,15 @@ using System.Text.Json.Nodes;
 namespace FWITD.Controllers.Sicurezza {
     internal class LoginSessionController {
         private class UserSession {
-            public Int64 userID { get; set; }
-            public string email { get; set; }
-            public Guid token { get; set; }
-            public Int64 userType { get; set; }
-            public string description { get; set; }
-            public string timeout { get; set; }
-            public string deviceId { get; set; }
-            public string? fcm_token { get; set; }
-            public int[] grantedActions { get; set; }
+            public Int64 UserID { get; set; }
+            public string Email { get; set; }
+            public Guid Token { get; set; }
+            public Int64 UserType { get; set; }
+            public string Description { get; set; }
+            public string Timeout { get; set; }
+            public string DeviceId { get; set; }
+            public string? FcmToken { get; set; }
+            public int[] GrantedActions { get; set; }
         }
 
         // RequestDispatcher only invokes controller methods that take no parameters or a single JsonNode.
@@ -53,11 +54,11 @@ namespace FWITD.Controllers.Sicurezza {
             try {
                 using (HttpClient client = new HttpClient()) {
                     var payload = new Dictionary<string, string>(){
-                        {"email", nick},
-                        {"password", pwd },
-                        {"deviceId", deviceId.ToString() },
-                        {"deviceDescription", Utils.getMachineShortDescription()},
-                        {"remember_this_device", remember_this_device.ToString() }
+                        {"Email", nick},
+                        {"Password", pwd },
+                        {"DeviceId", deviceId.ToString() },
+                        {"DeviceDescription", Utils.getMachineShortDescription()},
+                        {"RememberThisDevice", remember_this_device.ToString() }
                     };
                     var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
                     HttpResponseMessage response = await client.PostAsync(RemoteServer.HTTP_AUTH, content);
@@ -65,13 +66,13 @@ namespace FWITD.Controllers.Sicurezza {
                         string responseJson = await response.Content.ReadAsStringAsync();
                         try {
                             var profiler = JsonSerializer.Deserialize<UserSession>(responseJson);
-                            if (null == profiler || profiler.token == Guid.Empty) {
+                            if (null == profiler || profiler.Token == Guid.Empty) {
                                 return null;
                             }
-                            await SStorage.setSessionIdAsync(profiler.token);
-                            //await SStorage.setUserIdAsync(profiler.userID);
-                            if (profiler.deviceId == "waiting device authentication") {
-                                profiler.email = "waiting device authentication";
+                            await SStorage.setSessionIdAsync(profiler.Token);
+                            //await SStorage.setUserIdAsync(profiler.UserID);
+                            if (profiler.DeviceId == "waiting device authentication") {
+                                profiler.Email = "waiting device authentication";
                             }
                             return profiler;
                         } catch (Exception e) {

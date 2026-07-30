@@ -1397,6 +1397,7 @@ class UiBuilder {
             flex: '1 1 auto',
             minHeight: '0',
             overflowY: 'auto',
+            padding: "1px",
         });
         container.appendChild(scrollable);
         if (text1 != null) {

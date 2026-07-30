@@ -1,8 +1,10 @@
 #define USE_JS_NON_MINIMIZED_FILES
 
+using QStorage;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 using static FWITD.JSProvider;
 
 namespace FWITD {
@@ -214,7 +216,7 @@ namespace FWITD {
             internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, DashboardLettoreBarcode, ImageEditor, left_panel, ServerStatus, some_page, test_page }
             internal enum injectable_apps { cloudflared, GestionaleDistributore, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
             internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, ExportDataButton, FrameworkTestComponent, ImageEditor, Insight, KeyBoard, ListBox, MousePopUp, Notify, OTPComponent, PieChart, PosizioneMotore, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip, WizardStepper }
-            internal enum utils { AppRouter, Icons, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
+            internal enum utils { AppRouter, Icons, LiveLogger, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
             internal enum frameworks { AppStatus, FrameworkGC }
             private static Dictionary<JS.pages, string> cache_path_files = new Dictionary<pages, string>();
 
@@ -255,7 +257,9 @@ namespace FWITD {
 
                 StringBuilder result = new();
                 var allDirectories = Directory.GetDirectories(path, "*", SearchOption.AllDirectories)
-                    .Where(dir => !Path.GetFileName(dir).Equals("components", StringComparison.OrdinalIgnoreCase))
+                    .Where(dir => !Path.GetRelativePath(path, dir)
+                        .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        .Any(segment => segment.Equals("components", StringComparison.OrdinalIgnoreCase)))
                     .ToList();
 
                 if (allDirectories.Count == 0) {
@@ -310,17 +314,21 @@ namespace FWITD {
 #endif
                 if (!component_name_to_js_component.ContainsKey(component)) {
                     string component_name = component.ToString();
-                    var html = await AssetLoader.LoadAssetFileAsync(Path.Combine(default_path, component_name, $"{component_name}{minimized_folder_extension}html"));
-                    var css = await AssetLoader.LoadAssetFileAsync(Path.Combine(default_path, component_name, $"{component_name}{minimized_folder_extension}css"));
-                    var js = await AssetLoader.LoadAssetFileAsync(Path.Combine(default_path, component_name, $"{component_name}{minimized_folder_extension}js"));
-                    var compiled = linkJSToFWHTML(js, html);
-                    js = compiled.Item1;
-                    html = compiled.Item2;
-                    var other_js = await loadAllOtherJSFiles(Path.Combine(default_path, component_name));
-                    var r_js = other_js + js.Replace("${injector_html}", $"{html}");
                     try {
+                        var html = await AssetLoader.LoadAssetFileAsync(Path.Combine(default_path, component_name, $"{component_name}{minimized_folder_extension}html"));
+                        var css = await AssetLoader.LoadAssetFileAsync(Path.Combine(default_path, component_name, $"{component_name}{minimized_folder_extension}css"));
+                        var js = await AssetLoader.LoadAssetFileAsync(Path.Combine(default_path, component_name, $"{component_name}{minimized_folder_extension}js"));
+                        var compiled = linkJSToFWHTML(js, html);
+                        js = compiled.Item1;
+                        html = compiled.Item2;
+                        var other_js = await loadAllOtherJSFiles(Path.Combine(default_path, component_name));
+                        var r_js = other_js + js.Replace("${injector_html}", $"{html}");
                         component_name_to_js_component.Add(component, new KeyValuePair<string, string>(r_js, css));
-                    } catch (Exception) { }
+                    } catch (Exception) {
+                        Debug.WriteLine($"couldn't load component: {component_name}, is it a child?");
+                        return new KeyValuePair<string, string>("", "");
+                        //throw new Exception($"couldn't load component: {component_name}, is it a child?");
+                    }
                 }
                 return component_name_to_js_component[component];
             }

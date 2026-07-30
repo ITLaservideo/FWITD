@@ -19,12 +19,16 @@ class Notify extends FrameworkGC(`${injector_html}`) {
     static #stacked_instances = [];
     /**
      * @param {object} options
-     * @param {string} options.title
-     * @param {string} options.text
-     * @param {string} options.extra_data slightly visible
-     * @param {number} options.type  0 ok | 1 warning | -1 error | question_mark_book
-     * @param {Function} options.next
-     * @param {number} options.ms_timeout
+     * @param {string} [options.title]
+     * @param {string} [options.text]
+     * @param {string} [options.extra_data] slightly visible
+     * @param {number} [options.type]  0 ok | 1 warning | -1 error | anything else -> question_mark_book
+     * @param {Function} [options.next] called when the icon is clicked
+     * @param {number} [options.ms_timeout] 1500ms | how long, in ms, before the notification auto-destroys
+     * @param {MouseEvent|{clientX,clientY}} [options.event] positions the notification near this event instead of
+     *   the default bottom-left stack; falls back to `window.consumables.event` when omitted
+     * @param {number} [options.style] 3: compact bubble anchored on `options.event`'s coordinates |
+     *   21: alternate stacked style | anything else: default stacked look
      * @param {Function|Array<Function>} [options.onClose] - callback(s) to be called on destroy
      * @param {Function} [options.onReady] - callback to be called when component is ready
      */
@@ -82,7 +86,7 @@ class Notify extends FrameworkGC(`${injector_html}`) {
         }
         owner.id_timeout_auto_destroy = window.setTimeout(() => {
             owner.destroy(0);
-        }, options.ms_timeout);
+        }, options.ms_timeout ?? 1500);
         if (options.event != null || (window.consumables != undefined && window.consumables.event != undefined)) {
             let x = 0;
             let y = 0;
