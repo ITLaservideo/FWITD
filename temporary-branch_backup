@@ -1,0 +1,108 @@
+commit a48dcd51f555c9f1a75470140def9ce9a892d3a9
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Mon Jul 6 09:45:20 2026 +0200
+
+    Add http/https fallback to server status health checks
+
+commit 0b5c8a3b53e9cdae012a707fde70fb3fe1744bc8
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Fri Jul 3 16:52:29 2026 +0200
+
+    feat: add ServerStatus app and fix stale WebView navigation handlers
+    
+    - Register new ServerStatus page (AppConfig, JSProvider) with standalone
+      HTML/JS/CSS assets under ClientApp/apps_standalone/ServerStatus
+    - Track and detach per-webview navigation handlers in AppLoader so
+      reused webviews don't accumulate stale injectable-app handlers
+    - Add AppSettings.GetForTemplate to render arrays/objects as raw JSON
+      in {{@AppSettings.*}} template placeholders, used by AppStatus
+    - Add LoadingMessagesProvider to load culture-specific loading
+      messages bundled as app assets, falling back to "en"
+
+commit a1b1f52742fcf7b32aea1f127b38dddfc8047805
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Thu Jul 2 14:12:54 2026 +0200
+
+    feat: add AppRouter/Navigate controller to switch webview app on demand
+    
+    - Add AppLoader with shared LoadAsync logic (page/injectable-app/URL loading), extracted for reuse by both startup and runtime navigation
+    - Add AppRouterController exposing "AppRouter/Navigate" so JS can switch the app shown in a given webview via Lobby.post, resolving the target through RequestDispatcher.webviews[__owner_id]
+    - Add AegisGate auth DB migration scripts and configurable SQL update folder
+    - Add Cloudflare-aware client IP resolution
+    - Wire post-login navigation to GestionaleDistributore via AppRouter/Navigate instead of the unhandled Lobby prompt call
+    - Register StartApp.AndroidGestionaleDistributore and injectable_apps.GestionaleDistributore
+    - Make debug "auto" login check case-insensitive
+    - Guard Xamarin.Essentials usage in Storage.cs behind WPF flag
+
+commit 87f281e194e8a05b235ff26e666aac36ba92e70d
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jul 1 17:01:00 2026 +0200
+
+    init login centralized login
+
+commit 3f278402a56aa120956f18c65c711795442d8c3e
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jul 1 11:51:40 2026 +0200
+
+    feat: cache&lock generated JS/CSS/HTML to temp files
+
+commit 6774eb6b35fa4b0a4684a54f6d4f08036d98625d
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Tue Jun 30 17:25:19 2026 +0200
+
+    add template injectable.html
+
+commit a5dff9b85d4ae321ae808cc3672ed50b2b377a5f
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Tue Jun 30 17:12:23 2026 +0200
+
+    feat: unify WebView bridge and add Android asset-loading support
+    
+    Introduce a platform-neutral `window.FWBridge` shim (Windows →
+    chrome.webview, Android → native JavascriptInterface, fallback →
+    wawapp:// URL) so `Lobby.js` calls a single consistent API regardless
+    of platform.
+    
+    - RequestDispatcher: extract shared HandleMessageAsync, wire
+      CoreWebView2.WebMessageReceived on Windows and WawappBridge
+      JavascriptInterface on Android; keep URL-scheme fallback for others
+    - JSProvider: inject fw_bridge_shim at the top of every assembled
+      bundle; add Android AssetManager implementation of
+      loadAllOtherJSFiles / loadJsFromSubdirsAsync; support optional
+      .html and .css in injectable apps; add LetSTry to injectable_apps,
+      remove AndroidMusic from pages enum
+    - AssetLoader: add LoadAssetFileAsyncIfExists (returns null when
+      missing, vs throwing)
+    - AppConfig: guard Windows-only Cloudflared entry with #if WINDOWS;
+      fix AndroidDebug URL to DebugWebsite
+    - ClientApp: add readme.md documentation for all subfolders
+
+commit 0e1fe24479b7aeae098b4e0d29563b1a554086ea
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Thu Jun 25 15:30:35 2026 +0200
+
+    ++
+
+commit a6bf6b9f3f0270f31a9fb959c9a8668af7925920
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Thu Jun 25 14:37:22 2026 +0200
+
+    AndroidDebug test injectable
+
+commit fa9ad9cdb1bc17ddafd0c185b76f99af4815bc3a
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jun 24 16:22:13 2026 +0200
+
+    compile time WPF constant
+
+commit fb1a847c34e49a367f12ee3dec9a93b463d5577c
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jun 24 15:39:14 2026 +0200
+
+    fix: add missing System.IO usings, fix FindProjectRoot null ref, update Android path comment
+
+commit 61d4c6e54662815a946e7b3648ef8ba3fadc20a3
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jun 24 15:12:36 2026 +0200
+
+    init

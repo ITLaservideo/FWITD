@@ -1,6 +1,6 @@
-﻿using DotNet.Utility;
-using FM3281Reader;
-using FWShellWPF.FM32_25;
+﻿using QStorage;
+using FM32_25;
+using FM32_25.WebViewUi;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -8,10 +8,18 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using static FM3281Reader.MRZParser;
+using static FM32_25.MRZParser;
 namespace FWITD.Controllers.FM32_25 {
     internal class FM32_25Controller {
-        public static readonly FM3281 the_instance = new FM3281(true);
+        public static readonly FM3281 the_instance = new FM3281(false);
+
+        static FM32_25Controller() {
+            // FM32_25 is a standalone library with no WPF/WebView2 reference; it raises these
+            // neutral events instead of touching Ui/Log directly, so bridge them here once.
+            ReaderLog.OnStatus += (msg, level) => Ui.log(msg, (Ui.TypeLog)(int)level);
+            ReaderLog.OnDebug += msg => Log.log(msg);
+            ReaderLog.OnNotify += Ui.callApp;
+        }
         public object ListPorts() {
             return SerialPort.GetPortNames();
         }
@@ -24,13 +32,11 @@ namespace FWITD.Controllers.FM32_25 {
             return new { CurrentStatus = "port closed", error = port_name };
         }
         public object ClosePort() {
-            if (FM3281._serialPort != null && FM3281._serialPort.IsOpen) {
-                FM3281._serialPort.Close();
-            }
+            FM3281.ClosePort();
             return new { CurrentStatus = "port closed" };
         }
         public object Beep() {
-            FM3281.sendCommand(new CommandBuilder() { command = new Command() { command = "BEEPON2000F50T15V" } });
+            _ = FM3281.SendCommandAsync("BEEPON2000F50T15V");
             return new {/* res = FM3281.test(0)*/ };
         }
         public object StopCard() {
@@ -49,22 +55,19 @@ namespace FWITD.Controllers.FM32_25 {
             FM3281.listenForMifare1kCard(true);
             return new { ok = true };
         }
-        //public object ReadCIEAUS(JsonNode req) {
-        //    var which = SQL.ToInt32(req["which"]?.GetValue<string>() ?? "0");
-        //    //the_instance.readCIEAUS(which);
-        //    return new { ok = true };
-        //}
-        //public object GetQuickTestNFCCards() {
-        //    return FM3281.GetQuickTestNFCCards();
-        //}
+        public object ReadCardMrz(JsonNode req) {
+            var mrz = SQL.ToString(req["mrz"]?.GetValue<string>() ?? "0");
+            the_instance.ReadCardMrz(mrz);
+            return new { ok = true };
+        }
         public object ListenIdentityCards() {
             the_instance.ReadCardMrz();
             return new { ok = true };
         }
-        public object AuthenticateMifareClassic1k() {
-            FM3281.authenticateMifareClassic1k();
-            return new { ok = true };
-        }
+        //public object AuthenticateMifareClassic1k() {
+        //    FM3281.authenticateMifareClassic1k();
+        //    return new { ok = true };
+        //}
         //public object LogDRLog() {
         //    the_instance.logDRLog();
         //    return new { ok = true };
@@ -81,10 +84,11 @@ namespace FWITD.Controllers.FM32_25 {
             MifareClassic1k.writeIDSCardsCancel();
             return new { ok = true };
         }
-        public object SendRawCommand(JsonNode req) {
+        public async Task<object> SendRawCommand(JsonNode req) {
             string command = (req["command"]?.GetValue<string>() ?? "");
             bool permanent_setting = (req["permanent_setting"]?.GetValue<bool>() ?? false);//aka prefix @ by default or #
-            FM3281.sendCommand(new CommandBuilder() { command = new Command() { command = command, permanent_setting = permanent_setting } });
+            var ss = await FM3281.SendCommandAsync(command, permanent_setting: permanent_setting);
+            Ui.log(ss.the_response, Ui.TypeLog.info);
             return new { ok = true };
         }
         public object WriteDataCommand(JsonNode req) {
@@ -125,12 +129,18 @@ namespace FWITD.Controllers.FM32_25 {
         }
         #region services
         private static readonly Regex timestampPrefixRegex = new Regex(@"^[0-9]{4}.[0-9]{2}.[0-9]{2}.[0-9]{2}.[0-9]{2}.[0-9]{2} ");
+        private static readonly Regex timestampPrefixRegexIta = new Regex(@"^[0-9]{2}.[0-9]{2}.[0-9]{4}.[0-9]{2}.[0-9]{2}.[0-9]{2} ");
         private MRZInfo parseOneMRZ(string what) {
             string MRZreading = what;
             MRZInfo mRZInfo = new MRZInfo();
             Match timestampMatch = timestampPrefixRegex.Match(MRZreading);
             if (timestampMatch.Success) {
                 MRZreading = MRZreading.Substring(timestampMatch.Length);
+            } else {
+                timestampMatch = timestampPrefixRegexIta.Match(MRZreading);
+                if (timestampMatch.Success) {
+                    MRZreading = MRZreading.Substring(timestampMatch.Length);
+                }
             }
             MRZreading = MRZreading.Trim();
             if (string.IsNullOrWhiteSpace(MRZreading)) {

@@ -1,5 +1,8 @@
+using QStorage;
+
 namespace FWITD {
     public enum StartApp {
+        TestPage = -1,
         Dashboard = 0,
         DashboardLettoreBarcode = 3225,
         Cloudflared = 1,
@@ -20,6 +23,8 @@ namespace FWITD {
     internal static class AppConfig {
         #pragma warning disable IDE0055
         internal static readonly Dictionary<StartApp, ((object? script, string? url) main, (object? script, string? url) extra)> _scripts = new() {
+            [StartApp.TestPage] = (main: (JSProvider.JS.pages.test_page, null),
+                                                  extra: (null, null)),
             [StartApp.Dashboard]              = ( main: (JSProvider.JS.injectable_apps.TemplateTools, AppSettings.Get<string>("Urls.DebugWebsite")),
                                                   extra: (null, null)),
 #if WINDOWS
