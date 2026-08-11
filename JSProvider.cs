@@ -106,13 +106,21 @@ namespace FWITD {
         }
         public async static Task<string> getPathJSHTMLApp(JS.pages the_app, int id_webview = 1, Dictionary<string, string>? swap_on_ready = null) {
             string file_name = the_app.ToString();
-            var cache_id = Utils.HashToID(file_name);
+            string swap_on_ready_fingerprint = swap_on_ready == null ? "" : string.Join(';', swap_on_ready.OrderBy(o => o.Key, StringComparer.Ordinal).Select(o => $"{o.Key}={o.Value}"));
+            var cache_id = DataCipher.Hashing.Hash256($"{file_name}|{id_webview}|{minimized_folder_extension}|{current_css_theme}|{the_app_version}|{swap_on_ready_fingerprint}");
 #if DEBUG && WINDOWS
             JS.clearCache(true);
 #endif
             if (cache_scripts.ContainsKey(cache_id)) {
                 return cache_scripts[cache_id];
             }
+#if !DEBUG
+            var verified_html_path = await AssetLoader.TryGetVerifiedTempFileAsync(file_name, cache_id);
+            if (verified_html_path != null) {
+                cache_scripts.Add(cache_id, verified_html_path);
+                return verified_html_path;
+            }
+#endif
             var p_html = await AssetLoader.LoadAssetFileAsync($"{path_script_apps_standalone}/{file_name}/{file_name}{minimized_folder_extension}html");
             if (!p_html.Contains("</head>") || !p_html.Contains("</body>")) {
                 throw new Exception("not valid html provided missing `</head>` and `</body>`");
@@ -144,10 +152,10 @@ namespace FWITD {
             File.WriteAllText(Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.css"), the_css);
             cache_scripts.Add(cache_id, Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.html"));
 #else
-
             var the_css_file_path = await AssetLoader.SaveToTempFileAsync(the_css, $"{file_name}.css");
             var the_js_file_path = await AssetLoader.SaveToTempFileAsync(the_js, $"{file_name}.js");
             var the_html_file_path = await AssetLoader.SaveToTempFileAsync(p_fp, $"{file_name}.html");
+            await AssetLoader.WriteIntegritySignatureAsync(file_name, cache_id, p_fp, the_js, the_css);
             cache_scripts.Add(cache_id, the_html_file_path);
 #endif
             return cache_scripts[cache_id];
@@ -257,6 +265,8 @@ namespace FWITD {
                 var result = new StringBuilder();
                 await loadJsFromSubdirsAsync(assets, logical, result);
                 return result.ToString();
+#elif WPF && !DEBUG
+                return await AssetLoader.LoadAllOtherEmbeddedJSFilesAsync(path, minimized_folder_extension);
 #else
                 if (!Directory.Exists(path)) {
                     return "";
