@@ -12,6 +12,16 @@ class App {
     constructor() {
         this.initializeWindowControls();
         this.initializeTests();
+        document.body.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key == "r") {
+                e.stopPropagation();
+                e.preventDefault();
+                Lobby.post("AppRouter/Navigate", { where: "TestPage" }, (rsp) => {
+                    //alert("rsp.message");
+                    //owner.elements.button_login.classList.toggle("clicked", false);
+                });
+            }
+        })
     }
     #preferences = {
         rows_per_page: 10
@@ -22,7 +32,8 @@ class App {
         tests[0].addEventListener("click", (event) => {
             new Notify({ text: "try test post", event: event, ms_timeout: 2000, style: 3, type: 0 });
             const translated_event = { clientX: event.clientX + 30, clientY: event.clientY + 30 };
-            Lobby.post({ prompt: 4/*ApplyDefaultConfiguration*/ }, (rsp) => {
+            Lobby.post("Settings/Get", {}, (rsp) => {
+                console.log(rsp);
                 new Notify({ text: "ricevuto rsp test post", event: translated_event, ms_timeout: 2000, style: 3, type: 0 });
             });
         });
@@ -34,7 +45,7 @@ class App {
         tests[1].addEventListener('click', () => {
             const OpenLittleSettings = document.createElement('div')
             OpenLittleSettings.style = `display: flex;justify-content: center;padding-top: 9px;`;
-            OpenLittleSettings.innerHTML = policy.createHTML(`some content`);
+            OpenLittleSettings.innerHTML = policy.createHTML(`some content chart`);
 
             const chart = new PieChart({
                 products: [
@@ -44,18 +55,22 @@ class App {
                 onClose: () => console.log("Chart closed")
             });
             OpenLittleSettings.appendChild(chart.elementReference());
-            new BottomSheet({
-                element: OpenLittleSettings,
-                onClose: () => {
-                    // if (typeof filters_list_el.onAnnulla === 'function') {
-                    //     filters_list_el.onAnnulla();
-                    // }
-                    if (owner.onSkip != undefined) {
-                        owner.onSkip();
-                    }
-                },
-                //centered: true
-            });
+            setTimeout(() => {
+                new BottomSheet({
+                    element: OpenLittleSettings,
+                    onClose: () => {
+                        // if (typeof filters_list_el.onAnnulla === 'function') {
+                        //     filters_list_el.onAnnulla();
+                        // }
+                        //issue: this is triggered by Notify.destroy -> SPAHistory.pop, it shouldn't
+                        console.error("closing broda")
+                        if (owner.onSkip != undefined) {
+                            owner.onSkip();
+                        }
+                    },
+                    centered: true
+                });
+            }, 1500);
         });
         tests[2].addEventListener('click', () => {
             const OpenLittleSettings = document.createElement('div')
@@ -188,11 +203,11 @@ class App {
     async initializeWindowControls() {
         const owner = this;
 
-        App.app_status = await new Promise((resolve) => {
-            Lobby.post({ prompt: 3/*app status*/ }, (rsp) => {
-                resolve(rsp.ps);
-            });
-        });
+        // App.app_status = await new Promise((resolve) => {
+        //     Lobby.post({ prompt: 3/*app status*/ }, (rsp) => {
+        //         resolve(rsp.ps);
+        //     });
+        // });
         return;
         const btns = document.getElementsByClassName("window-controls")[0].children;
         btns[0].addEventListener('click', () => {
