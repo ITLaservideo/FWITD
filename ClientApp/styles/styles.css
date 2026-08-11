@@ -50,7 +50,7 @@ body {
    app-wide fallback look for any scrollable element that doesn't define its
    own scrollbar styling; prefers real vscode theme tokens (present under
    CSSThemes.vscode_dark) and falls back to the custom vars_dark/vars_light
-   tokens otherwise. Any more specific `::-webkit-scrollbar` selector
+   tokens otherwise. Any more specific '::-webkit-scrollbar' selector
    elsewhere simply overrides this by normal CSS specificity. */
 :root {
     --default-scrollbar-thumb: var(--vscode-scrollbarSlider-background, var(--bg-5, #424242));

@@ -174,6 +174,13 @@ namespace FWITD {
             var p_script = js_FrameworkGC + Environment.NewLine + js_css.Key + Environment.NewLine + await JS.loadAllOtherJSFiles($"{path_script_apps_injectable}/{file_name}") + p_js;// + js_css_r_c.Key;
             var p_css = (await AssetLoader.LoadAssetFileAsyncIfExists($"{path_script_apps_injectable}/{file_name}/{file_name}{minimized_folder_extension}css"));
             string the_css = css_theme_vars + shared_all_css + css_animations + js_css.Value + (p_css ?? ""); //+ js_css_r_c.Value;
+            if (the_css.Contains("`")) {
+#if DEBUG
+                throw new Exception("using ` character inside a css file breaks textContent = `{the_css}`");
+#else
+                the_css = the_css.Replace("`", "'");
+#endif
+            }
             string injectCss = $"(()=>{{const stylex_1 = document.createElement('style');stylex_1.textContent  = `{the_css}`;setTimeout(() => {{ document.head.appendChild(stylex_1); }}, 0);}})();";
 
             string the_js = $"{fw_bridge_shim};{injectCss};{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";

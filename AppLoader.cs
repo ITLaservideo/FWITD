@@ -99,7 +99,7 @@ namespace FWITD {
                 await webView.CoreWebView2.ExecuteScriptAsync($"window.__fw_chunks.push('{chunk}');");
             }
             await webView.CoreWebView2.ExecuteScriptAsync(
-                "try{eval(new TextDecoder().decode(Uint8Array.from(atob(window.__fw_chunks.join('')),c=>c.charCodeAt(0))))}finally{delete window.__fw_chunks}");
+                "try { eval(new TextDecoder().decode(Uint8Array.from(atob(window.__fw_chunks.join('')), c => c.charCodeAt(0)))) } catch (e) { alert(e); console.error(e) } finally { delete window.__fw_chunks }");
 #else
             await webView.EvaluateJavaScriptAsync("window.__fw_chunks=[];");
             for (int i = 0; i < b64.Length; i += chunkSize) {
@@ -107,7 +107,7 @@ namespace FWITD {
                 await webView.EvaluateJavaScriptAsync($"window.__fw_chunks.push('{chunk}');");
             }
             await webView.EvaluateJavaScriptAsync(
-                "try{eval(new TextDecoder().decode(Uint8Array.from(atob(window.__fw_chunks.join('')),c=>c.charCodeAt(0))))}finally{delete window.__fw_chunks}");
+                "try { eval(new TextDecoder().decode(Uint8Array.from(atob(window.__fw_chunks.join('')), c => c.charCodeAt(0)))) } catch (e) { alert(e); console.error(e) } finally { delete window.__fw_chunks }");
 #endif
         }
     }
