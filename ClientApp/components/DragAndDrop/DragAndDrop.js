@@ -83,28 +83,67 @@ class DragAndDrop {
      */
     static #self_ref;
     /**
-     * @asyncReturn #group_id
-     * @param {Object} options
-     * @param {Element} options.target
-     * @param {Element} [options.target_to_grab]
-     * @param {boolean} [options.is_receiver=true]
-     * @param {string} [options.group_id]
-     * @param {string} [options.img_src]
-     * @param {Object} [options.img_offset]
-     * @param {Number} [options.img_offset.x]
-     * @param {Number} [options.img_offset.y]
-     * @param {Number} [options.img_style] (int) 0-1
-     * @param {Function} [options.onDragStart] (target)
-     * @param {Number} [options.onDragEnd] (target)
-     * @param {Function} [options.onDrop] (start_id, end_id, event)
-     * @param {Function} [options.doClick] callback when dropping on itself //within 200ms
-     * @param {Function} [options.onDropSameContainer] callback when dropping on itself //after 200ms
-     * @param {Function} [options.onMouseEnter] (target)
-     * @param {Function} [options.onMouseLeave] (target) 
-     * @deprecated
-     * @param {Object} [options.img_size] (target)
-     * @param {Number} [options.img_size.width] (target)
-     * @param {Number} [options.img_size.height] (target)
+     * The synthetic event object passed to doClick/onDropSameContainer/onDrop's `event`, built in
+     * moveElement from the real mousemove/touchmove event (so it has a consistent shape across both).
+     * @typedef {Object} DragAndDropMockEvent
+     * @property {EventTarget} target
+     * @property {Number} clientX
+     * @property {Number} clientY
+     */
+    /**
+     * @typedef {Object} DragAndDropOptions
+     * @property {Element} target
+     * @property {Element} [target_to_grab]
+     * @property {boolean} [is_receiver=true]
+     * @property {string} [group_id]
+     * @property {string} [img_src]
+     * @property {function(): string} [refreshImgSrc] called on every preview redraw while dragging instead of the fixed img_src/template lookup
+     * @property {Object} [img_offset]
+     * @property {Number} [img_offset.x]
+     * @property {Number} [img_offset.y]
+     * @property {Number} [img_style] (int) 0-1
+     * @property {function(EventTarget): void} [onDragStart] (target)
+     * @property {function(Element, (MouseEvent|TouchEvent)): void} [onDoubleClick] (target, event)
+     * @property {function(Element): void} [onDragEnd] (target)
+     * @property {function({start_id: string, end_id: string, event: DragAndDropMockEvent}): void} [onDrop]
+     * @property {function(DragAndDropMockEvent): void} [doClick] callback when dropping on itself //in 200ms
+     *
+     *  doClick !== addEventListener('click')
+     *
+     *  on phones the 'click' does not trigger|unreliably-trigger
+     *
+     * @property {function(DragAndDropMockEvent): void} [onDropSameContainer] callback when dropping on itself //AFTER 200ms
+     * @property {function(Element): void} [onMouseEnter] (target)
+     * @property {function(Element): void} [onMouseLeave] (target)
+     * @property {Object} [scroll_while_drag] auto-scrolls a container while dragging near its top/bottom edge
+     * @property {Element} scroll_while_drag.target
+     * @property {Object} [img_size] (target) — deprecated
+     * @property {Number} [img_size.width] (target)
+     * @property {Number} [img_size.height] (target)
+     */
+    /**
+     * @asyncReturn {string} group_id
+     * @param {DragAndDropOptions} options
+     * @param options.target
+     * @param [options.target_to_grab]
+     * @param [options.is_receiver=true]
+     * @param [options.group_id]
+     * @param [options.img_src]
+     * @param [options.refreshImgSrc] called on every preview redraw while dragging instead of the fixed img_src/template lookup
+     * @param [options.img_offset] {x, y}
+     * @param [options.img_style] (int) 0-1
+     * @param [options.onDragStart] (target)
+     * @param [options.onDoubleClick] (target, event)
+     * @param [options.onDragEnd] (target)
+     * @param [options.onDrop]
+     * @param [options.doClick] click-on-self within 200ms
+     * 
+     *  (doClick !== a 'click' listener; unreliable on phones)
+     * @param [options.onDropSameContainer] click-on-self after 200ms
+     * @param [options.onMouseEnter] (target)
+     * @param [options.onMouseLeave] (target)
+     * @param [options.scroll_while_drag] auto-scrolls a container near its top/bottom edge — options.scroll_while_drag.target {Element}
+     * @param [options.img_size] (target) — deprecated — {width, height}: Number
      */
     static makeItDraggable(options) {
         console.assert(options.onDrop != undefined, "on drop not provided\nthe drop is triggered by the one who is getting dragged");
@@ -585,6 +624,7 @@ class DragAndDrop {
         document.body.appendChild(DragAndDrop.#self_ref);
 
         document.body.addEventListener("mouseup", (event) => {
+            console.error("mouseup");
             DragAndDrop.#consumeDragEnd();
             DragAndDrop.#draggingEnded();
             DragAndDrop.#cleanVisualFeedBacks();

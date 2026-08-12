@@ -107,3 +107,19 @@ function FrameworkGC(the_framework_html) {
         ////////////////////////////////////////////////////////////////////
     };
 }
+class Utils {
+    static ParseBool(value) {
+        if (typeof value === "boolean") return value;
+        if (value == null) return false;
+        if (typeof value === "number") return value !== 0 && !Number.isNaN(value);
+
+        const str = String(value).trim().toLowerCase();
+        if (["true", "1", "yes", "y", "on", "t"].includes(str)) return true;
+        if (["false", "0", "no", "n", "off", "f", ""].includes(str)) return false;
+
+        const num = Number(str);
+        if (!Number.isNaN(num)) return num !== 0;
+
+        return false;
+    }
+}

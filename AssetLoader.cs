@@ -183,13 +183,25 @@ namespace FWITD {
         // Ordinary (non-shared) DataCipher key slot, meaningful only within this app's own IKeyStore.
         private const int TempCacheSigningKeySlot = 0;
         private static bool _keyStoreReady;
-        private static void EnsureKeyStoreReady() {
+        // PreloadAsync's real await means two concurrent WebView navigations could otherwise both see
+        // _keyStoreReady == false and race to create/overwrite the signing key; this lock keeps
+        // initialization idempotent (the sync version this replaced had no yield point, so no race existed).
+        private static readonly SemaphoreSlim _keyStoreInitLock = new(1, 1);
+        private static async Task EnsureKeyStoreReadyAsync() {
             if (_keyStoreReady) return;
-            DataCipher.KeyManager.Store = new SStorageKeyStore();
-            if (!DataCipher.KeyManager.Store.Exists(TempCacheSigningKeySlot)) {
-                DataCipher.KeyManager.CreatePrivateKey(TempCacheSigningKeySlot);
+            await _keyStoreInitLock.WaitAsync();
+            try {
+                if (_keyStoreReady) return;
+                var store = new SStorageKeyStore();
+                await store.PreloadAsync(TempCacheSigningKeySlot);
+                DataCipher.KeyManager.Store = store;
+                if (!DataCipher.KeyManager.Store.Exists(TempCacheSigningKeySlot)) {
+                    DataCipher.KeyManager.CreatePrivateKey(TempCacheSigningKeySlot);
+                }
+                _keyStoreReady = true;
+            } finally {
+                _keyStoreInitLock.Release();
             }
-            _keyStoreReady = true;
         }
         private static string BuildCanonicalFingerprint(string cache_id, string htmlContent, string jsContent, string cssContent) =>
             string.Join('\n', cache_id,
@@ -205,7 +217,7 @@ namespace FWITD {
         /// </summary>
         /// <returns>the temp .html path if it can be reused as-is, otherwise null (caller must rebuild).</returns>
         internal static async Task<string?> TryGetVerifiedTempFileAsync(string file_name, string cache_id) {
-            EnsureKeyStoreReady();
+            await EnsureKeyStoreReadyAsync();
             var sig_path = Path.Combine(folder_path_cache, $"{file_name}.integrity");
             if (!File.Exists(sig_path)) return null;
             var html_path = Path.Combine(folder_path_cache, $"{file_name}.html");
@@ -246,7 +258,7 @@ namespace FWITD {
         /// <c>linkJSToFWHTML</c>.
         /// </summary>
         internal static async Task WriteIntegritySignatureAsync(string file_name, string cache_id, string htmlContent, string jsContent, string cssContent) {
-            EnsureKeyStoreReady();
+            await EnsureKeyStoreReadyAsync();
             var sig_path = Path.Combine(folder_path_cache, $"{file_name}.integrity");
             var fingerprint = BuildCanonicalFingerprint(cache_id, htmlContent, jsContent, cssContent);
             var signed = DataCipher.KeyManager.SignData(TempCacheSigningKeySlot, fingerprint);

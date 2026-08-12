@@ -21,7 +21,8 @@ class App {
                     //owner.elements.button_login.classList.toggle("clicked", false);
                 });
             }
-        })
+        });
+        AppStatus.displayVersion();
     }
     #preferences = {
         rows_per_page: 10
@@ -30,7 +31,8 @@ class App {
         const owner = this;
         const tests = document.getElementsByClassName("testx");
         tests[0].addEventListener("click", (event) => {
-            new Notify({ text: "try test post", event: event, ms_timeout: 2000, style: 3, type: 0 });
+            // new Notify({ text: "try test post", event: event, ms_timeout: 2000, style: 3, type: 0 });
+            console.log("clicked");
             const translated_event = { clientX: event.clientX + 30, clientY: event.clientY + 30 };
             Lobby.post("Settings/Get", {}, (rsp) => {
                 console.log(rsp);
@@ -175,17 +177,6 @@ class App {
                 // target_to_grab: element,
                 group_id: group_id,
                 img_src: `Images\\Icone2024\\ui_2024\\box.svg`,
-                onDrop: async (obj) => {
-                    list_box.addItem(`${i + 1}: onDrop`, { backgroundColor: "#8a6363c0" });
-                },
-                doClick: (event) => {
-                    //owner.openSettings(event);
-                    list_box.addItem(`${i + 1}: doClick`, { color: "green" });
-                },
-                onDropSameContainer: (event) => {
-                    //owner.openSettings(event);
-                    list_box.addItem(`${i + 1}: onDropSameContainer`, { backgroundColor: "green" });
-                },
                 onDragStart: (arg_target) => {
                     //App.drag_motors_in_progress = arg_target.offsetParent.parentElement;
                     list_box.addItem(`${i + 1}: onDragStart`, { color: "#888" });
@@ -194,8 +185,34 @@ class App {
                     //App.drag_motors_in_progress = false;
                     list_box.addItem(`${i + 1}: onDragEnd`, { color: "#888", backgroundColor: "#444343e3" });
                 },
-                img_offset: { x: 18, y: 25 },
+                onDrop: async (obj) => {
+                    list_box.addItem(`${i + 1}: onDrop:`, { backgroundColor: "#8a6363c0" });
+                    list_box.addItem(`${obj.start_id}`, { backgroundColor: "#8a6363c0" });
+                    list_box.addItem(`${obj.end_id}`, { backgroundColor: "#8a6363c0" });
+                },
+                doClick: (event) => {
+                    //owner.openSettings(event);
+                    if (AppStatus.IsPhone) {
+                        console.log("dispatch event click");
+                        element.dispatchEvent(new Event("click", { bubbles: true, clientX: event.clientX, clientY: event.clientY }));
+                    }
+                    list_box.addItem(`${i + 1}: doClick`, { color: "green" });
+                },
+                onDropSameContainer: (event) => {
+                    //owner.openSettings(event);
+                    list_box.addItem(`${i + 1}: onDropSameContainer`, { backgroundColor: "green" });
+                },
+                onMouseEnter: (event) => {
+                    //owner.openSettings(event);
+                    list_box.addItem(`${i + 1}: onMouseEnter`, { backgroundColor: "#88888880" });
+                },
+                onMouseLeave: (event) => {
+                    //owner.openSettings(event);
+                    list_box.addItem(`${i + 1}: onMouseLeave`, { backgroundColor: "#88888880" });
+                },
+                img_offset: { x: 15, y: 15 },
                 img_style: 1,
+                //img_size: { width: 200, height: 200 }
                 //scroll_while_drag: { target: owner.container_singolo_motorino.parentElement }
             });
         }
