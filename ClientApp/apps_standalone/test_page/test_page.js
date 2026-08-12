@@ -32,12 +32,12 @@ class App {
         const owner = this;
         const tests = document.getElementsByClassName("testx");
         tests[0].addEventListener("click", (event) => {
-            // new Notify({ text: "try test post", event: event, ms_timeout: 2000, style: 3, type: 0 });
+            // new Notify({ text: "try test post", event: event, ms_timeout: 2000, style: 3, type: "ok" });
             console.log("clicked");
             const translated_event = { clientX: event.clientX + 30, clientY: event.clientY + 30 };
             Lobby.post("Settings/Get", {}, (rsp) => {
                 console.log(rsp);
-                new Notify({ text: "ricevuto rsp test post", event: translated_event, ms_timeout: 2000, style: 3, type: 0 });
+                new Notify({ text: "ricevuto rsp test post", event: translated_event, ms_timeout: 2000, style: 3, type: "ok" });
             });
         });
         UiBuilder.addHint({
@@ -50,7 +50,8 @@ class App {
             OpenLittleSettings.style = `display: flex;justify-content: center;padding-top: 9px;`;
             OpenLittleSettings.innerHTML = policy.createHTML(`some content chart`);
 
-            const chart = new PieChart({
+            const chart = new GeneralChart({
+                type: "pie",
                 products: [
                     new PCMockProduct("Products 1", 120),
                     new PCMockProduct("Products 2", 80)

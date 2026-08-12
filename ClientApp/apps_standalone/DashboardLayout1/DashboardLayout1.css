@@ -1,0 +1,87 @@
+body {
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+
+.da-app {
+    display: grid;
+    grid-template-columns: 25px 3fr 25px;
+    grid-template-rows: 30px 1fr 60px;
+    grid-column-gap: 0px;
+    grid-row-gap: 0px;
+    height: 100vh;
+    width: 100vw;
+    background: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-font-family);
+    transition: all ease 0.1s;
+
+    .app-logo,
+    .app-navigation,
+    .app-settings,
+    .app-user-settings {
+        display: flex;
+        justify-content: center;
+        flex-direction: column;
+        align-items: center;
+        background: var(--vscode-sideBar-background);
+        color: var(--vscode-sideBar-foreground);
+    }
+
+    .app-logo {
+        grid-area: 1 / 1 / 2 / 2;
+    }
+
+    .app-navigation {
+        grid-area: 2 / 1 / 3 / 2;
+        overflow: auto;
+        /* border-right: 1px solid var(--vscode-sideBar-border); */
+    }
+
+    .app-settings {
+        grid-area: 3 / 1 / 4 / 2;
+    }
+
+    .app-notch {
+        grid-area: 1 / 2 / 2 / 3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--vscode-titleBar-activeBackground);
+        color: var(--vscode-titleBar-activeForeground);
+        user-select: none;
+        -webkit-app-region: drag;
+    }
+
+    .app-user-settings {
+        grid-area: 1 / 3 / 2 / 4;
+        border-left: 1px solid var(--vscode-sideBar-border);
+    }
+
+    .app-content {
+        grid-area: 2 / 2 / 4 / 4;
+        box-sizing: border-box;
+        /* border: 1px solid red; */
+        display: flex;
+        justify-content: flex-start;
+        align-items: flex-start;
+        /* border-top-left-radius: 1vw; */
+        background: var(--vscode-editor-background);
+        color: var(--vscode-editor-foreground);
+        overflow: auto;
+    }
+}
+
+
+
+
+.da-app.app-grid-expanded {
+    grid-template-columns: 120px 3fr 60px;
+    grid-template-rows: 70px 1fr 120px;
+
+    .f-icon.lbtn {
+        font-size: 20px;
+    }
+}

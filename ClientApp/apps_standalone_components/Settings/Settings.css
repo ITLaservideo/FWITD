@@ -1,0 +1,101 @@
+.sys-settings-root {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+    padding: 15px;
+    padding-bottom: 2px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.sys-settings-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.sys-settings-group {
+    margin: auto;
+    margin-top: 0;
+}
+
+.sys-settings-group-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--vscode-descriptionForeground, #858585);
+    padding: 2px 2px 4px;
+}
+
+.sys-settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 2px;
+    border-bottom: 1px solid var(--vscode-panel-border, #3a3a3a);
+}
+
+.sys-settings-row:last-child {
+    border-bottom: none;
+}
+
+.sys-settings-label {
+    font-size: 12px;
+    color: var(--vscode-editor-foreground, #d4d4d4);
+    flex: 1;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sys-settings-label.read-only {
+    color: var(--vscode-descriptionForeground, #858585);
+    font-style: italic;
+}
+
+.sys-settings-ro-value {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, #858585);
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sys-settings-input {
+    background: var(--vscode-input-background, #2d2d2d);
+    color: var(--vscode-input-foreground, #ccc);
+    border: 1px solid var(--vscode-input-border, #555);
+    border-radius: 3px;
+    padding: 3px 7px;
+    font-size: 11px;
+    outline: none;
+    width: 120px;
+}
+
+.sys-settings-input:focus {
+    border-color: var(--vscode-focusBorder, #007fd4);
+}
+
+/* Status bar */
+.sys-settings-status {
+    font-size: 10px;
+    color: var(--vscode-descriptionForeground, #858585);
+    padding: 3px 2px;
+    min-height: 16px;
+    text-align: right;
+    transition: color .2s;
+}
+
+.sys-settings-status.ok {
+    color: #4caf50;
+}
+
+.sys-settings-status.err {
+    color: #ef5350;
+}

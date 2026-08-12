@@ -1,3 +1,4 @@
+//keep MovableUtil 
 const debug = false;
 /**
  * StartApp.AndroidAppDemo = 5
@@ -20,6 +21,16 @@ class App {
         AppRouter: null,
     }
     constructor() {
+        document.body.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key == "r") {
+                e.stopPropagation();
+                e.preventDefault();
+                Lobby.post("AppRouter/Navigate", { where: "AndroidAppDemo" }, (rsp) => {
+                    resolve();
+                    //owner.elements.button_login.classList.toggle("clicked", false);
+                });
+            }
+        })
         AppStatus.displayVersion();
         this.#getReferencesElements();
         this.#asyncContructor();
@@ -48,35 +59,35 @@ class App {
                     icon_code: "ef3e",
                     title: "analytics",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.DataAnalizis1);
+                        owner.instances.AppRouter.navigate('DataAnalizis1');
                     }
                 },
                 {
                     icon_code: "f86e",
                     title: "inventory",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewInventory);
+                        owner.instances.AppRouter.navigate('AndroidViewInventory');
                     }
                 },
                 {
                     icon_code: "e88a",
                     title: "home",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewHome);
+                        owner.instances.AppRouter.navigate('AndroidViewHome');
                     }
                 },
                 {
                     icon_code: "e172",
                     title: "tasks",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewTasks);
+                        owner.instances.AppRouter.navigate('AndroidViewTasks');
                     }
                 },
                 {
                     icon_code: "ebb7",
                     title: "2502089",
                     onSelect: () => {
-                        owner.instances.AppRouter.navigate(enumAppRouting.AndroidViewAccount);
+                        owner.instances.AppRouter.navigate('AndroidViewAccount');
                     }
                 },
             ]

@@ -22,7 +22,7 @@ class Notify extends FrameworkGC(`${injector_html}`) {
      * @param {string} [options.title]
      * @param {string} [options.text]
      * @param {string} [options.extra_data] slightly visible
-     * @param {number} [options.type]  0 ok | 1 warning | -1 error | anything else -> question_mark_book
+     * @param {'ok'|'warning'|'error'|'info'} [options.type] anything else falls back to 'info'
      * @param {Function} [options.next] called when the icon is clicked
      * @param {number} [options.ms_timeout] 1500ms | how long, in ms, before the notification auto-destroys
      * @param {MouseEvent|{clientX,clientY}} [options.event] positions the notification near this event instead of
@@ -197,27 +197,27 @@ class Notify extends FrameworkGC(`${injector_html}`) {
             owner.id_timeout_auto_destroy = null;
         }
     }
-    static switchColor(num) {
-        switch (num) {
-            case 0:
+    static switchColor(type) {
+        switch (type) {
+            case "ok":
                 return "#2bde3f";
-            case 1:
+            case "warning":
                 return "#ffc007";
-            case -1:
+            case "error":
                 return "#e42636";
             default:
                 return "#1d72f3";
         }
     }
-    static switchIcon(num) {
-        switch (num) {
-            case 0:
+    static switchIcon(type) {
+        switch (type) {
+            case "ok":
                 return "&#xe5ca;";
             // return "check.svg";
-            case 1:
+            case "warning":
                 return "&#xf7ac;";
             // return "chat_error.svg";
-            case -1:
+            case "error":
                 return "&#xe002;";
             // return "warning.svg";
             default:
@@ -255,7 +255,7 @@ class Notify extends FrameworkGC(`${injector_html}`) {
 //#START RESERVED AREA FOR UI_BUILDER
 // const mock_titles = ["Operazione completata", "Attenzione", "Errore di rete", "Nuovo aggiornamento disponibile", "Salvataggio riuscito"];
 // const mock_texts = ["Tutto è andato a buon fine.", "Controlla i dati inseriti.", "Impossibile contattare il server.", "Riprova tra qualche minuto.", undefined];
-// const mock_types = [0, 1, -1, 2]; // 0 ok, 1 warning, -1 error, anything else -> question_mark_book
+// const mock_types = ["ok", "warning", "error", "info"];
 // const mock_styles = [0, 3, 21];
 // function spawnRandomNotify() {
 //     const type = mock_types[Math.floor(Math.random() * mock_types.length)];
@@ -276,5 +276,14 @@ class Notify extends FrameworkGC(`${injector_html}`) {
 //         console.error("wtf:", error.message);
 //     }
 // }
+// new Notify({
+//     title: `start`,
+//     text: `text`,
+//     extra_data: `extra_data`,
+//     type: 'ok',
+//     next: () => console.log("notify clicked"),
+//     ms_timeout: 1500 + Math.random() * 4000,
+//     style: 0,
+// });
 
 //#END RESERVED AREA FOR UI_BUILDER

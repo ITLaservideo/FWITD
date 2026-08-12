@@ -7,6 +7,7 @@ class DockWindow extends FrameworkGC(`${injector_html}`) {
      * @param {Function|Array<Function>} [options.onClose] - callback(s) to be called on destroy
      * @param {Function} [options.onReady] - callback to be called when component is ready
      * @param {HTMLElement} [options.content] 
+     * @param {boolean} [options.closeable] true
      */
     constructor(options) {
         super(options);
@@ -33,6 +34,9 @@ class DockWindow extends FrameworkGC(`${injector_html}`) {
         if (this.options.content != null) {
             owner.self_ref.appendChild(this.options.content);
         }
+        if (this.options.closeable == false) {
+            owner.elements.elscax.remove();
+        }
         return;
     }
     async #addEventListeners() {
@@ -46,7 +50,7 @@ class DockWindow extends FrameworkGC(`${injector_html}`) {
 
     //#region FrameworkEventListeners
     //@note private methods do not work :: they get mangled
-    async onButtonTestClick() {// add attribute inside the .html ` fw-click='onButtonTestClick' `
+    async onButtonTestClick() {// add attribute inside the .html ` (click)='onButtonTestClick' `
         /**
          * @type HTMLElement
          */
@@ -64,8 +68,8 @@ class DockWindow extends FrameworkGC(`${injector_html}`) {
 
 
 //#START RESERVED AREA FOR UI_BUILDER
-// setInterval(() => {
-//     const ss = new DockWindow({});
+// setTimeout(() => {
+//     const ss = new DockWindow({ closeable: null });
 //     document.body.appendChild(ss.elementReference());
 // }, 1000);
 //#END RESERVED AREA FOR UI_BUILDER

@@ -12,14 +12,17 @@ class AndroidViewInventory extends FrameworkGC(`${injector_html}`) {
         this.#initialize();
     }
     elements = {
-        filters: this.self_ref.querySelector("[data-ref='filters']"),
-        list: this.self_ref.querySelector("[data-ref='list']"),
-        sidePanel: this.self_ref.querySelector("[data-ref='sidePanel']")
+        filters: null,
+        list: null,
+        sidePanel: null,
     };
     #currentSubview = null;
     #subviewBackHandler = null;
     async #initialize() {
         const owner = this;
+        owner.elements.filters = this.self_ref.querySelector("[data-ref='filters']");
+        owner.elements.list = this.self_ref.querySelector("[data-ref='list']");
+        owner.elements.sidePanel = this.self_ref.querySelector("[data-ref='sidePanel']");
         return;
     }
     /**

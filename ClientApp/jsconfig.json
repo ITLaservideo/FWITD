@@ -6,5 +6,12 @@
     "include": [
         "**/*.js",
         "**/*.d.ts"
+    ],
+    "exclude": [
+        "apps_standalone/**",
+        "apps_injectable/**",
+        "**/*.min.*",
+        "**/.*.js",
+        "utils/external_libs/**"
     ]
 }

@@ -16,7 +16,7 @@ class Lobby {
     /**
      * @param payload_stringified
      */
-    static #doThePost = (the_str) => { window.FWBridge.postMessage(the_str); };
+    static #doThePost = (the_str) => { console.assert(window.FWBridge != undefined, "back-end not linked"); window.FWBridge.postMessage(the_str); };
     /**
      * 
      * @param {string} url 

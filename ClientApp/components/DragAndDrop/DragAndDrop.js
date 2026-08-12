@@ -23,7 +23,7 @@ class DoubleClickBehaviour {
                     event: { clientX: 750, clientY: 50 },
                     ms_timeout: 2000,
                     style: 3,
-                    type: 1
+                    type: "warning"
                 });
             }
             return false;
@@ -35,7 +35,7 @@ class DoubleClickBehaviour {
                 event: { clientX: 750, clientY: 75 },
                 ms_timeout: 2000,
                 style: 3,
-                type: 0
+                type: "ok"
             });
         }
         return true;
@@ -178,7 +178,6 @@ class DragAndDrop {
                 const mock_event = {
                     target: event.target
                 };
-                DragAndDrop.#mainStatus.dragging.mock_event = mock_event;
                 if (event.type == "touchmove") {
                     event.preventDefault();
                     const touch = event.touches[0];
@@ -188,6 +187,7 @@ class DragAndDrop {
                     mock_event.clientX = event.clientX;
                     mock_event.clientY = event.clientY;
                 }
+                DragAndDrop.#mainStatus.dragging.mock_event = mock_event;
                 DragAndDrop.#self_ref.style.left = `${mock_event.clientX - DragAndDrop.#offset_left}px`;
                 DragAndDrop.#self_ref.style.top = `${mock_event.clientY - DragAndDrop.#offset_top}px`;
                 //DragAndDrop.#self_ref.style['transform'] = `translate(${-x}px, ${-y}px)`;
@@ -229,7 +229,7 @@ class DragAndDrop {
                 //     event: { clientX: 450, clientY: 450 },
                 //     ms_timeout: 2000,
                 //     style: 3,
-                //     type: 1
+                //     type: "warning"
                 // });
                 DragAndDrop.#consumeDragEnd();
                 DragAndDrop.#draggingEnded();
@@ -245,6 +245,7 @@ class DragAndDrop {
                 document.body.appendChild(DragAndDrop.#self_ref);
                 DragAndDrop.#draggingStarted();
                 DragAndDrop.#mainStatus.dragging.options = options;
+                DragAndDrop.#mainStatus.dragging.mock_event = { clientX: x, clientY: y, target: event_target };
                 DragAndDrop.#group_id_drag_in_progress = options.group_id;
                 if (options.img_offset != undefined) {
                     DragAndDrop.#offset_left = options.img_offset.x + DragAndDrop.#offset_preview;
@@ -318,7 +319,7 @@ class DragAndDrop {
                         //     event: { clientX: (490 + DragAndDrop.inc), clientY: 300 },
                         //     ms_timeout: 2000,
                         //     style: 3,
-                        //     type: 1
+                        //     type: "warning"
                         // });
                         DragAndDrop.inc++;
                         DragAndDrop.#lastTargetIDHovered = target.id;
@@ -448,7 +449,7 @@ class DragAndDrop {
             //     event: { clientX: (490), clientY: 300 },
             //     ms_timeout: 2000,
             //     style: 3,
-            //     type: 1
+            //     type: "warning"
             // });
             resolve(options.group_id);
         });
@@ -500,7 +501,7 @@ class DragAndDrop {
         //     event: { clientX: 350, clientY: 600 },
         //     ms_timeout: 2000,
         //     style: 3,
-        //     type: 1
+        //     type: "warning"
         // });
         if (DragAndDrop.#lastTargetIDHovered != undefined && DragAndDrop.#targetIDGrabbed != undefined && DragAndDrop.#lastTargetIDHovered != DragAndDrop.#targetIDGrabbed) {
             const start_id = DragAndDrop.#targetIDGrabbed;
@@ -543,7 +544,7 @@ class DragAndDrop {
         //     event: { clientX: 500, clientY: 500 },
         //     ms_timeout: 2000,
         //     style: 3,
-        //     type: 1
+        //     type: "warning"
         // });
     }
     static #draggingEnded() {
@@ -570,13 +571,14 @@ class DragAndDrop {
                     y <= rect.bottom;
 
                 if (within_its_bounds) {
-                    // alert("within bounds " + window.Locale.parseDateConvertToReadable(DragAndDrop.#mainStatus.dragging.start_drag_date, { tipo: 101 }))
+                    // alert("within bounds " + Locale.parseDateConvertToReadable(DragAndDrop.#mainStatus.dragging.start_drag_date, { tipo: 101 }))
                     options.doClick(mock_event);
                 } else {
-                    // alert("out of bounds" + window.Locale.parseDateConvertToReadable(DragAndDrop.#mainStatus.dragging.start_drag_date, { tipo: 101 }))
+                    console.log("out of bounds" + Locale.parseDateConvertToReadable(DragAndDrop.#mainStatus.dragging.start_drag_date, { tipo: 101 }))
                 }
             }
-        } catch (error) { }
+        } catch (error) {
+        }
         DragAndDrop.#dragging = false;
         window.DragAndDropBusy = false;
         DragAndDrop.#group_id_drag_in_progress = undefined;
@@ -593,7 +595,7 @@ class DragAndDrop {
         //     event: { clientX: 700, clientY: 500 },
         //     ms_timeout: 2000,
         //     style: 3,
-        //     type: 1
+        //     type: "warning"
         // });
         const moveElement = DragAndDrop.#mainStatus.dragging.last_event_listener_added_on_body_moveElement;
         DragAndDrop.#mainStatus.dragging.options = null;
@@ -631,11 +633,13 @@ class DragAndDrop {
         });
 
         document.body.addEventListener("touchend", (event) => {
+            console.error("touchend");
             DragAndDrop.#consumeDragEnd();
             DragAndDrop.#draggingEnded();
             DragAndDrop.#cleanVisualFeedBacks();
         });
         document.body.addEventListener("touchcancel", (event) => {
+            console.error("touchcancel");
             DragAndDrop.#draggingEnded();
             DragAndDrop.#cleanVisualFeedBacks();
         });
@@ -650,10 +654,12 @@ function consumeOps(ops) {
 }
 DragAndDrop.load();
 window.DragAndDrop = DragAndDrop;
-new Notify({
-    text: "drag and drop VERSION 11 -- " + new Date().getMilliseconds(),
-    event: { clientX: 450, clientY: 150 },
-    ms_timeout: 2000,
-    style: 3,
-    type: 1
-});
+setTimeout(() => {
+    new Notify({
+        text: "drag and drop VERSION 11 -- " + new Date().getMilliseconds(),
+        event: { clientX: 450, clientY: 150 },
+        ms_timeout: 2000,
+        style: 3,
+        type: "warning"
+    });
+}, 0);

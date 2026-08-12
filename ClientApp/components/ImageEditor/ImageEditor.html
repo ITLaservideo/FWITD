@@ -5,20 +5,8 @@
     <div class="ie-workspace">
         <div class="ie-toolbox ie-labels-compact" fw-id="toolbox">
             <div class="ez-button ie-tool-button" fw-id="btn_toggle_labels" (click)="onClickToggleLabels">
-                <div class="f-icon-i" fw-id="toggle_labels_icon">&#xf3d2;</div>
+                <div class="f-icon-i" fw-id="toggle_labels_icon">&#xf1c0;</div>
                 <span>{{Etichette}}</span>
-            </div>
-            <div class="ez-button ie-tool-button" (click)="onClickReset">
-                <div class="f-icon-i">&#xf053;</div>
-                <span>{{Reset}}</span>
-            </div>
-            <div class="ez-button ie-tool-button" fw-id="btn_flip_h" (click)="onClickFlipHorizontal">
-                <div class="f-icon-i">&#xe41e;</div>
-                <span>{{Rifletti orizz.}}</span>
-            </div>
-            <div class="ez-button ie-tool-button" fw-id="btn_flip_v" (click)="onClickFlipVertical">
-                <div class="f-icon-i">&#xea38;</div>
-                <span>{{Rifletti vert.}}</span>
             </div>
             <div class="ez-button ie-tool-button" fw-id="btn_color_key" (click)="onClickRemoveBackground">
                 <div class="f-icon-i">&#xf20a;</div>
@@ -32,20 +20,40 @@
                 <div class="f-icon-i">&#xe3f3;</div>
                 <span>{{Ripristina}}</span>
             </div>
-            <div class="ez-button ie-tool-button" fw-id="btn_smoothing">
-                <div class="f-icon-i">&#xf50c;</div>
-                <span>{{Levigatura}}</span>
+            <div class="ez-button ie-tool-button" fw-id="btn_add_text" (click)="onClickAddText">
+                <div class="f-icon-i">&#xe9f1;</div>
+                <span>{{add text}}</span>
+            </div>
+            <div class="ez-button ie-tool-button" fw-id="btn_draw" (click)="onClickDraw">
+                <div class="f-icon-i">&#xe3c9;</div>
+                <span>{{draw}}</span>
             </div>
         </div>
         <div class="ie-main-column">
-            <div class="ie-toolbox-top" fw-id="toolbox_top">
+            <div class="ie-toolbox-top ie-labels-compact" fw-id="toolbox_top">
+                <div class="ez-button ie-tool-button" (click)="onClickReset">
+                    <div class="f-icon-i">&#xf053;</div>
+                    <span displ>{{Reset}}</span>
+                </div>
                 <div class="ez-button ie-tool-button" fw-id="btn_undo" (click)="onClickUndo">
                     <div class="f-icon-i">&#xe166;</div>
-                    <span>{{Annulla}} (CTRL + Z)</span>
+                    <span style="display: none;">{{Annulla}} (CTRL + Z)</span>
                 </div>
                 <div class="ez-button ie-tool-button" fw-id="btn_redo" (click)="onClickRedo">
                     <div class="f-icon-i">&#xe15a;</div>
-                    <span>{{Ripeti}} (CTRL + Y)</span>
+                    <span style="display: none;">{{Ripeti}} (CTRL + Y)</span>
+                </div>
+                <div class="ez-button ie-tool-button" fw-id="btn_flip_h" (click)="onClickFlipHorizontal">
+                    <div class="f-icon-i">&#xe41e;</div>
+                    <span>{{Rifletti orizz.}}</span>
+                </div>
+                <div class="ez-button ie-tool-button" fw-id="btn_flip_v" (click)="onClickFlipVertical">
+                    <div class="f-icon-i">&#xea38;</div>
+                    <span>{{Rifletti vert.}}</span>
+                </div>
+                <div class="ez-button ie-tool-button" fw-id="btn_smoothing">
+                    <div class="f-icon-i">&#xf50c;</div>
+                    <span>{{Levigatura}}</span>
                 </div>
             </div>
             <div class="ie-crop-wrapper" fw-id="crop_wrapper">

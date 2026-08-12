@@ -82,6 +82,7 @@ All three host types reference `QStorage` and (for WPF/MAUI) `DataCipher` as pro
   <EmbeddedResource Include="FWITD\ClientApp\**\*.woff2"    LogicalName="FWITD/ClientApp/%(RecursiveDir)%(Filename)%(Extension)" />
   <EmbeddedResource Include="FWITD\ClientApp\**\*.png"      LogicalName="FWITD/ClientApp/%(RecursiveDir)%(Filename)%(Extension)" />
   <EmbeddedResource Include="FWITD\ClientApp\**\*.svg"      LogicalName="FWITD/ClientApp/%(RecursiveDir)%(Filename)%(Extension)" />
+  <EmbeddedResource Include="FWITD\ClientApp\**\*.wasm"     LogicalName="FWITD/ClientApp/%(RecursiveDir)%(Filename)%(Extension)" />
   <!-- .ico stays loose Content: shortcut creation needs a real on-disk path for the icon -->
   <Content Include="FWITD\**\*.ico" CopyToOutputDirectory="PreserveNewest" />
   <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />

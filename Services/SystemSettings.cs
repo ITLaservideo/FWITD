@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace FWITD.Services {
-    public static class SystemSettings {
+    public class SystemSettings {
         public static string AppVersion {
             get => AppSettings.Get<string>("app-version", "❓");
         }

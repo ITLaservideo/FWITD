@@ -18,10 +18,6 @@ class AndroidVeiwStatoMotori extends FrameworkGC(`${injector_html}`) {
      * automatically gathers elements with attribute `fw-id=` after super()
      */
     elements = {
-        /**
-         * @type Element
-         */
-        self_ref: this.self_ref
     }
     async #initialize() {
         const owner = this;

@@ -1,0 +1,89 @@
+<div class="pe-container">
+    <!-- <div class="pe-close" (click)="onClickClose">✕</div> -->
+    <!-- the tabs, the "Scegli file" button and the PDF drop target live in a top StickyBar (see PDFEditor.js #createTabsBar) -->
+
+    <div class="pe-panel" fw-id="panel_merge">
+        <div class="pe-instructions">{{Scegli più file PDF, oppure trascinali sulla barra in alto: verranno uniti nell’ordine mostrato sotto}} - {{trascina le
+            righe per riordinarle}}</div>
+        <input type="file" accept="application/pdf" multiple fw-id="merge_file_input" style="display:none;" />
+        <div class="pe-file-list" fw-id="merge_list"></div>
+        <label class="pe-checkbox-row">
+            <input type="checkbox" fw-id="merge_add_page_numbers" />
+            <span>{{Aggiungi numerazione pagine}}</span>
+        </label>
+        <div class="pe-actions">
+            <div class="ez-button" fw-id="merge_button" (click)="onClickMerge">{{Unisci e scarica}}</div>
+        </div>
+    </div>
+
+    <div class="pe-panel pe-hidden" fw-id="panel_split">
+        <div class="pe-instructions">{{Scegli un file PDF, poi indica quante pagine deve contenere ciascuna parte}}
+        </div>
+        <input type="file" accept="application/pdf" fw-id="split_file_input" style="display:none;" />
+        <div class="pe-split-info" fw-id="split_info"></div>
+        <div class="pe-split-parts" fw-id="split_parts"></div>
+        <div class="pe-split-total" fw-id="split_total"></div>
+        <div class="pe-actions">
+            <div class="f-icon asbtn" data-icon="&#xe985;" fw-id="split_add_part_btn" (click)="onClickSplitAddPart">{{suddividi}}</div>
+            <div class="f-icon asbtn" data-icon="&#xf86c;" fw-id="split_button" (click)="onClickSplit">{{scarica i file}}</div>
+        </div>
+    </div>
+
+    <div class="pe-panel pe-hidden" fw-id="panel_compress">
+        <div class="pe-instructions">{{Scegli un file PDF e un livello di compressione}}</div>
+        <input type="file" accept="application/pdf" fw-id="compress_file_input" style="display:none;" />
+        <div class="pe-compress-info" fw-id="compress_info"></div>
+        <div class="pe-compress-levels" fw-id="compress_levels">
+            <label class="pe-checkbox-row">
+                <input type="radio" name="pe-compress-level" value="none" checked />
+                <span>{{Solo struttura (nessuna perdita)}}</span>
+            </label>
+            <label class="pe-checkbox-row">
+                <input type="radio" name="pe-compress-level" value="medium" />
+                <span>{{Media (ricomprime le immagini)}}</span>
+            </label>
+            <label class="pe-checkbox-row">
+                <input type="radio" name="pe-compress-level" value="high" />
+                <span>{{Alta (immagini più compresse)}}</span>
+            </label>
+        </div>
+        <div class="pe-actions">
+            <div class="ez-button" fw-id="compress_button" (click)="onClickCompress">{{Comprimi e scarica}}</div>
+        </div>
+    </div>
+
+    <div class="pe-panel pe-hidden" fw-id="panel_edit">
+        <div class="pe-instructions">{{Scegli un file PDF, poi disegna, aggiungi testo o elimina aree/pagine}}</div>
+        <input type="file" accept="application/pdf" fw-id="edit_file_input" style="display:none;" />
+        <div class="pe-edit-editor pe-hidden" fw-id="edit_editor">
+            <!-- the tool buttons live in a left StickyBar (see PDFEditor.js #ensureToolsBar); this row pops out next to its "Disegna" button -->
+            <div class="pe-edit-stroke-width pe-hidden" fw-id="edit_stroke_width_row">
+                <span class="pe-edit-stroke-width-label">{{Spessore}}</span>
+                <input type="range" class="pe-edit-stroke-width-slider" fw-id="edit_stroke_width_slider" min="1" max="20" value="2" step="1" />
+                <span class="pe-edit-stroke-width-value" fw-id="edit_stroke_width_value">2</span>
+                <div class="pe-edit-stroke-width-preview" fw-id="edit_stroke_width_preview">
+                    <div class="pe-edit-stroke-width-preview-dot" fw-id="edit_stroke_width_preview_dot"></div>
+                </div>
+            </div>
+            <input type="range" class="pe-edit-width-slider" fw-id="edit_width_slider" min="300" max="3000" step="10" value="900" />
+            <div class="pe-edit-workspace" fw-id="edit_workspace">
+                <canvas class="pe-edit-frame" fw-id="edit_frame"></canvas>
+                <canvas class="pe-edit-canvas" fw-id="edit_canvas"></canvas>
+            </div>
+            <div class="pe-edit-bottom-bar">
+                <div class="ez-button pe-tool-button" fw-id="edit_undo_btn" (click)="onClickEditUndo">
+                    <div class="f-icon-i">&#xe166;</div>
+                    <span class="cllpslabel">{{Annulla}} (CTRL + Z)</span>
+                </div>
+                <div class="pe-edit-page-nav">
+                    <div class="f-icon lbtn" data-icon="&#xe5cb;" fw-id="edit_prev_page" (click)="onClickEditPrevPage"></div>
+                    <span fw-id="edit_page_label">1 / 1</span>
+                    <div class="f-icon lbtn" data-icon="&#xe5cc;" fw-id="edit_next_page" (click)="onClickEditNextPage"></div>
+                </div>
+                <div class="ez-button" fw-id="edit_save_button" (click)="onClickEditSave">
+                    <div class="f-icon-i">&#xeb60;</div><span class="cllpslabel">{{Salva e scarica}}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

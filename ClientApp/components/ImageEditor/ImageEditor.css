@@ -14,7 +14,8 @@
         top: 6px;
         right: 10px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: 24px;
+        aspect-ratio: 1 / 1;
         opacity: .7;
 
         &:hover {
@@ -35,9 +36,9 @@
         gap: 8px;
         width: 100%;
 
-        .ie-tool-button>span:last-child {
+        /* .ie-tool-button>span:last-child {
             display: none;
-        }
+        } */
     }
 
     .ie-workspace {
@@ -209,13 +210,15 @@
         gap: 8px;
         height: 100%;
         width: 130px;
+    }
 
-        &.ie-labels-compact {
-            width: fit-content;
+    .ie-labels-compact {
+        width: fit-content;
+        margin-left: 0;
+        margin-right: auto;
 
-            .ie-tool-button>span:last-child {
-                display: none;
-            }
+        >.ie-tool-button>span:last-child {
+            display: none;
         }
     }
 
@@ -306,6 +309,26 @@
             display: none;
         }
     }
+
+    &.ie-drawing {
+        .ie-erase-cursor {
+            display: block;
+            border-color: #ff3b30;
+            background: rgba(255, 59, 48, .15);
+        }
+
+        .ie-image {
+            cursor: none;
+        }
+
+        .ie-knob {
+            display: none;
+        }
+
+        .ie-crop-move-bar {
+            display: none;
+        }
+    }
 }
 
 .ie-mode-instructions-content {
@@ -315,4 +338,175 @@
     padding: 4px 10px 10px;
     font-size: 12px;
     line-height: 1.5;
+}
+
+.ie-mode-instructions-swatches {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.ie-color-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, .3);
+    cursor: pointer;
+}
+
+.ie-color-swatch-active {
+    border-color: var(--vscode-focusBorder, #fff);
+}
+
+.ie-brush-size-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    margin-left: 4px;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    opacity: .8;
+
+    &:hover {
+        opacity: 1;
+        background: rgba(128, 128, 128, .2);
+    }
+}
+
+/* ie-text-overlay* below are also body-level (appended to document.body, not .ie-container), for
+   the same reason as .ie-mode-instructions-content above: the "add text" tool floats above the
+   whole editor, including the BottomSheet ImageEditor is normally shown inside */
+
+/* mirrors PDFEditor.css's pe-text-overlay* rules, except for the text color: the baked text is
+   white (see ImageEditor.js #bakeTextOverlay), so the preview keeps white text with a shadow and a
+   transparent background instead of pe's black text on a translucent white one */
+.ie-text-overlay {
+    position: absolute;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .7);
+    user-select: none;
+    cursor: default;
+    z-index: 10000;
+
+    /* outline: 1px solid red; */
+    .f-icon-i {
+        outline: 1px solid #ff00004a;
+    }
+}
+
+/* the only part of the overlay that gets rotated (and font-size-scaled) - see ImageEditor.js #startAddingText */
+.ie-text-overlay-preview {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    /* padding: 2px 6px; */
+    background: transparent;
+    border-radius: 3px;
+    white-space: nowrap;
+    line-height: 0.6;
+
+    .fkng_fake_span {
+        /* was translate(0.4px, -4.1px), tuned at the 28px base font-size back when the whole overlay
+           was CSS-scale()d - in em now, so it keeps tracking the font-size-driven scale */
+        transform: translate(0.0143em, -0.1464em);
+        /* outline: 1px solid red; */
+    }
+}
+
+/* sized from JS to the preview's rotated bounding box, centered on it, never transformed itself -
+   so the handles stay at a fixed size/orientation around the text */
+.ie-text-overlay-controls {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* the box itself mustn't swallow pointer events meant for whatever is underneath */
+    pointer-events: none;
+
+    >* {
+        pointer-events: auto;
+    }
+}
+
+[fw-id="btn_erase"] {
+    color: rgba(216, 8, 8, 0.815);
+}
+
+.ie-text-overlay-handle {
+    position: absolute;
+    cursor: move;
+    opacity: .7;
+    font-size: 24px;
+    aspect-ratio: 1 / 1;
+    top: 100%;
+    left: 100%;
+}
+
+.ie-text-overlay-handle-scale-rotate {
+    left: 100%;
+    bottom: 100%;
+    top: unset;
+}
+
+.ie-text-overlay-confirm {
+    position: absolute;
+    cursor: pointer;
+    opacity: .85;
+    font-size: 24px;
+    aspect-ratio: 1 / 1;
+    right: 100%;
+    top: 100%;
+
+    &:hover {
+        opacity: 1;
+    }
+}
+
+/* recent-texts list prepended to the #promptAddText MousePopUp (body-level, like the popup
+   itself - not nested under .ie-container) */
+
+.ie-recent-texts {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 8px;
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.ie-recent-text-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 6px;
+    border-radius: 4px;
+
+    &:hover {
+        background: rgba(128, 128, 128, .15);
+    }
+}
+
+.ie-recent-text-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.ie-recent-text-pin,
+.ie-recent-text-remove {
+    cursor: pointer;
+    opacity: .6;
+    font-size: 12px;
+    padding: 2px 4px;
+
+    &:hover {
+        opacity: 1;
+    }
 }
