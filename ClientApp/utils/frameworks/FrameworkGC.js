@@ -81,9 +81,11 @@ function FrameworkGC(the_framework_html) {
          */
         destroy(timeout_ms = 0) {
             const owner = this;
-            window.removeEventListener('popstate', owner.#backHandler);
-            if (typeof SpaHistory !== "undefined") {
-                SpaHistory.popState(owner.#backHandler);
+            if (owner.#backHandler != undefined) {
+                window.removeEventListener('popstate', owner.#backHandler);
+                if (typeof SpaHistory !== "undefined") {
+                    SpaHistory.popState(owner.#backHandler);
+                }
             }
             setTimeout(() => {
                 owner.self_ref.remove();
