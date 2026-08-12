@@ -43,7 +43,7 @@ Object.defineProperty(AppStatus, "UseThisDeviceForNotifications", {
 });
 
 Object.defineProperty(AppStatus, "IsPhone", {
-    value: `{{@AppSettings.Device.IsPhone}}`,
+    value: Utils.ParseBool(`{{@AppSettings.Device.IsPhone}}`),
     writable: false,
     configurable: false,
     enumerable: true
