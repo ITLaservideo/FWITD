@@ -45,7 +45,7 @@ class AndroidViewSettings extends FrameworkGC(`${injector_html}`) {
     // owner.options;//access building options here
 
     //#region FrameworkEventListeners
-    async #onButtonTestClick() {// add attribute inside the .html ` fw-click='#onButtonTestClick' `
+    async #onButtonTestClick() {// add attribute inside the .html ` (click)='#onButtonTestClick' `
         /**
          * @type HTMLElement
          */
@@ -59,66 +59,42 @@ class AndroidViewSettings extends FrameworkGC(`${injector_html}`) {
     }
     //#endregion
     //#region SettingsList
-    #addNotifications() {
+    async #addNotifications() {
         const owner = this;
+        const user_settings = await Lobby.postAsync('UserSettings/Get');
         const self_aware = {
-            yes: AppStatus.UseThisDeviceForNotifications
+            yes: user_settings.UseThisDeviceForNotifications
         }
-        const options_create_toggle = {
+        const toggle = UiBuilder.createToggle({
             label: Locale.at("ricevi notifiche su questo dispositivo"),
             innerText: {
                 on: Locale.at("is_on"),
                 off: Locale.at("is_off")
             },
-            onClick: (event) => {
-                if (self_aware.yes) {
-                    UiBuilder.mockDialog({
-                        text1: `${Locale.at("Unregister this device from Notifications and OTP authentication.")} \n\n${Locale.at("You'll be able to access your account without second factor authentication (not recommended).")} \n\n${Locale.at("You will NOT receive notifications about finished products.")}`,
-                        onConfirm: () => {
-                            self_aware.yes = false;
-                            Lobby.post({ prompt: 20/*use this device for notifications*/, a_number: new Number(self_aware.yes) }, (rsp) => {
-                                if (rsp.error != undefined) {
-                                    return;
-                                }
-                                AppStatus.UseThisDeviceForNotifications = self_aware.yes;
-                                options_create_toggle.setIsOn(self_aware.yes);
-                            });
-                        },
-                        onConfirmText: Locale.at("unpair device"),
-                        onDeny: () => {
-                        },
-                        onDenyText: Locale.at("close"),
-                        onClose: () => {
-                        },
-                        prefer_selection: 0
-                    });
-                } else {
-                    UiBuilder.mockDialog({
-                        text1: `${Locale.at("use this device for notifications like")} \n${Locale.at("OTP authentication")} \n${Locale.at("finished products")} \n${Locale.at("etc.")}`,
-                        onConfirm: () => {
-                            self_aware.yes = true;
-                            Lobby.post({ prompt: 20/*use this device for notifications*/, a_number: new Number(self_aware.yes) }, (rsp) => {
-                                if (rsp.error != undefined) {
-                                    return;
-                                }
-                                AppStatus.UseThisDeviceForNotifications = self_aware.yes;
-                                options_create_toggle.setIsOn(self_aware.yes);
-                            });
-                        },
-                        onConfirmText: Locale.at("pair device"),
-                        onDeny: () => {
-                        },
-                        onDenyText: Locale.at("close"),
-                        onClose: () => {
-                        },
-                        prefer_selection: 1
-                    });
-                }
+            onClick: (event, building_options) => {
+                UiBuilder.mockDialog({
+                    text1: (!self_aware.yes ? `${Locale.at("use this device for notifications like")} \n${Locale.at("OTP authentication")} \n${Locale.at("finished products")} \n${Locale.at("etc.")}` : `${Locale.at("Unregister this device from Notifications and OTP authentication.")} \n\n${Locale.at("You'll be able to access your account without second factor authentication (not recommended).")} \n\n${Locale.at("You will NOT receive notifications about finished products.")}`),
+                    onConfirm: () => {
+                        Lobby.post("UserSettings/Patch", { UseThisDeviceForNotifications: !self_aware.yes }, (rsp) => {
+                            if (rsp.ok != true) {
+                                return;
+                            }
+                            self_aware.yes = !self_aware.yes;
+                            building_options.setIsOn(self_aware.yes);
+                        });
+                    },
+                    onConfirmText: (!self_aware.yes ? Locale.at("pair device") : Locale.at("unpair device")),
+                    onDeny: () => {
+                    },
+                    onDenyText: Locale.at("close"),
+                    onClose: () => {
+                    },
+                    prefer_selection: self_aware.yes ? 0 : 1
+                });
             },
             isOn: self_aware.yes,
             // theme: "mini"
-        };
-        const toggle = UiBuilder.createToggle(options_create_toggle);
+        });
         toggle.style.marginLeft = "4px";
         owner.self_ref.appendChild(toggle);
     }

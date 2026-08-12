@@ -18,21 +18,43 @@ class App {
                 owner.#onPageFullyLoaded();
                 clearInterval(late_ops);
                 UiBuilder.Notify("🪒 time " + `GoogleDocs`);
+                let dw_ = null;
+                dw_ = setInterval(() => {
+                    if (document.getElementsByClassName("appsDocsUiWizFindbarFindInputContainer").length <= 0) {
+                        return;
+                    }
+                    const kix_finding_box = document.getElementsByClassName("appsElementsPositionedSurfaceContainer")[0];
+                    if (kix_finding_box) {
+                        document.body.appendChild(kix_finding_box);
+                        Object.assign(kix_finding_box.style, {
+                            zIndex: '999999999999999999999',
+                        });
+                        if (dw_ != null) {
+                            clearInterval(dw_);
+                        }
+                    }
+                }, 1500);
             }
         }, 750);
     }
     async #init() {
         const owner = this;
-        owner.elements.floating_container = UiBuilder.createFloatingContainer(null, { id: "test-floater", direction: "verical" });
+        owner.elements.floating_container = UiBuilder.createFloatingContainer(null, {
+            id: "test-floater",
+            direction: "verical",
+            start_location: { left: '0', top: 'calc(100vh - 55px)' },
+            style: 'z-index:2222222222;min-width:87px;min-height:unset;',
+        });
         // this.elements.floating_container.classList.add("themain-floating-container");
-        const some_style = "width:fit-content;white-space:nowrap;font-size: 15px;height: fit-content;";
+        // const some_style = "width:fit-content;white-space:nowrap;font-size: 15px;height: fit-content;";
         const input = document.createElement("input");
         input.setAttribute("placeholder", "extract matricole");
         Object.assign(input.style, {
-            width: "100px",
+            width: "120px",
+            margin: "2px",
         });
         owner.elements.floating_container.appendChild(input);
-        console.error("hi there")
+        console.log("hi there")
         input.addEventListener("paste", async (event) => {
             const copiedText = event.clipboardData.getData("text").trim();
             const found = copiedText
@@ -107,7 +129,7 @@ class App {
             const figli = owner.elements.docs_editor_container.getElementsByClassName("kix-rotatingtilemanager-content")[0].children;
             for (let i = 0; i < figli.length; i++) {
                 const element = figli[i];
-                console.log(element);
+                //console.log(element);
                 Object.assign(element.style, {
                     width: "100vw",
                 });
@@ -121,19 +143,9 @@ class App {
                 bt_side_crap.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }))
             );
             document.body.appendChild(owner.elements.floating_container);
-            Object.assign(owner.elements.floating_container.style, {
-                zIndex: "2222222222",
-                minWidth: "unset",
-                minHeight: "unset"
-            });
             setTimeout(() => {
-                owner.elements.docs_editor_container.getElementsByClassName("kix-appview-editor")[0].scrollBy(0, 999999999999999999999999999999);
-                setTimeout(async () => {
-                    await Lobby.postAsync("Windows/ClickAt", {
-                        x: Math.floor(window.innerWidth - 20),
-                        y: Math.floor(window.innerHeight - 100)
-                    });
-                }, 0);
+                const kix_editor = owner.elements.docs_editor_container.getElementsByClassName("kix-appview-editor")[0];
+                kix_editor.scrollBy(0, kix_editor.scrollHeight - 440);
             }, 0);
         }, 1000);
         // owner.elements.docs_editor_container.getElementsByClassName("kix-rotatingtilemanager")[0].style.left=0;

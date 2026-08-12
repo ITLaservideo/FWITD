@@ -296,7 +296,7 @@ class AndroidViewSalesDrivenRestock extends FrameworkGC(`${injector_html}`) {
                     },
                     ms_timeout: 1200,
                     style: 3,
-                    type: 1
+                    type: "warning"
                 });
                 return;
             }

@@ -12,18 +12,30 @@ class AndroidViewAnalytics extends FrameworkGC(`${injector_html}`) {
         this.#initialize();
         this.#addEventListeners();
     }
+    elements = {
+        /** @type {HTMLElement} */
+        chartSales: null,
+
+        /** @type {HTMLElement} */
+        chartFaults: null,
+
+        /** @type {HTMLElement} */
+        kpiTopProduct: null,
+
+        /** @type {HTMLElement} */
+        kpiUptime: null,
+
+        /** @type {HTMLElement} */
+        kpiFaults: null,
+
+        /** @type {HTMLElement} */
+        kpiSales: null,
+
+        /** @type {HTMLElement} */
+        filters: null,
+    }
     async #initialize() {
         const owner = this;
-        //TODO initialize component here
-        owner.elements = {
-            filters: owner.self_ref.querySelector("[data-ref='filters']"),
-            kpiSales: owner.self_ref.querySelector("[data-ref='kpiSales']"),
-            kpiUptime: owner.self_ref.querySelector("[data-ref='kpiUptime']"),
-            kpiFaults: owner.self_ref.querySelector("[data-ref='kpiFaults']"),
-            kpiTopProduct: owner.self_ref.querySelector("[data-ref='kpiTopProduct']"),
-            chartSales: owner.self_ref.querySelector("[data-ref='chartSales']"),
-            chartFaults: owner.self_ref.querySelector("[data-ref='chartFaults']")
-        };
 
         return;
     }

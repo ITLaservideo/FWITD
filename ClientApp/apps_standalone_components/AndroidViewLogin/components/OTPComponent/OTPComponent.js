@@ -200,7 +200,7 @@ class OTPComponent extends FrameworkGC(`${injector_html}`) {
             event: { clientX: misure.x - 30, clientY: misure.y + 100 },
             ms_timeout: 2000,
             style: 3,
-            type: 1
+            type: "warning"
         });
         if (owner.listbox != undefined) {
             owner.listbox.addItem(`input otp: ${otp}`);//debugging
@@ -211,7 +211,7 @@ class OTPComponent extends FrameworkGC(`${injector_html}`) {
                     event: { clientX: misure.x, clientY: misure.y + 150 },
                     ms_timeout: 2000,
                     style: 3,
-                    type: 0
+                    type: "ok"
                 });
                 setTimeout(async () => {
                     await new Promise((resolve) => {

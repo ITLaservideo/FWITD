@@ -149,9 +149,12 @@ class App {
     //#region ReadCardMrz
     async #wireQuickTestNFCCard(card) {
         const owner = this;
-        const entries = [
-            { Name: "FG", Mrz: "C<ITACA83458ST9<<<<<<<<<<<<<<<0206204M3406201ROU<<<<<<<<<<<8TUDOR<<FABIAN<GABRIEL<<<<<<<<<" }
-        ];
+        const rsp = await Lobby.postAsync("FM32_25/GetCards", {});
+        if (rsp.error != undefined) {
+            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            return;
+        }
+        const entries = rsp.data ?? [];
         if (entries.length === 0) {
             return;
         }
@@ -331,10 +334,10 @@ class App {
 
         const self_aware = { yes: false };
         const options_create_toggle = {
-            label: Locale.at("permanent?"),
+            label: `${Locale.at("permanent")}?`,
             innerText: {
-                on: "# " + Locale.at("no"),
-                off: Locale.at("yes") + " @"
+                on: Locale.at("yes") + " @",
+                off: "# " + Locale.at("no")
             },
             onClick: (event) => {
                 self_aware.yes = !self_aware.yes;
@@ -382,7 +385,7 @@ class App {
             permanent_setting: Boolean(permanent_setting),
         });
         if (rsp.error != undefined) {
-            LiveLogger.log(`  ${Locale.at("error")}: ${rsp.error}`);
+            LiveLogger.log(`${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
         }
     }
@@ -412,7 +415,7 @@ class App {
                 clearTimeout(really_don_t_spam);
                 really_don_t_spam = setTimeout(() => {
                     const coo = what_input.getBoundingClientRect();
-                    new Notify({ text: Locale.at("data will be truncated"), event: { clientX: coo.x - 50, clientY: coo.y + 50 }, type: 1, style: 3 });
+                    new Notify({ text: Locale.at("data will be truncated"), event: { clientX: coo.x - 50, clientY: coo.y + 50 }, type: "warning", style: 3 });
                 }, 500);
             }
         };
@@ -829,11 +832,19 @@ class App {
             return;
         }
         const ports = rsp.data ?? [];
-        new SpeedActions({
+        const port_select = new SpeedActions({
             target: owner.#portStatusBtn,
             label: Locale.at("select which port to open"),
             createButtons: ports.length > 0
-                ? ports.map((port_name) => ({ title: port_name, onClick: () => owner.#openPort(port_name) }))
+                ? ports.map((port_name) => ({
+                    title: port_name, onClick: async () => {
+                        if (await owner.#openPort(port_name)) {
+                            // unpin first, otherwise hide() only dims a pinned popup
+                            SpeedActions.pinned.toggle(false);
+                            port_select.hide();
+                        }
+                    }
+                }))
                 : [{ title: Locale.at("no ports found"), onClick: (event) => UiBuilder.Notify(Locale.at("no ports found"), event) }],
             side: "bottom",
         });
@@ -844,7 +855,7 @@ class App {
         const rsp = await Lobby.postAsync("FM32_25/OpenPort", { port_name });
         if (rsp.error != undefined) {
             owner.#setStatus(`${Locale.at("error")}: ${rsp.error}`);
-            return;
+            return false;
         }
         owner.#setStatus(rsp.CurrentStatus ?? Locale.at("unknown status"));
         owner.#portIsOpen = true;
@@ -855,6 +866,7 @@ class App {
         // fire-and-forget: the reader may never answer QRYSYS (no timeout anywhere in this
         // command chain), so this must not block the rest of the open-port flow on it
         owner.#appendSystemInfoToTitle();
+        return true;
     }
     async #appendSystemInfoToTitle() {
         const owner = this;

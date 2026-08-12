@@ -67,4 +67,4 @@ Any `.js` files found in sub-subdirectories (recursively, excluding folders name
 | `AndroidViewSettings` | — |
 | `AndroidViewTasks` | `TaskItem` |
 | `DataAnalizis1` | — |
-| `SystemSettings` | — |
+| `Settings` | — |

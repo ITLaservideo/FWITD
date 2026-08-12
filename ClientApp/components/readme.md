@@ -44,3 +44,5 @@ Component-scoped styles. When loaded via `getJSComponentPair` (the current path)
 
 Any `.js` files found in sub-subdirectories (recursively, excluding folders named `components`) are loaded and prepended to the component's script, same mechanism as in `apps_injectable`/`apps_standalone`. Since a component folder can't have child components (see above), this is the only way to split a large widget's script into modules.
 
+Don't put third-party libraries here: every component that ships its own copy adds it to the bundle again. They go in `utils/external_libs/` instead, which is loaded once per page when the page's script references them (see `utils/readme.md`).
+

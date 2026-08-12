@@ -10,6 +10,13 @@
     font-family: var(--vscode-font-family, sans-serif);
 }
 
+.da1-filters {
+    display: flex;
+    flex-shrink: 0;
+    gap: 16px;
+    margin-bottom: 8px;
+}
+
 .da1-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

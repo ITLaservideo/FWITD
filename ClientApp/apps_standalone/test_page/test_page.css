@@ -4,9 +4,9 @@ body {
     font-family: var(--vscode-font-family);
 }
 
-* {
+/* * {
     box-sizing: border-box;
-}
+} */
 
 .test-container {
     width: 100vw;

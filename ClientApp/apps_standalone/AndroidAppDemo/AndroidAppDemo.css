@@ -6,6 +6,17 @@ body {
     background-color: var(--vscode-editor-background);
     color: var(--vscode-editor-foreground);
     font-family: var(--vscode-font-family);
+    margin: 0;
+
+    &::before {
+        top: 6px;
+        bottom: unset;
+    }
+
+    .js-running-check-ok {
+        top: 6px;
+        bottom: unset;
+    }
 }
 
 #app-main-content {
@@ -13,7 +24,7 @@ body {
     width: calc(100vw - 8px);
     height: calc(100vh - 8px);
 }
+
 * {
     -webkit-tap-highlight-color: transparent;
-    box-sizing: border-box;
 }

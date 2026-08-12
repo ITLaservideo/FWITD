@@ -80,15 +80,17 @@ class Insight {
         dialog_end_tutorial_visible: undefined
     }
     /**
-     * 
-     * @param {Object} options 
-     * @param {Element} options.target
-     * @param {string} [options.text] 
-     * @param {string} [options.style] 
-     * @param {string} [options.style.width] 
-     * @param {string} [options.style.height] 
-     * @param {string} [options.anchor] left|top|right|bottom 
-     * @param {Number} [options.padding]
+     * Draws a spotlight overlay (darkens the page except for a cutout around `options.target`)
+     * and shows a floating text tooltip anchored to it. No-ops (after logging) if `options.target`
+     * isn't an `Element` currently attached to the document.
+     *
+     * @param {Object} options
+     * @param {Element} options.target - Element to spotlight and anchor the tooltip to; must already be in the DOM.
+     * @param {string} [options.text] - HTML-escaped and set as the tooltip's content.
+     * @param {'left'|'top'|'right'|'bottom'} [options.anchor='top'] - Which side of `options.target` the tooltip is placed on.
+     * @param {number} [options.padding=4] - Gap in px between `options.target` and both the spotlight cutout and the tooltip.
+     * @param {Function} [options.singleShotOnClose] - Called once the next time `hide()` runs without `force`, then discarded.
+     * @returns {Promise<void>}
      */
     async show(options) {
         const owner = this;
@@ -97,6 +99,7 @@ class Insight {
                 console.error("not provided an element to the insight");
                 return;
             }
+            options.target.scrollIntoViewIfNeeded();
             if (options.text != undefined) {
                 owner.#main_text_element.firstElementChild.innerHTML = UiBuilder.escapeHTML(options.text);
             }
@@ -123,8 +126,7 @@ class Insight {
                 return;
             }
             path.setAttribute("d", drawing_path);
-            path.setAttribute('style', 'fill: #0000004a');
-            svg.appendChild(path);
+            svg.appendChild(path); // fill styled via `.svg-overlay-focusing-area path` in Insight.css
             requestAnimationFrame(() => {
                 document.body.appendChild(svg);
                 document.body.appendChild(owner.#self_ref);

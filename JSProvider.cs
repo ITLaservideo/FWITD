@@ -1,4 +1,6 @@
+#if DEBUG
 #define USE_JS_NON_MINIMIZED_FILES
+#endif
 
 using QStorage;
 using System.IO;
@@ -51,6 +53,10 @@ namespace FWITD {
         /// FWITD/ClientApp/icons/
         /// </summary>
         public static readonly string path_icons = path_App + "icons/";
+        /// <summary>
+        /// FWITD/ClientApp/utils/external_libs/pdfjs_wasm/
+        /// </summary>
+        public static readonly string path_pdfjs_wasm = path_App + "utils/external_libs/pdfjs_wasm/";
         public static readonly string path_script_default_app = path_script_apps_injectable + $"default{minimized_folder_extension}js";
         internal static CSSThemes current_css_theme = CSSThemes.vscode_dark;
         private static readonly Dictionary<string, string> cache_scripts = [];
@@ -64,7 +70,7 @@ namespace FWITD {
 #else
         private static readonly string fw_bridge_shim = "window.FWBridge={postMessage:m=>{console.error(m);window.location.href='wawapp://'+encodeURIComponent(m);}};";
 #endif
-        private static object[] buildJSComponents(object the_app, string the_app_script) {
+        private static object[] listJSComponentsToLoad(string the_app_script) {
             HashSet<object> result = [
                 JS.frameworks.AppStatus,
                 JS.utils.UiBuilder,
@@ -78,6 +84,7 @@ namespace FWITD {
                 JS.components.BottomSheet,
                 JS.components.MousePopUp,
                 JS.components.Tooltip,
+                JS.components.DatePicker,
             ];
             foreach (JS.components component in Enum.GetValues<JS.components>()) {
                 if (the_app_script.Contains(component.ToString())) result.Add(component);
@@ -126,16 +133,16 @@ namespace FWITD {
                 throw new Exception("not valid html provided missing `</head>` and `</body>`");
             }
             var p_js = (await AssetLoader.LoadAssetFileAsync($"{path_script_apps_standalone}/{file_name}/{file_name}{minimized_folder_extension}js")).Replace("@fromwho", file_name);
-            object[] js_components = buildJSComponents(the_app, p_js);
+            object[] js_components = listJSComponentsToLoad(p_js);
             var (css_theme_vars, css_animations, shared_all_css, js_FrameworkGC, js_css) = await loadSharedAssets(js_components, id_webview);
-
             var js_css_r_c = await JS.getJSRelativeComponents(the_app);
             var p_css = await AssetLoader.LoadAssetFileAsync($"{path_script_apps_standalone}/{file_name}/{file_name}{minimized_folder_extension}css");
             var js_html = JS.linkJSToFWHTML(p_js, p_html);
             p_js = js_html.Item1;
             p_html = js_html.Item2;
-            var p_script = js_FrameworkGC + Environment.NewLine + js_css.Key + Environment.NewLine + await JS.loadAllOtherJSFiles($"{path_script_apps_standalone}/{file_name}") + p_js + js_css_r_c.Key;
-            string the_css = css_theme_vars + shared_all_css + css_animations + js_css.Value + p_css + js_css_r_c.Value;
+            var p_script = js_FrameworkGC + Environment.NewLine + js_css.Key + Environment.NewLine + await JS.loadAllOtherJSFiles($"{path_script_apps_standalone}/{file_name}") + Environment.NewLine + p_js + Environment.NewLine + js_css_r_c.Key;
+            p_script = await JS.getJSExternalLibs(p_script) + Environment.NewLine + p_script;
+            string the_css = css_theme_vars + Environment.NewLine + shared_all_css + Environment.NewLine + css_animations + Environment.NewLine + js_css.Value + Environment.NewLine + p_css + Environment.NewLine + js_css_r_c.Value;
 
             string headers = "";
             var p_fp = p_html.Replace("</head>", $"{headers}{Environment.NewLine}<link rel=\"stylesheet\" href=\"{file_name}.css?v={DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}\">{Environment.NewLine}</head>").Replace("</body>", $"<script  type=\"text/javascript\"src=\"{file_name}.js?v={DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}\" ></script>{Environment.NewLine}</body>");
@@ -153,6 +160,7 @@ namespace FWITD {
             cache_scripts.Add(cache_id, Path.Combine(path_scriptsBase, $"FWITD/out/{file_name}.html"));
 #else
             var the_css_file_path = await AssetLoader.SaveToTempFileAsync(the_css, $"{file_name}.css");
+            //the_js += ($"\n(()=>{{try{{console.error('signed at {DateTime.Now.ToString("hh:mm:ss.fff")}');}}catch{{}}}})();\n");
             var the_js_file_path = await AssetLoader.SaveToTempFileAsync(the_js, $"{file_name}.js");
             var the_html_file_path = await AssetLoader.SaveToTempFileAsync(p_fp, $"{file_name}.html");
             await AssetLoader.WriteIntegritySignatureAsync(file_name, cache_id, p_fp, the_js, the_css);
@@ -175,11 +183,12 @@ namespace FWITD {
                 var js_html = JS.linkJSToFWHTML(p_js, p_html);
                 p_js = js_html.Item1.Replace("${injector_html}", $"{js_html.Item2}");
             }
-            object[] js_components = buildJSComponents(the_app, p_js);
+            object[] js_components = listJSComponentsToLoad(p_js);
             var (css_theme_vars, css_animations, shared_all_css, js_FrameworkGC, js_css) = await loadSharedAssets(js_components, id_webview);
 
             //var js_css_r_c = await JS.getJSRelativeComponents(the_page); todo
             var p_script = js_FrameworkGC + Environment.NewLine + js_css.Key + Environment.NewLine + await JS.loadAllOtherJSFiles($"{path_script_apps_injectable}/{file_name}") + p_js;// + js_css_r_c.Key;
+            p_script = await JS.getJSExternalLibs(p_script) + Environment.NewLine + p_script;
             var p_css = (await AssetLoader.LoadAssetFileAsyncIfExists($"{path_script_apps_injectable}/{file_name}/{file_name}{minimized_folder_extension}css"));
             string the_css = css_theme_vars + shared_all_css + css_animations + js_css.Value + (p_css ?? ""); //+ js_css_r_c.Value;
             if (the_css.Contains("`")) {
@@ -226,13 +235,39 @@ namespace FWITD {
                 { components.AndroidViewSettings, Array.Empty<components>() },
                 { components.AndroidViewTasks, new components[] { components.TaskItem } },
                 { components.DataAnalizis1, Array.Empty<components>() },
-                { components.SystemSettings, Array.Empty<components>() },
+                { components.InstallationSecureMessaging, Array.Empty<components>() },
+                { components.Settings, Array.Empty<components>() },
             };
-            internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, DashboardLettoreBarcode, ImageEditor, left_panel, ServerStatus, some_page, test_page }
+            internal enum pages { AdminSettings, AndroidAppDemo, AndroidLogin, DashboardLayout1, DashboardLettoreBarcode, DataCruncher, ImageEditor, left_panel, PDFEditor, ServerStatus, Showcase, some_page, test_page }
             internal enum injectable_apps { cloudflared, GestionaleDistributore, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
-            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, ExportDataButton, FrameworkTestComponent, ImageEditor, Insight, KeyBoard, ListBox, MousePopUp, Notify, OTPComponent, PieChart, PosizioneMotore, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip, WizardStepper }
+            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, BreadCrumbs, CardRefillmentSuggestions, DataAnalizis1, DataCruncher, DatePicker, DockWindow, DragAndDrop, EmptyState, ExportDataButton, FrameworkTestComponent, GeneralChart, ImageEditor, Insight, InstallationSecureMessaging, KeyBoard, ListBox, MegaMenu, MousePopUp, Notify, OTPComponent, PDFEditor, PosizioneMotore, Settings, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, StickyBar, Table, Table2, TaskItem, ThemeSelector, Tooltip, WizardStepper }
             internal enum utils { AppRouter, Icons, LiveLogger, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
             internal enum frameworks { AppStatus, FrameworkGC }
+            /// <summary>
+            /// third-party libraries in `utils/external_libs/`; declaration order = load order
+            /// </summary>
+            internal enum external_libs { XLSX, html2canvas, jsPDF, pdf_lib, pdf }
+            /// <summary>
+            /// a library is bundled when the app's assembled script (page/injectable + its components)
+            /// contains any of its <c>triggers</c> - the globals it exposes, so plain usage (`XLSX.read(...)`)
+            /// or a `//keep XLSX` comment is enough; <c>requires</c> are pulled in along with it
+            /// </summary>
+            private static readonly Dictionary<external_libs, (string file_name, string[] triggers, external_libs[] requires)> external_libs_info = new() {
+                { external_libs.XLSX, ("XLSX", ["XLSX"], []) },
+                { external_libs.html2canvas, ("html2canvas", ["html2canvas"], []) },
+                { external_libs.jsPDF, ("jsPDF", ["jsPDF", "jspdf"], []) },
+                { external_libs.pdf_lib, ("pdf-lib", ["exportsPDFLIB", "PDFLib"], []) },
+                { external_libs.pdf, ("pdf", ["pdfjsLib"], []) },
+            };
+            /// <summary>
+            /// files in `utils/external_libs/` that are not loaded as a script of their own, but inlined
+            /// into a library's template literal placeholder (escaped, see <see cref="escapeForTemplateLiteral"/>)
+            /// </summary>
+            private static readonly Dictionary<external_libs, (string placeholder, string file_name)[]> external_libs_inlined = new() {
+                // no worker file can be served to the webview: pdf.js starts it as a Web Worker from a Blob URL of this source
+                { external_libs.pdf, [("${injector_pdf_worker}", "pdf.worker")] },
+            };
+            private static string escapeForTemplateLiteral(string js) => js.Replace("\\", "\\\\").Replace("`", "\\`").Replace("${", "\\${");
             private static Dictionary<JS.pages, string> cache_path_files = new Dictionary<pages, string>();
 
             private static readonly Dictionary<components, string> component_name_to_js = new Dictionary<components, string>();
@@ -286,6 +321,7 @@ namespace FWITD {
                 foreach (var directory in allDirectories) {
                     var jsFiles = Directory.GetFiles(directory, $"*{minimized_folder_extension}js", SearchOption.TopDirectoryOnly)
                         .Where(f => minimized_folder_extension == ".min." || !f.EndsWith(".min.js"))
+                        .Where(f => !Path.GetFileName(f).StartsWith('.'))
                         .ToArray();
                     foreach (var jsFile in jsFiles) {
                         try {
@@ -310,6 +346,7 @@ namespace FWITD {
                     var children = assets.List(subdir);
                     if (children == null || children.Length == 0) continue; // it's a file, not a dir
                     foreach (var child in children) {
+                        if (child.StartsWith('.')) continue;
                         if (child.EndsWith($"{minimized_folder_extension}js", StringComparison.OrdinalIgnoreCase)
                                 && (minimized_folder_extension == ".min." || !child.EndsWith(".min.js", StringComparison.OrdinalIgnoreCase))) {
                             try {
@@ -382,7 +419,7 @@ namespace FWITD {
                 if (the_match.Success) {
                     jscode.Append($"{the_match.Value};");
                 } else {
-                    Regex reg_find_constructor = new Regex("constructor\\([a-z A-Z0-9,]*\\)\\{");
+                    Regex reg_find_constructor = new Regex(@"constructor\([a-zA-Z0-9,\s]*\)\s*\{");
                     the_match = reg_find_constructor.Match(js);
                     if (the_match.Success) {
                         jscode.Append($"{the_match.Value}");
@@ -390,9 +427,9 @@ namespace FWITD {
                         return new Tuple<string, string>(js, html);
                     }
                 }
-                jscode.Append("const fw_owner=this;const ___tmp_container=document.createElement('div');___tmp_container.appendChild(fw_owner.self_ref);");
+                jscode.Append($"const fw_owner=this;const ___s_c={(html.Contains("<body>") ? "document.body" : "document.createElement('div')")};try {{___s_c.appendChild(fw_owner.self_ref);}} catch {{}}");
                 int bloat_len = jscode.Length;
-                declareHtmlVariablesInsideTheJs(html, jscode);
+                declareHtmlVariablesInsideTheJs(html, jscode, js);
                 List<FWEventListenerAggregation> event_listeners = [
                     new FWEventListenerAggregation(){event_name = "click"},
                     new FWEventListenerAggregation(){event_name = "change"},
@@ -413,19 +450,21 @@ namespace FWITD {
                 public string event_name { get; set; } = "";
                 public JSEventPhase event_phase { get; set; } = JSEventPhase.Default;
             }
-            private static void declareHtmlVariablesInsideTheJs(string html, StringBuilder append_to) {
+            private static void declareHtmlVariablesInsideTheJs(string html, StringBuilder append_to, string original) {
                 Regex reg_find_fw_ids = new Regex(@"fw-id=(['""])[A-Za-z](?:(?!\1).)+\1");
                 var fw_ids_arr = reg_find_fw_ids.Matches(html);
                 for (int tis = 0; tis < fw_ids_arr.Count; tis++) {
                     var fw_ids = fw_ids_arr[tis];
                     if (fw_ids.Success && fw_ids.Groups.Count == 2) {
                         for (int i = 0; i < fw_ids.Groups.Count - 1; i++) {
-                            append_to.Append($";fw_owner.elements[`{fw_ids.Groups[i].Value.Substring(7, fw_ids.Groups[i].Value.Length - 1 - 7).Trim()}`]=___tmp_container.querySelector(`[{fw_ids.Groups[i].Value}]`)");
+                            if (!original.Contains($"querySelector(`[{fw_ids.Groups[i].Value}]`)")) {
+                                append_to.Append($";fw_owner.elements[`{fw_ids.Groups[i].Value.Substring(7, fw_ids.Groups[i].Value.Length - 1 - 7).Trim()}`]=___s_c.querySelector(`[{fw_ids.Groups[i].Value}]`)");
+                            }
                         }
                     }
                 }
 #if DEBUG && WINDOWS
-                //append_to.Append(";console.error(___tmp_container);");
+                //append_to.Append(";console.error(___s_c);");
 #endif
             }
             private static void addEventListener(string tag, string js_event_listener, string html, StringBuilder append_to, JSEventPhase event_phase = JSEventPhase.Default) {
@@ -442,12 +481,20 @@ namespace FWITD {
                     Match fw_onKeyDown = fw_onKeyDown_unique_arr[tis];
                     if (fw_onKeyDown.Success && fw_onKeyDown.Groups.Count == 2) {
                         for (int i = 0; i < fw_onKeyDown.Groups.Count - 1; i++) {
-                            var func_ref = fw_onKeyDown.Groups[i].Value.Substring((tag.Length + 2), fw_onKeyDown.Groups[i].Value.Length - 1 - (tag.Length + 2)).Trim();
-                            var index_tonda = func_ref.IndexOf("(");
-                            if (index_tonda >= 0) {
-                                func_ref = func_ref.Substring(0, index_tonda);
+                            var expression = fw_onKeyDown.Groups[i].Value.Substring((tag.Length + 2), fw_onKeyDown.Groups[i].Value.Length - 1 - (tag.Length + 2)).Trim();
+                            var index_tonda = expression.IndexOf("(");
+                            var is_call_expression = index_tonda >= 0;
+                            var func_ref = is_call_expression ? expression.Substring(0, index_tonda) : expression;
+                            append_to.Append($";___s_c.querySelectorAll(`[{fw_onKeyDown.Groups[i].Value.Replace(tag, ("fw-" + js_event_listener))}]`).forEach((el)=>{{el.fwInstanceReference=fw_owner;");
+                            if (is_call_expression) {
+                                // eg. (click)="goGoTo('AndroidViewAccount')" or (click)="onPick($event,'x')":
+                                // invoked as a real method call on fw_owner (so `this` inside the handler is the
+                                // component instance, not the element) with its own arguments; `$event` resolves
+                                // to the native event object when referenced.
+                                append_to.Append($"el.addEventListener('{js_event_listener}',function($event){{return fw_owner.{expression};}}");
+                            } else {
+                                append_to.Append($"el.addEventListener('{js_event_listener}',fw_owner.{func_ref}");
                             }
-                            append_to.Append($";___tmp_container.querySelectorAll(`[{fw_onKeyDown.Groups[i].Value.Replace(tag, ("fw-" + js_event_listener))}]`).forEach((el)=>{{el.fwInstanceReference=fw_owner;el.addEventListener('{js_event_listener}',fw_owner.{func_ref}");
                             switch (event_phase) {
                                 case JSEventPhase.Capturing:
                                     append_to.Append(",true");
@@ -459,7 +506,7 @@ namespace FWITD {
                                 default:
                                     break;
                             }
-                            append_to.Append($");el.removeAttribute('{tag}');}})");
+                            append_to.Append($");el.removeAttribute('{("fw-" + js_event_listener)}');}})");
                         }
                     }
                 }
@@ -539,6 +586,41 @@ namespace FWITD {
                 return result.ToString();
             }
             private static readonly Dictionary<utils, string> component_name_to_js_util = new Dictionary<utils, string>();
+            private static readonly Dictionary<external_libs, string> external_lib_to_js = new Dictionary<external_libs, string>();
+            internal static async Task<string> getJSExternalLib(external_libs lib) {
+                if (!external_lib_to_js.ContainsKey(lib)) {
+                    var js = await AssetLoader.LoadAssetFileAsync($"{path_App}utils/external_libs/{external_libs_info[lib].file_name}{minimized_folder_extension}js");
+                    foreach (var (placeholder, file_name) in external_libs_inlined.GetValueOrDefault(lib, [])) {
+                        var inlined = await AssetLoader.LoadAssetFileAsync($"{path_App}utils/external_libs/{file_name}{minimized_folder_extension}js");
+                        js = js.Replace(placeholder, escapeForTemplateLiteral(inlined));
+                    }
+                    external_lib_to_js.TryAdd(lib, js);
+                }
+                return external_lib_to_js[lib];
+            }
+            internal static List<external_libs> listExternalLibsToLoad(string the_app_script) {
+                HashSet<external_libs> result = [];
+                void add(external_libs lib) {
+                    if (result.Add(lib)) {
+                        foreach (var required in external_libs_info[lib].requires) add(required);
+                    }
+                }
+                foreach (var (lib, info) in external_libs_info) {
+                    if (info.triggers.Any(trigger => the_app_script.Contains(trigger, StringComparison.Ordinal))) add(lib);
+                }
+                return Enum.GetValues<external_libs>().Where(result.Contains).ToList();
+            }
+            /// <summary>
+            /// JS of every `utils/external_libs/` library <paramref name="the_app_script"/> needs, each included once
+            /// even when several components use it; meant to be prepended to the fully assembled script
+            /// </summary>
+            internal static async Task<string> getJSExternalLibs(string the_app_script) {
+                StringBuilder r_js = new StringBuilder();
+                foreach (var lib in listExternalLibsToLoad(the_app_script)) {
+                    r_js.AppendLine(await getJSExternalLib(lib));
+                }
+                return r_js.ToString();
+            }
             /// <summary>
             /// </summary>
             /// <param name="componentsAndUtils"></param>
@@ -546,16 +628,32 @@ namespace FWITD {
             /// - <b>Key</b> is the combined <b>JS</b> code   <br></br>
             /// - <i>Value</i> is the combined <i>CSS</i> code
             /// </returns>
-            internal static async Task<KeyValuePair<string, string>> getJSPair(object[] componentsAndUtils) {
+            internal static async Task<KeyValuePair<string, string>> getJSPair(object[] componentsAndUtils, List<object>? managed_components = null) {
                 StringBuilder r_js = new StringBuilder();
                 StringBuilder r_css = new StringBuilder();
-
+                if (managed_components == null) {
+                    managed_components = [.. componentsAndUtils];
+                    managed_components.Add(utils.Lobby);
+                } else {
+                    foreach (var item in componentsAndUtils) {
+                        if (!managed_components.Contains(item)) {
+                            managed_components.Add(item);
+                        }
+                    }
+                }
                 foreach (var item in componentsAndUtils) {
                     if (item is JS.components component) {
                         if (components_views.ContainsKey(component)) {
                             var c_pair_v = await getJSComponentPair(component, path_script_apps_standalone_components);
                             r_js.Append(c_pair_v.Key);
                             r_css.Append(c_pair_v.Value);
+                            object[] more_components = listJSComponentsToLoad(c_pair_v.Key).Where(c => !managed_components.Contains(c)).ToArray();
+                            if (more_components.Length > 0) {
+                                var more_js_css = await getJSPair(more_components, managed_components);
+                                r_js.AppendLine();
+                                r_js.Append(more_js_css.Key);
+                                r_css.Append(more_js_css.Value);
+                            }
                             foreach (JS.components x_component in components_views[component]) {
                                 var c_pair_x = await getJSComponentPair(x_component, $"{path_script_apps_standalone_components}{component.ToString()}/components");
                                 r_js.AppendLine();
@@ -597,6 +695,7 @@ namespace FWITD {
                     component_name_to_js_component.Clear();
                     page_to_relative_components.Clear();
                     component_name_to_js_util.Clear();
+                    external_lib_to_js.Clear();
                 }
             }
         }

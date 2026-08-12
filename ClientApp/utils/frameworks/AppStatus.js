@@ -35,12 +35,12 @@ Object.defineProperty(AppStatus, "CF_URL_DeleteURL", {
 });
 
 
-Object.defineProperty(AppStatus, "UseThisDeviceForNotifications", {
-    value: `{{@AppSettings.Device.UseThisDeviceForNotifications}}`,
-    writable: false,
-    configurable: false,
-    enumerable: true
-});
+// Object.defineProperty(AppStatus, "UseThisDeviceForNotifications", {
+//     value: `{{@AppSettings.Device.UseThisDeviceForNotifications}}`,
+//     writable: false,
+//     configurable: false,
+//     enumerable: true
+// });
 
 Object.defineProperty(AppStatus, "IsPhone", {
     value: Utils.ParseBool(`{{@AppSettings.Device.IsPhone}}`),

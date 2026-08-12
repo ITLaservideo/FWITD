@@ -1,0 +1,13 @@
+{
+  "name": "fwitd-building-process",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dev tooling for FWITD/ClientApp (component/page scaffolding, minification).",
+  "scripts": {
+    "minify": "node scripts/minify-client-app.js"
+  },
+  "devDependencies": {
+    "html-minifier-terser": "^7.2.0",
+    "terser": "^5.51.2"
+  }
+}

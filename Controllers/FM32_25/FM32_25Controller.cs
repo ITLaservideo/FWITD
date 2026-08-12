@@ -36,7 +36,7 @@ namespace FWITD.Controllers.FM32_25 {
             return new { CurrentStatus = "port closed" };
         }
         public object Beep() {
-            _ = FM3281.SendCommandAsync("BEEPON2000F50T15V");
+            _ = FM3281.SendCommandAsync("BEEPON2000F50T15V", false);
             return new {/* res = FM3281.test(0)*/ };
         }
         public object StopCard() {
@@ -59,6 +59,16 @@ namespace FWITD.Controllers.FM32_25 {
             var mrz = SQL.ToString(req["mrz"]?.GetValue<string>() ?? "0");
             the_instance.ReadCardMrz(mrz);
             return new { ok = true };
+        }
+        // Identities offered by the dashboard's quick-test NFC card, read from appsettings.json.
+        // JS usage: (await Lobby.postAsync("FM32_25/GetCards", {})).data
+        // appsettings.json: { "FM32_25": { "Cards": [ { "Name": "...", "Mrz": "..." } ] } }
+        public object GetCards() {
+            return AppSettings.Get("FM32_25.Cards", new List<MrzCard>());
+        }
+        public class MrzCard {
+            public string Name { get; set; }
+            public string Mrz { get; set; }
         }
         public object ListenIdentityCards() {
             the_instance.ReadCardMrz();
@@ -88,7 +98,7 @@ namespace FWITD.Controllers.FM32_25 {
             string command = (req["command"]?.GetValue<string>() ?? "");
             bool permanent_setting = (req["permanent_setting"]?.GetValue<bool>() ?? false);//aka prefix @ by default or #
             var ss = await FM3281.SendCommandAsync(command, permanent_setting: permanent_setting);
-            Ui.log(ss.the_response, Ui.TypeLog.info);
+            Ui.log($"`{ss.the_response}`", Ui.TypeLog.info);
             return new { ok = true };
         }
         public object WriteDataCommand(JsonNode req) {

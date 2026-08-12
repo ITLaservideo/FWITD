@@ -4,7 +4,7 @@
     display: none;
     pointer-events: none;
     box-sizing: border-box;
-    /* outline: 1px solid red; */
+    outline: 1px solid red;
 }
 
 .speed-actions-root.sa-visible {
@@ -66,6 +66,9 @@
     padding: 0;
     transition: all ease 0.1s;
     /* transform: rotate(45deg); */
+    background: unset;
+    border: unset;
+    box-shadow: unset;
 }
 
 .speed-actions-container:has(>.speed-actions-label) {
@@ -81,7 +84,8 @@
     transform: rotate(45deg);
 }
 
-.sa-target-active {
+
+.sa-target-active.sta-relative {
     position: relative;
 }
 
@@ -95,4 +99,10 @@
     border-radius: 50%;
     background: var(--vscode-editorGutter-addedBackground);
     pointer-events: none;
+}
+
+@media (width<800px) {
+    .speed-actions-container {
+        width: fit-content;
+    }
 }

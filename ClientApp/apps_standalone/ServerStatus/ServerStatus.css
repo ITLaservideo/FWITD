@@ -6,8 +6,8 @@ body {
 
 .ss-page {
     box-sizing: border-box;
-    padding: 16px;
-    padding-bottom: 52px;
+    padding: 6px;
+    /* padding-bottom: 52px; */
     color: var(--vscode-editor-foreground);
     opacity: 0;
 }
@@ -32,11 +32,17 @@ body {
 
 .container-top-right-buttons {
     position: fixed;
-    top: 8px;
-    right: 6px;
+    top: -2px;
+    right: 0;
     width: fit-content;
     z-index: 10;
     display: flex;
+
+    >.twj-button {
+        background: unset;
+        border: unset;
+        box-shadow: unset;
+    }
 }
 
 .ss-footer {
