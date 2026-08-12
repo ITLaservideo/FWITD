@@ -23,6 +23,7 @@ class App {
             }
         });
         AppStatus.displayVersion();
+        UiBuilder.createScrollToTop();
     }
     #preferences = {
         rows_per_page: 10
@@ -64,8 +65,7 @@ class App {
                         // if (typeof filters_list_el.onAnnulla === 'function') {
                         //     filters_list_el.onAnnulla();
                         // }
-                        //issue: this is triggered by Notify.destroy -> SPAHistory.pop, it shouldn't
-                        console.error("closing broda")
+                        //console.error("closing broda")
                         if (owner.onSkip != undefined) {
                             owner.onSkip();
                         }

@@ -1390,3 +1390,36 @@ html {
     color: var(--vscode-descriptionForeground);
     font-style: italic;
 }
+
+/* ── scroll to top ─────────────────────────────── */
+
+.scroll-to-top-btn {
+    position: fixed;
+    right: min(20px, 1vw);
+    bottom: min(20px, 2vh);
+    width: 42px;
+    height: 42px;
+    border-radius: 100vw;
+    z-index: 999999;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(26px) rotateX(90deg);
+    transition: opacity 0.2s ease-out, transform 0.2s ease, visibility 0.2s ease;
+    justify-content: center;
+
+    .f-icon-i {
+        font-size: 22px;
+    }
+
+    &:hover {
+        background: var(--default-button-color-hover);
+    }
+}
+
+.scroll-to-top-btn.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: translateY(0);
+}
