@@ -99,7 +99,7 @@ class CardRefillmentSuggestions extends FrameworkGC(`${injector_html}`) {
     // owner.options;//access building options here
 
     //#region FrameworkEventListeners
-    async onCardSelected(event) {// add attribute inside the .html ` fw-click='onButtonTestClick' `
+    async onCardSelected(event) {// add attribute inside the .html ` (click)='onButtonTestClick' `
         /**
          * @type HTMLElement
          */

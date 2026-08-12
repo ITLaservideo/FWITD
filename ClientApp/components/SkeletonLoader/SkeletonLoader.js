@@ -150,4 +150,5 @@ class SkeletonLoader extends FrameworkGC(`${injector_html}`) {
 //         }, delay_ms);
 //     }
 // }
+// UiBuilder.createScrollToTop();
 //#END RESERVED AREA FOR UI_BUILDER

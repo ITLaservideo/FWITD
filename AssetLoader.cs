@@ -1,4 +1,6 @@
+#if DEBUG
 #define USE_JS_PROJECT_FILES
+#endif
 #if !WINDOWS
 using Microsoft.Maui.Storage;
 #else
@@ -49,7 +51,8 @@ namespace FWITD {
         /// <c>Directory.GetFiles(dir, "*{ext}js", TopDirectoryOnly)</c> used by the non-Android/non-WPF
         /// branch of <c>JSProvider.JS.loadAllOtherJSFiles</c>: every embedded js file at any depth under
         /// <paramref name="path"/> (but not directly in <paramref name="path"/> itself, matching
-        /// GetDirectories excluding the root), skipping anything under a "components" segment.
+        /// GetDirectories excluding the root), skipping anything under a "components" segment and
+        /// any file whose name starts with a dot.
         /// </summary>
         internal static async Task<string> LoadAllOtherEmbeddedJSFilesAsync(string path, string minimized_folder_extension) {
             string logicalPrefix = ToLogicalName(path).TrimEnd('/') + "/";
@@ -61,6 +64,7 @@ namespace FWITD {
                 if (segments.Length < 2) continue; // must be in a descendant directory, not directly under path
                 if (segments.Take(segments.Length - 1).Any(s => s.Equals("components", StringComparison.OrdinalIgnoreCase))) continue;
                 var last = segments[^1];
+                if (last.StartsWith('.')) continue;
                 if (!last.EndsWith($"{minimized_folder_extension}js", StringComparison.OrdinalIgnoreCase)) continue;
                 if (minimized_folder_extension != ".min." && last.EndsWith(".min.js", StringComparison.OrdinalIgnoreCase)) continue;
                 try {
@@ -145,10 +149,10 @@ namespace FWITD {
         private static object access_locks_streams = new object();
         private static readonly Dictionary<string, FileStream> _lockStreams = new Dictionary<string, FileStream>();
 #if WINDOWS
-        private static readonly string folder_path_cache = Path.Combine(Path.GetTempPath(),
+        private static readonly string folder_path_cache = Path.Combine(Path.GetTempPath(), "AlwaysLearn",
             new Guid("656ae83f-8ace-4d71-a515-181e9399531e").ToString());
 #else
-        private static readonly string folder_path_cache = Path.Combine(FileSystem.CacheDirectory,
+        private static readonly string folder_path_cache = Path.Combine(FileSystem.CacheDirectory, "AlwaysLearn",
             new Guid("656ae83f-8ace-4d71-a515-181e9399531e").ToString());
 #endif
         internal static async Task<string> SaveToTempFileAsync(string html, string fileName = "demo.html") {
@@ -183,25 +187,13 @@ namespace FWITD {
         // Ordinary (non-shared) DataCipher key slot, meaningful only within this app's own IKeyStore.
         private const int TempCacheSigningKeySlot = 0;
         private static bool _keyStoreReady;
-        // PreloadAsync's real await means two concurrent WebView navigations could otherwise both see
-        // _keyStoreReady == false and race to create/overwrite the signing key; this lock keeps
-        // initialization idempotent (the sync version this replaced had no yield point, so no race existed).
-        private static readonly SemaphoreSlim _keyStoreInitLock = new(1, 1);
         private static async Task EnsureKeyStoreReadyAsync() {
             if (_keyStoreReady) return;
-            await _keyStoreInitLock.WaitAsync();
-            try {
-                if (_keyStoreReady) return;
-                var store = new SStorageKeyStore();
-                await store.PreloadAsync(TempCacheSigningKeySlot);
-                DataCipher.KeyManager.Store = store;
-                if (!DataCipher.KeyManager.Store.Exists(TempCacheSigningKeySlot)) {
-                    DataCipher.KeyManager.CreatePrivateKey(TempCacheSigningKeySlot);
-                }
-                _keyStoreReady = true;
-            } finally {
-                _keyStoreInitLock.Release();
+            var store = await SStorageKeyStore.EnsureReadyAsync(TempCacheSigningKeySlot);
+            if (!store.Exists(TempCacheSigningKeySlot)) {
+                DataCipher.KeyManager.CreatePrivateKey(TempCacheSigningKeySlot);
             }
+            _keyStoreReady = true;
         }
         private static string BuildCanonicalFingerprint(string cache_id, string htmlContent, string jsContent, string cssContent) =>
             string.Join('\n', cache_id,

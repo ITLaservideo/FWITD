@@ -58,9 +58,11 @@ class FrameworkTestComponent extends FrameworkGC(`${injector_html}`) {
     }
 
 }
-setTimeout(() => {
-    if (window.the_main_app == undefined) {
-        const tmp = new FrameworkTestComponent({});
-        document.body.appendChild(tmp.self_ref);
-    }
-}, 0);
+//#START RESERVED AREA FOR UI_BUILDER
+// setTimeout(() => {
+//     if (window.the_main_app == undefined) {
+//         const tmp = new FrameworkTestComponent({});
+//         document.body.appendChild(tmp.self_ref);
+//     }
+// }, 0);
+//#END RESERVED AREA FOR UI_BUILDER

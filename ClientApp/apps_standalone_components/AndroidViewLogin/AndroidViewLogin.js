@@ -57,7 +57,7 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
         }
         return;
     }
-    // demo fw-click listern
+    // demo (click) listern
     // static incrementer = 0;
     // async onClickGigioed(event) {
     //     const element_with_this_event = this;
@@ -83,7 +83,7 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                     event: { clientX: s.x, clientY: s.y },
                     ms_timeout: 2000,
                     style: 3,
-                    type: 1
+                    type: "warning"
                 });
                 return;
             }
@@ -101,7 +101,7 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                             event: { clientX: s.x, clientY: s.y },
                             ms_timeout: 2000,
                             style: 3,
-                            type: 1
+                            type: "warning"
                         });
                         //owner.elements.button_login.lastElementChild.innerText = `${owner.elements.button_login.lastElementChild.innerText.replace("...", "")}`;
                         setTimeout(() => {
@@ -114,7 +114,7 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                             event: { clientX: s.x, clientY: s.y },
                             ms_timeout: 2000,
                             style: 3,
-                            type: 0
+                            type: "ok"
                         });
                         setTimeout(async () => {
                             owner.self_ref.innerText = "";
@@ -127,12 +127,12 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                             event: { clientX: s.x, clientY: s.y },
                             ms_timeout: 2000,
                             style: 3,
-                            type: 0
+                            type: "ok"
                         });
                         text_icon.innerHTML = "&#xf656;";
                         setTimeout(async () => {
                             await new Promise((resolve) => {
-                                Lobby.post("AppRouter/Navigate",{where:"GestionaleDistributore"}, (rsp) => {
+                                Lobby.post("AppRouter/Navigate", { where: "GestionaleDistributore" }, (rsp) => {
                                     resolve();
                                     //owner.elements.button_login.classList.toggle("clicked", false);
                                 });

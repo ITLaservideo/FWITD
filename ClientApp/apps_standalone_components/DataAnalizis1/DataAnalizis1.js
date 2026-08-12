@@ -16,10 +16,14 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
     elements = {
         /** @type HTMLElement */
         self_ref: this.self_ref,
+
+        /** @type HTMLElement */
+        "filters-bar": null,
     }
 
     #charts = {};
     #pendingData = null;
+    #dateRange = { start: null, end: null };
 
     static #COLORS = [
         '#4e9af1', '#f1964e', '#4ef179', '#f14e4e',
@@ -30,9 +34,37 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
         const owner = this;
         await owner.#loadChartJs();
         owner.#createCharts();
+        owner.#createFilters();
+        await owner.#loadData();
+    }
 
+    #createFilters() {
+        const owner = this;
+        const end = new Date();
+        const start = new Date(end);
+        start.setMonth(start.getMonth() - 1);
+
+        const startPicker = new DatePicker({
+            label: Locale.at('StartDate'),
+            value: start,
+            onChange: (iso) => { owner.#dateRange.start = iso; owner.#loadData(); },
+        });
+        const endPicker = new DatePicker({
+            label: Locale.at('EndDate'),
+            value: end,
+            onChange: (iso) => { owner.#dateRange.end = iso; owner.#loadData(); },
+        });
+        owner.#dateRange.start = startPicker.getDate('iso');
+        owner.#dateRange.end = endPicker.getDate('iso');
+
+        owner.elements["filters-bar"].appendChild(startPicker.elementReference());
+        owner.elements["filters-bar"].appendChild(endPicker.elementReference());
+    }
+
+    async #loadData() {
+        const owner = this;
         const [vendite, change] = await Promise.all([
-            Lobby.postAsync("DataAnalizis1/GetVendite", {}),
+            Lobby.postAsync("DataAnalizis1/GetVendite", { start_date: owner.#dateRange.start, end_date: owner.#dateRange.end }),
             Lobby.postAsync("DataAnalizis1/GetChange", {}),
         ]);
 
@@ -40,7 +72,6 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
         // change columnar format:  { Category: number[], TheTime: string[], Change: number[], CumulativeChange: number[] }
         const rows1 = owner.#processVendite(vendite);
         const rows2 = owner.#processChange(change);
-        // console.error(rows1)
         owner.setData(rows1, rows2);
     }
 

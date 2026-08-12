@@ -3,3 +3,5 @@ brainstorming_*.md
 out/
 appsettings.json
 *.min.min.*
+BuildingProcess/node_modules/
+MockController.cs

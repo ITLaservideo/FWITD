@@ -13,16 +13,17 @@ class AndroidViewAccount extends FrameworkGC(`${injector_html}`) {
         this.#addEventListeners();
         window.instance_AndroidViewAccount = this;
         setTimeout(() => {
-            this.elements.userInfo.innerText = App.app_status.user_info;
+            this.elements.userInfo.innerText = "eh userInfo";
         }, 0);
     }
     elements = {
-        userInfo: this.self_ref.querySelector("[data-ref='userInfo']"),
-        preferences: this.self_ref.querySelector("[data-ref='preferences']"),
-        appInfo: this.self_ref.querySelector("[data-ref='appInfo']")
+        userInfo: null,
+        appInfo: null
     };
     async #initialize() {
         const owner = this;
+        owner.elements.appInfo = this.self_ref.querySelector("[data-ref='appInfo']");
+        owner.elements.userInfo = this.self_ref.querySelector("[data-ref='userInfo']");
         //TODO initialize component here
         return;
     }

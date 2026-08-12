@@ -18,9 +18,7 @@ class ComponentTemplate extends FrameworkGC(`${injector_html}`) {
      * automatically gathers elements with attribute ` fw-id="xxx" ` after super()
      */
     elements = {
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         self_ref: this.self_ref,
     }
     async #initialize() {
@@ -39,14 +37,10 @@ class ComponentTemplate extends FrameworkGC(`${injector_html}`) {
 
     //#region FrameworkEventListeners
     //@note private methods do not work :: they get mangled
-    async onButtonTestClick() {// add attribute inside the .html ` fw-click='onButtonTestClick' `
-        /**
-         * @type HTMLElement
-         */
+    async onButtonTestClick() {// add attribute inside the .html ` (click)='onButtonTestClick' `
+        /** @type HTMLElement */
         const element_with_this_event = this;
-        /**
-         * @type ComponentTemplate
-         */
+        /** @type ComponentTemplate */
         const owner = element_with_this_event.fwInstanceReference;
         element_with_this_event.classList.add("clicked");
         alert("clicked");

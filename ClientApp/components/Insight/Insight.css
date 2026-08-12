@@ -1,3 +1,9 @@
+.svg-overlay-focusing-area {
+    path {
+        fill: color-mix(in srgb, var(--vscode-editor-background) 60%, transparent);
+    }
+}
+
 .insight-whole-page {
     position: absolute;
     opacity: 0;

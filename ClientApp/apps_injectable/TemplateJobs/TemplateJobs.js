@@ -67,7 +67,7 @@ class App {
         // ── Action selector + Add button ──────────────────────────────────────
         const hdr = document.createElement('div');
         hdr.className = 'tj-hdr';
-        hdr.appendChild(await SystemSettings.getController("AutoRestartInterruptedTasks"));
+        hdr.appendChild(await Settings.getController("AutoRestartInterruptedTasks", "SystemSettings"));
         const sel = document.createElement('select');
         sel.className = 'tj-action-select';
         ['QuickTask', 'WhenReady', 'AutomaticTask'].forEach(a => {
@@ -91,7 +91,7 @@ class App {
             style: 'font-size:12px;flex-shrink:0;',
             hint: 'System Settings',
             onClick: () => {
-                const ss = new SystemSettings({});
+                const ss = new Settings({ scope: 'SystemSettings' });
                 new BottomSheet({ element: ss.elementReference() });
                 btnSettings.classList.remove('clicked');
             }

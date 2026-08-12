@@ -25,8 +25,10 @@ namespace FWITD {
                 if (type.Namespace?.StartsWith("FWITD.Controllers") != true) continue;
                 if (!type.Name.EndsWith("Controller")) continue;
                 var prefix = type.Name[..^"Controller".Length];
-                foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                foreach (var m in type.GetMethods(BindingFlags.Public | BindingFlags.Instance)) {
+                    if (m.DeclaringType == typeof(object)) continue; // skip ToString/Equals/GetHashCode/GetType
                     _routes[$"{prefix}/{m.Name}"] = (type, m);
+                }
             }
         }
 

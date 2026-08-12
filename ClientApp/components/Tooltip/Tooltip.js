@@ -44,10 +44,12 @@ class Tooltip {
         }, 0);
     }
     hide() {
-        try {
-            this.#self_ref.style['opacity'] = '';
-            this.#self_ref.style['top'] = '0px';
-        } catch (error) { }
+        requestAnimationFrame(() => {
+            try {
+                this.#self_ref.style['opacity'] = '';
+                this.#self_ref.style['top'] = '0px';
+            } catch (error) { }
+        });
     }
     /**
      * 
@@ -165,19 +167,19 @@ class Tooltip {
         //event listeners
     }
     onComplete() {
-        setTimeout(() => {
-            if (this.#self_ref != undefined) {
-                const elements = this.#self_ref.getElementsByClassName("disable-pointer-events");
-                const don_t_forget_me = [];
-                for (let i = 0; i < elements.length; i++) {
-                    const element = elements[i];
-                    don_t_forget_me.push(element);
-                }
-                for (let i = 0; i < don_t_forget_me.length; i++) {
-                    don_t_forget_me[i].classList.remove("disable-pointer-events");
-                }
-            }
-        }, 100);
+        // setTimeout(() => {
+        //     if (this.#self_ref != undefined) {
+        //         const elements = this.#self_ref.getElementsByClassName("disable-pointer-events");
+        //         const don_t_forget_me = [];
+        //         for (let i = 0; i < elements.length; i++) {
+        //             const element = elements[i];
+        //             don_t_forget_me.push(element);
+        //         }
+        //         for (let i = 0; i < don_t_forget_me.length; i++) {
+        //             don_t_forget_me[i].classList.remove("disable-pointer-events");
+        //         }
+        //     }
+        // }, 100);
     }
 
     /**

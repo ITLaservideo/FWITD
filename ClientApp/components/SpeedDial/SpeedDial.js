@@ -204,7 +204,7 @@ class SpeedDial {
         const owner = this;
         const show = bypass_and_do_show != null ? bypass_and_do_show : !owner.#options_are_visible;
         if (show) {
-            owner.#glass_container.classList.toggle("disable-pointer-events", false);
+            //owner.#glass_container.classList.toggle("disable-pointer-events", false);
             owner.#options_are_visible = true;
             document.body.appendChild(owner.#self_ref);
             switch (owner.anchor) {
@@ -288,7 +288,7 @@ class SpeedDial {
                 // MousePopUp.checkOverflow(owner.#self_ref.getElementsByClassName("template-mouse-pop-up-container")[0]);
             }, 0);
         } else {
-            owner.#glass_container.classList.toggle("disable-pointer-events", true);
+            // owner.#glass_container.classList.toggle("disable-pointer-events", true);
             if (owner.#options_are_visible) {
                 for (let i = 0; i < owner.#selections.length; i++) {
                     switch (owner.anchor) {

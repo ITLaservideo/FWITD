@@ -9,16 +9,11 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 namespace FWITD.Controllers.Sicurezza {
     internal class LoginSessionController {
-        private class UserSession {
+        public class UserSession {
             public Int64 UserID { get; set; }
-            public string Email { get; set; }
             public Guid Token { get; set; }
             public Int64 UserType { get; set; }
-            public string Description { get; set; }
             public string Timeout { get; set; }
-            public string DeviceId { get; set; }
-            public string? FcmToken { get; set; }
-            public int[] GrantedActions { get; set; }
         }
 
         // RequestDispatcher only invokes controller methods that take no parameters or a single JsonNode.
@@ -26,8 +21,7 @@ namespace FWITD.Controllers.Sicurezza {
             var nickname = req["email"]?.GetValue<string>() ?? throw new ArgumentException("Missing 'email'");
             var password = req["pwd"]?.GetValue<string>() ?? throw new ArgumentException("Missing 'pwd'");
             var remember_this_device = req["remember_this_device"]?.GetValue<bool>() ?? false;
-            return await LoginCore(nickname, password, remember_this_device)
-                ?? throw new InvalidOperationException("authentication failed");
+            return await LoginCore(nickname, password, remember_this_device) ?? throw new InvalidOperationException("authentication failed");
         }
 
         private async Task<object?> LoginCore(string nickname, string password, bool remember_this_device = false) {
@@ -70,10 +64,11 @@ namespace FWITD.Controllers.Sicurezza {
                                 return null;
                             }
                             await SStorage.setSessionIdAsync(profiler.Token);
+                            FWShellWPF.FWITD.Services.UserSettings.UserSession = responseJson;
                             //await SStorage.setUserIdAsync(profiler.UserID);
-                            if (profiler.DeviceId == "waiting device authentication") {
-                                profiler.Email = "waiting device authentication";
-                            }
+                            //if (profiler.DeviceId == "waiting device authentication") {
+                            //    profiler.Email = "waiting device authentication";
+                            //}
                             return profiler;
                         } catch (Exception e) {
 

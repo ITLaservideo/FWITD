@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script>(() => { document.addEventListener("contextmenu", function (e) { e.preventDefault(); }); document.addEventListener("wheel", function (e) { if (e.ctrlKey) { e.preventDefault(); } }, { passive: false }); document.addEventListener("keydown", function (e) { if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) { e.preventDefault(); } }); })();</script>
+    <title>test_page</title>
+</head>
+
+<body>
+    <div fw-id="da_app" class="da-app app-grid-expanded">
+        <div class="app-logo">
+            <div class="f-icon lbtn" data-icon="&#xf45f;" fw-id="app-logo" (click)="onClickLogo"></div>
+        </div>
+        <div class="app-navigation">
+            <div class="f-icon lbtn" data-icon="&#xe838;" fw-id="app-starred">
+                starred </div>
+            <div class="f-icon lbtn" data-icon="&#xf1cc;" fw-id="app-shopping">
+                shopping</div>
+            <div class="f-icon lbtn" data-icon="&#xf190;" fw-id="app-monitoring"
+                (click)="goGoTo('AndroidViewAnalytics')">monitoring</div>
+            <div class="f-icon lbtn" data-icon="&#xf35e;" fw-id="app-customers">customers</div>
+        </div>
+        <div class="app-settings">
+            <div class="f-icon lbtn" data-icon="&#xe8b8;" fw-id="main_settings" (click)="goGoTo('Settings')">settings
+            </div>
+            <div class="f-icon lbtn" data-icon="&#xe3ae;" fw-id="app-style" (click)="onChangeAppearance">style</div>
+        </div>
+        <div class="app-notch">
+            notch
+        </div>
+        <div class="app-user-settings">
+            <div class="f-icon lbtn" data-icon="&#xe853;" fw-id="app-user-settings"
+                (click)="goGoTo('AndroidViewAccount')">user</div>
+        </div>
+        <div class="app-content" fw-id="app_content">
+            <div fw-id="start-content">start content</div>
+        </div>
+    </div>
+</body>
+
+</html>

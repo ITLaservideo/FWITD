@@ -31,109 +31,52 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
      * automatically gathers elements with attribute ` fw-id="xxx" ` after super()
      */
     elements = {
-        /**
-         * @type Element
-         */
+        /** @type Element */
         self_ref: this.self_ref,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         crop_wrapper: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         crop_area: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         img_to_crop: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         rotation_value: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         rotation_slider: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         rotation_area: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_flip_h: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_flip_v: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_color_key: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_erase: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_restore: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         toolbox: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_toggle_labels: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         toggle_labels_icon: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_undo: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_redo: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         toolbox_top: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         export_button: null,
-
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         btn_smoothing: null,
+        /** @type {HTMLElement} */
+        btn_add_text: null,
+        /** @type {HTMLElement} */
+        btn_draw: null,
     }
-    /**
-     * @type {SpeedActions}
-     */
+    /** @type {SpeedActions} */
     #export_speed_actions = null;
     status = {
         rotation: 0,
@@ -142,18 +85,17 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         picking_color: false,
         erasing: false,
         restoring: false,
+        drawing: false,
+        draw_color: ImageEditor.#DRAW_COLORS[0],
+        adding_text: false,
         erase_radius: 20,
         knob_dragging: false,
         labels_compact: true,
         undo_stack: [],
         redo_stack: [],
-        /**
-         * @type Element
-         */
+        /** @type Element */
         knob_top_left: undefined,
-        /**
-         * @type Element
-         */
+        /** @type Element */
         knob_bottom_right: undefined,
     }
     async #initialize() {
@@ -206,8 +148,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
     #addSmoothingSpeedActions() {
         const owner = this;
         owner.#smoothing_speed_actions = new SpeedActions({
+            label: Locale.at("Levigatura"),
             target: owner.elements.btn_smoothing,
-            side: "left",
+            side: "right",
             createButtons: [
                 {
                     title: "Supersampling (SSAA)",
@@ -260,11 +203,14 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
     }
     /**
      * opens a UiBuilder floating panel (draggable, minimizable, closable) listing the given
-     * instruction lines for the active tool; closing it (✕ button or Escape) calls `on_close`
+     * instruction lines for the active tool; closing it (✕ button or Escape) calls `on_close`.
+     * `colorOptions`, when given, renders a row of clickable color swatch buttons below the lines
+     * (used by the draw tool to pick its ink color)
      * @param {string[]} lines
      * @param {Function} on_close
+     * @param {HTMLElement} extra
      */
-    #showModeInstructions(lines, on_close) {
+    #showModeInstructions(lines, on_close, extra) {
         const owner = this;
         const content = document.createElement("div");
         content.classList.add("ie-mode-instructions-content");
@@ -272,6 +218,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             const row = document.createElement("div");
             row.innerText = Locale.at(line);
             content.appendChild(row);
+        }
+        if (extra) {
+            content.appendChild(extra);
         }
         owner.elements.mode_instructions = UiBuilder.createFloatingContainer(content, {
             id: "image-editor-tool-hint",
@@ -416,7 +365,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         crop_area.appendChild(owner.elements.crop_move_bar);
         crop_wrapper.appendChild(owner.status.knob_top_left);
         crop_wrapper.appendChild(owner.status.knob_bottom_right);
-        owner.#updateCropFrame();
+        setTimeout(() => {
+            owner.#updateCropFrame();
+        }, 50);
     }
     /**
      * horizontal bar sitting on the crop rectangle's top edge; dragging it translates the whole crop area
@@ -731,6 +682,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         if (owner.status.restoring) {
             owner.status.stop_restoring();
         }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
+        }
         owner.elements.img_to_crop.src = owner.status.original_image_src;
         owner.status.rotation = 0;
         owner.status.flip_h = false;
@@ -857,6 +811,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         if (owner.status.restoring) {
             owner.status.stop_restoring();
         }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
+        }
         owner.status.redo_stack.push(owner.#captureSnapshot());
         owner.#restoreSnapshot(owner.status.undo_stack.pop());
         owner.#updateUndoRedoButtonsUI();
@@ -874,6 +831,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         }
         if (owner.status.restoring) {
             owner.status.stop_restoring();
+        }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
         }
         owner.status.undo_stack.push(owner.#captureSnapshot());
         owner.#restoreSnapshot(owner.status.redo_stack.pop());
@@ -916,8 +876,8 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         document.addEventListener("mousemove", move_handler);
         owner.elements.img_to_crop.addEventListener("click", click_handler, { once: true });
         owner.#showModeInstructions([
-            "Clicca sull'immagine per selezionare il colore da rimuovere",
-            "Esc per annullare",
+            Locale.at("Clicca sull'immagine per selezionare il colore da rimuovere"),
+            Locale.at("Esc per annullare"),
         ], stop_picking);
     }
     /**
@@ -1497,10 +1457,10 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         img.addEventListener("wheel", wheel_handler, { passive: false });
         img.addEventListener("mousedown", mousedown_handler);
         owner.#showModeInstructions([
-            "Trascina per cancellare",
-            "Rotellina del mouse per ridimensionare il pennello",
-            "Tieni premuto Shift per bloccare l'asse",
-            "Esc per uscire",
+            Locale.at("Trascina per cancellare"),
+            Locale.at("Rotellina del mouse per ridimensionare il pennello"),
+            Locale.at("Tieni premuto Shift per bloccare l'asse"),
+            Locale.at("Esc per uscire"),
         ], stop_erasing);
     }
     /**
@@ -1681,11 +1641,656 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         img.addEventListener("wheel", wheel_handler, { passive: false });
         img.addEventListener("mousedown", mousedown_handler);
         owner.#showModeInstructions([
-            "Trascina per ripristinare l'originale",
-            "Rotellina del mouse per ridimensionare il pennello",
-            "Tieni premuto Shift per bloccare l'asse",
-            "Esc per uscire",
+            Locale.at("Trascina per ripristinare l'originale"),
+            Locale.at("Rotellina del mouse per ridimensionare il pennello"),
+            Locale.at("Tieni premuto Shift per bloccare l'asse"),
+            Locale.at("Esc per uscire"),
         ], stop_restoring);
+    }
+    /**
+     * ink color swatches offered in the draw tool's mode-instructions panel (see `#startDrawing`);
+     * the first one is the default until the user picks another
+     */
+    static #DRAW_COLORS = ["#000", "#fff", "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#0a84ff", "#fbe7eb"];
+    /**
+     * paints a solid circle, in source-image px, at (x, y) with the given radius, using the
+     * currently selected draw ink color
+     */
+    #drawAt(ctx, x, y, radius) {
+        const owner = this;
+        ctx.save();
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = owner.status.draw_color;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+    /**
+     * paints a series of overlapping circles between two source-image points, so fast drags
+     * don't leave gaps between the individually-sampled mousemove positions
+     */
+    #drawStroke(ctx, from, to, radius) {
+        const owner = this;
+        const distance = Math.hypot(to.x - from.x, to.y - from.y);
+        const steps = Math.max(1, Math.ceil(distance / Math.max(1, radius * 0.5)));
+        for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            owner.#drawAt(ctx, from.x + (to.x - from.x) * t, from.y + (to.y - from.y) * t, radius);
+        }
+    }
+    /**
+     * bakes the working draw canvas into `img.src`; pass `throttled = true` while a stroke is still
+     * in progress so the (expensive) PNG re-encode doesn't run on every single mousemove event
+     */
+    #commitDrawCanvas(throttled) {
+        const owner = this;
+        const now = Date.now();
+        if (throttled && owner.status.last_draw_commit != undefined
+            && (now - owner.status.last_draw_commit) < ImageEditor.#ERASE_COMMIT_THROTTLE_MS) {
+            return;
+        }
+        owner.status.last_draw_commit = now;
+        owner.elements.img_to_crop.src = owner.status.draw_canvas.toDataURL("image/png");
+    }
+    /**
+     * applies `owner.status.draw_color` to the brush-size cursor's border/fill so its preview
+     * matches the ink color that will actually be painted
+     */
+    #updateDrawCursorColor() {
+        const owner = this;
+        const color = owner.status.draw_color;
+        owner.elements.erase_cursor.style.borderColor = color;
+        owner.elements.erase_cursor.style.background = `color-mix(in srgb, ${color} 15%, transparent)`;
+    }
+    /**
+     * enters freehand draw mode, the same brush interaction as `#startErasing`/`#startRestoring` but
+     * painting solid ink instead of punching or restoring pixels: hides the cursor over the image,
+     * shows the shared circular brush-size preview (tinted to the selected ink color), and lets the
+     * user click-drag over the image to paint with `owner.status.draw_color` (changeable via the
+     * swatch buttons in the mode-instructions panel, see `#showModeInstructions`)
+     */
+    #startDrawing() {
+        const owner = this;
+        if (owner.status.drawing) {
+            return;
+        }
+        owner.status.drawing = true;
+        owner.elements.self_ref.classList.add("ie-drawing");
+        owner.elements.btn_draw.classList.add("ie-tool-active");
+        owner.#updateDrawCursorColor();
+
+        const img = owner.elements.img_to_crop;
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        owner.status.draw_canvas = canvas;
+
+        let is_drawing = false;
+        let last_point = null;
+        let stroke_anchor = null;
+        let axis_lock = null;
+
+        const natural_radius = () => {
+            const scale_x = img.naturalWidth / img.clientWidth;
+            const scale_y = img.naturalHeight / img.clientHeight;
+            return owner.status.erase_radius * ((scale_x + scale_y) / 2);
+        };
+        const applyAxisLock = (point, event) => {
+            if (!event.shiftKey) {
+                axis_lock = null;
+                return point;
+            }
+            if (axis_lock == null) {
+                const dx = Math.abs(point.x - stroke_anchor.x);
+                const dy = Math.abs(point.y - stroke_anchor.y);
+                if (Math.max(dx, dy) < ImageEditor.#ERASE_AXIS_LOCK_THRESHOLD) {
+                    return point;
+                }
+                axis_lock = dx >= dy ? "x" : "y";
+            }
+            return axis_lock === "x"
+                ? { x: point.x, y: stroke_anchor.y }
+                : { x: stroke_anchor.x, y: point.y };
+        };
+        const move_handler = (event) => {
+            owner.elements.erase_cursor.style.left = `${event.clientX}px`;
+            owner.elements.erase_cursor.style.top = `${event.clientY}px`;
+            if (!is_drawing) {
+                return;
+            }
+            const point = applyAxisLock(owner.#getNaturalPixelFromClientPoint(event.clientX, event.clientY), event);
+            owner.#drawStroke(ctx, last_point, point, natural_radius());
+            last_point = point;
+            owner.#commitDrawCanvas(true);
+        };
+        const wheel_handler = (event) => {
+            event.preventDefault();
+            const step = event.deltaY < 0 ? ImageEditor.#ERASE_RADIUS_STEP : -ImageEditor.#ERASE_RADIUS_STEP;
+            owner.status.erase_radius = Math.max(
+                ImageEditor.#ERASE_RADIUS_MIN,
+                Math.min(ImageEditor.#ERASE_RADIUS_MAX, owner.status.erase_radius + step)
+            );
+            owner.#updateEraseCursorSize();
+        };
+        const mousedown_handler = (event) => {
+            if (event.button !== 0) {
+                return;
+            }
+            event.preventDefault();
+            owner.#pushHistory();
+            is_drawing = true;
+            last_point = owner.#getNaturalPixelFromClientPoint(event.clientX, event.clientY);
+            stroke_anchor = last_point;
+            axis_lock = null;
+            owner.#drawAt(ctx, last_point.x, last_point.y, natural_radius());
+            owner.#commitDrawCanvas(true);
+        };
+        const mouseup_handler = () => {
+            if (!is_drawing) {
+                return;
+            }
+            is_drawing = false;
+            last_point = null;
+            stroke_anchor = null;
+            axis_lock = null;
+            owner.#commitDrawCanvas(false);
+        };
+        const stop_drawing = () => {
+            if (!owner.status.drawing) {
+                return;
+            }
+            if (is_drawing) {
+                owner.#commitDrawCanvas(false);
+            }
+            owner.status.drawing = false;
+            owner.status.stop_drawing = undefined;
+            owner.status.draw_canvas = undefined;
+            owner.elements.self_ref.classList.remove("ie-drawing");
+            owner.elements.btn_draw.classList.remove("ie-tool-active");
+            owner.elements.erase_cursor.style.borderColor = "";
+            owner.elements.erase_cursor.style.background = "";
+            document.removeEventListener("mousemove", move_handler);
+            document.removeEventListener("mouseup", mouseup_handler);
+            img.removeEventListener("wheel", wheel_handler);
+            img.removeEventListener("mousedown", mousedown_handler);
+            owner.#hideModeInstructions();
+        };
+        owner.status.stop_drawing = stop_drawing;
+        document.addEventListener("mousemove", move_handler);
+        document.addEventListener("mouseup", mouseup_handler);
+        img.addEventListener("wheel", wheel_handler, { passive: false });
+        img.addEventListener("mousedown", mousedown_handler);
+        const createSwatch = (cs_options) => {
+            const swatch_row = document.createElement("div");
+            swatch_row.classList.add("ie-mode-instructions-swatches");
+            for (const color of cs_options.colors) {
+                const swatch = document.createElement("div");
+                swatch.classList.add("ie-color-swatch");
+                swatch.style.backgroundColor = color;
+                swatch.classList.toggle("ie-color-swatch-active", color === cs_options.selected);
+                swatch.addEventListener("click", () => {
+                    for (const other of swatch_row.querySelectorAll(".ie-color-swatch")) {
+                        other.classList.remove("ie-color-swatch-active");
+                    }
+                    swatch.classList.add("ie-color-swatch-active");
+                    cs_options.onSelect(color);
+                });
+                swatch_row.appendChild(swatch);
+            }
+            const enlarge_button = Icons.create("e147");
+            enlarge_button.classList.add("ie-brush-size-button");
+            UiBuilder.addHint({ hint: Locale.at("Pennello più grande"), target: enlarge_button, anchor: "top" });
+            enlarge_button.addEventListener("click", () => {
+                owner.status.erase_radius = Math.max(
+                    ImageEditor.#ERASE_RADIUS_MIN,
+                    Math.min(ImageEditor.#ERASE_RADIUS_MAX, owner.status.erase_radius + ImageEditor.#ERASE_RADIUS_STEP)
+                );
+                owner.#updateEraseCursorSize();
+            });
+            const shrink_button = Icons.create("e644");
+            shrink_button.classList.add("ie-brush-size-button");
+            UiBuilder.addHint({ hint: Locale.at("Pennello più piccolo"), target: shrink_button, anchor: "top" });
+            shrink_button.addEventListener("click", () => {
+                owner.status.erase_radius = Math.max(
+                    ImageEditor.#ERASE_RADIUS_MIN,
+                    Math.min(ImageEditor.#ERASE_RADIUS_MAX, owner.status.erase_radius - ImageEditor.#ERASE_RADIUS_STEP)
+                );
+                owner.#updateEraseCursorSize();
+            });
+            swatch_row.appendChild(enlarge_button);
+            swatch_row.appendChild(shrink_button);
+            return swatch_row;
+        }
+        owner.#showModeInstructions([
+            Locale.at("Trascina per disegnare"),
+            Locale.at("Rotellina del mouse per ridimensionare il pennello"),
+            Locale.at("Tieni premuto Shift per bloccare l'asse"),
+            Locale.at("Esc per uscire"),
+        ], stop_drawing, createSwatch({
+            colors: ImageEditor.#DRAW_COLORS,
+            selected: owner.status.draw_color,
+            onSelect: (color) => {
+                owner.status.draw_color = color;
+                owner.#updateDrawCursorColor();
+            },
+        }));
+    }
+    /**
+     * on-screen (unscaled) px the text overlay's font-size is set to; the scale/rotate handle's
+     * `state.scale` multiplies this, and `#bakeTextOverlay` folds the same constant into the baked
+     * canvas font size (via ctx.scale) so the baked result matches what was shown on screen
+     */
+    static #TEXT_OVERLAY_BASE_FONT_SIZE = 28;
+    static #TEXT_OVERLAY_MIN_SCALE = 0.2;
+    static #TEXT_OVERLAY_MAX_SCALE = 5;
+    /** scale change per px of horizontal drag on the scale/rotate handle */
+    static #TEXT_OVERLAY_SCALE_SENSITIVITY = 0.01;
+    /** rotation change (degrees) per px of vertical drag on the scale/rotate handle */
+    static #TEXT_OVERLAY_ROTATION_SENSITIVITY = 0.5;
+    // storage keys below are intentionally the *same strings* PDFEditor's own "add text" prompt
+    // uses (see PDFEditor.js's `#promptEditAddText`), so the two editors share one recent/pinned
+    // texts list instead of keeping separate ones
+    static #RECENT_TEXTS_STORAGE_KEY = "pe-recent-texts";
+    static #RECENT_TEXTS_LIMIT = 8;
+    static #PINNED_TEXTS_STORAGE_KEY = "pe-pinned-texts";
+    /**
+     * reuses the same MousePopUp + UiBuilder.createSimpleTextInput prompt as before, now prepending
+     * two lists of previously-typed texts (persisted in localStorage, shared with PDFEditor's own
+     * "add text" prompt - see `#RECENT_TEXTS_STORAGE_KEY`) so common labels don't need retyping -
+     * pinned texts (kept indefinitely) above the plain recent-texts (capped, oldest dropped first)
+     */
+    #promptAddText(event) {
+        const owner = this;
+        const self_aware = { instance: undefined };
+        const container = document.createElement("div");
+        const closePopup = () => {
+            if (self_aware.instance != undefined) {
+                self_aware.instance.destroy();
+                self_aware.instance = undefined;
+            }
+        };
+        const onPick = (text) => {
+            closePopup();
+            owner.#startAddingText(text);
+        };
+
+        const pinned_list = document.createElement("div");
+        pinned_list.classList.add("ie-recent-texts");
+        const recent_list = document.createElement("div");
+        recent_list.classList.add("ie-recent-texts");
+
+        const renderPinnedList = () => owner.#renderRecentTextRows(pinned_list, owner.#getPinnedTexts(), {
+            onPick,
+            toggle_icon: "e6f9", // unpin
+            onToggle: (text) => {
+                owner.#unpinText(text);
+                renderPinnedList();
+                renderRecentList();
+            },
+            onRemove: (text) => {
+                owner.#removePinnedText(text);
+                renderPinnedList();
+            },
+        });
+        const renderRecentList = () => owner.#renderRecentTextRows(recent_list, owner.#getRecentTexts(), {
+            onPick,
+            toggle_icon: "e6aa", // pin
+            onToggle: (text) => {
+                owner.#pinText(text);
+                renderPinnedList();
+                renderRecentList();
+            },
+            onRemove: (text) => {
+                owner.#removeRecentText(text);
+                renderRecentList();
+            },
+        });
+        renderPinnedList();
+        renderRecentList();
+        container.appendChild(pinned_list);
+        container.appendChild(recent_list);
+        container.appendChild(UiBuilder.createSimpleTextInput({
+            next: (user_input) => {
+                user_input = user_input.trim();
+                closePopup();
+                if (user_input.length === 0) {
+                    return;
+                }
+                owner.#saveRecentText(user_input);
+                owner.#startAddingText(user_input);
+            },
+            onCancel: () => closePopup(),
+            title: Locale.at("Inserisci il testo da aggiungere"),
+            title_cancel: Locale.at("annulla"),
+            title_confirm: Locale.at("ok"),
+        }));
+        // `MousePopUp` calls `afterTitleRow.focus()` on ready - delegate to the text-input overlay's
+        // own `.focus()` override (it focuses the actual `<input>`), since `container` is a plain div
+        container.focus = () => container.lastElementChild.focus();
+        const options = {
+            afterTitleRow: container,
+            iAmAwareThereAreNoSelections: true,
+            event: { clientX: event.clientX - 50, clientY: event.clientY - 50 },
+            onReady: () => { options.afterTitleRow.focus(); },
+        };
+        options.afterTitleRow.lastElementChild.style.borderRadius = 0;
+        self_aware.instance = new MousePopUp(options);
+    }
+    /**
+     * (re)renders one pinned/recent-texts list into `list_el`: each row shows the text, a
+     * pin/unpin toggle and a remove (`f508`) button - shared by both lists in `#promptAddText`
+     * @param {HTMLElement} list_el
+     * @param {string[]} texts
+     * @param {Object} handlers
+     * @param {(text: string) => void} handlers.onPick
+     * @param {(text: string) => void} handlers.onToggle
+     * @param {(text: string) => void} handlers.onRemove
+     * @param {string} handlers.toggle_icon
+     */
+    #renderRecentTextRows(list_el, texts, { onPick, onToggle, onRemove, toggle_icon }) {
+        list_el.innerHTML = "";
+        list_el.style.display = texts.length === 0 ? "none" : "";
+        for (const text of texts) {
+            const row = document.createElement("div");
+            row.classList.add("ie-recent-text-row");
+
+            const label = document.createElement("div");
+            label.classList.add("ie-recent-text-label");
+            label.innerText = text;
+            label.addEventListener("click", () => onPick(text));
+
+            const toggle_btn = Icons.create(toggle_icon);
+            toggle_btn.classList.add("ie-recent-text-pin");
+            toggle_btn.addEventListener("click", (toggle_event) => {
+                toggle_event.stopPropagation();
+                onToggle(text);
+            });
+
+            const remove_btn = Icons.create("f508");
+            remove_btn.classList.add("ie-recent-text-remove");
+            remove_btn.addEventListener("click", (remove_event) => {
+                remove_event.stopPropagation();
+                onRemove(text);
+            });
+
+            row.append(label, toggle_btn, remove_btn);
+            list_el.appendChild(row);
+        }
+    }
+    /**
+     * @returns {string[]} previously-typed "add text" values, most recent first - see
+     * `#promptAddText`
+     */
+    #getRecentTexts() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(ImageEditor.#RECENT_TEXTS_STORAGE_KEY));
+            return Array.isArray(saved) ? saved : [];
+        } catch (e) {
+            console.warn(`Failed to load recent texts from localStorage: ${e.message}`);
+            return [];
+        }
+    }
+    #setRecentTexts(recent_texts) {
+        try {
+            localStorage.setItem(ImageEditor.#RECENT_TEXTS_STORAGE_KEY, JSON.stringify(recent_texts));
+        } catch (e) {
+            console.warn(`Failed to save recent texts to localStorage: ${e.message}`);
+        }
+    }
+    /** records `text` as the most recent "add text" value, deduplicated and capped to `#RECENT_TEXTS_LIMIT` */
+    #saveRecentText(text) {
+        const owner = this;
+        if (owner.#getPinnedTexts().includes(text)) {
+            // already pinned (so already one click away) - don't also clutter the recent list
+            return;
+        }
+        const recent_texts = owner.#getRecentTexts().filter((existing) => existing !== text);
+        recent_texts.unshift(text);
+        recent_texts.length = Math.min(recent_texts.length, ImageEditor.#RECENT_TEXTS_LIMIT);
+        owner.#setRecentTexts(recent_texts);
+    }
+    /** removes `text` from the persisted recent-texts list - see `#promptAddText` */
+    #removeRecentText(text) {
+        const owner = this;
+        owner.#setRecentTexts(owner.#getRecentTexts().filter((existing) => existing !== text));
+    }
+    /**
+     * @returns {string[]} pinned "add text" values, most recently pinned first - see
+     * `#promptAddText`; unlike the recent-texts list, this one is never auto-trimmed
+     */
+    #getPinnedTexts() {
+        try {
+            const saved = JSON.parse(localStorage.getItem(ImageEditor.#PINNED_TEXTS_STORAGE_KEY));
+            return Array.isArray(saved) ? saved : [];
+        } catch (e) {
+            console.warn(`Failed to load pinned texts from localStorage: ${e.message}`);
+            return [];
+        }
+    }
+    #setPinnedTexts(pinned_texts) {
+        try {
+            localStorage.setItem(ImageEditor.#PINNED_TEXTS_STORAGE_KEY, JSON.stringify(pinned_texts));
+        } catch (e) {
+            console.warn(`Failed to save pinned texts to localStorage: ${e.message}`);
+        }
+    }
+    /** moves `text` out of the recent-texts list and into the (uncapped) pinned-texts list */
+    #pinText(text) {
+        const owner = this;
+        owner.#setRecentTexts(owner.#getRecentTexts().filter((existing) => existing !== text));
+        const pinned_texts = owner.#getPinnedTexts().filter((existing) => existing !== text);
+        pinned_texts.unshift(text);
+        owner.#setPinnedTexts(pinned_texts);
+    }
+    /** moves `text` out of the pinned-texts list and back into the recent-texts list */
+    #unpinText(text) {
+        const owner = this;
+        owner.#setPinnedTexts(owner.#getPinnedTexts().filter((existing) => existing !== text));
+        owner.#saveRecentText(text);
+    }
+    /** permanently removes `text` from the pinned-texts list (without moving it back to recent) */
+    #removePinnedText(text) {
+        const owner = this;
+        owner.#setPinnedTexts(owner.#getPinnedTexts().filter((existing) => existing !== text));
+    }
+    /**
+     * enters "add text" mode: drops a floating, draggable/scalable/rotatable text overlay - appended
+     * directly to `document.body` (NOT `owner.elements.self_ref`), so it floats above the whole
+     * editor, including the BottomSheet this component is normally shown inside - centered over the
+     * current crop area. Position/scale/rotation are tracked locally in `state` and applied as a
+     * single CSS transform; `overlay.style.left/top` are set once (to the anchor) and never touched
+     * again. Confirming bakes the overlay into the image pixels (see `#bakeTextOverlay`); closing
+     * the mode instructions panel (✕ / Esc) or hitting the toolbox button again cancels it.
+     * @param {string} text
+     */
+    #startAddingText(text) {
+        const owner = this;
+        owner.status.adding_text = true;
+        owner.elements.btn_add_text.classList.add("ie-tool-active");
+
+        const anchor_rect = owner.elements.crop_area.getBoundingClientRect();
+        // anchor_rect is viewport-relative, but the overlay is `position: absolute` on document.body
+        // (document-relative), so the page's current scroll offset has to be folded in
+        const anchor_x = anchor_rect.left + anchor_rect.width / 2 + window.scrollX;
+        const anchor_y = anchor_rect.top + anchor_rect.height / 2 + window.scrollY;
+
+        // two sibling boxes inside the overlay: the preview holding the text, the only part that gets
+        // rotated/scaled, and the controls box holding the handles, which is only resized to wrap the
+        // preview's rotated bounding box - so the handles themselves never scale or rotate with the text
+        const overlay = document.createElement("div");
+        overlay.classList.add("ie-text-overlay");
+        overlay.style.left = `${anchor_x}px`;
+        overlay.style.top = `${anchor_y}px`;
+
+        const preview = document.createElement("div");
+        preview.classList.add("ie-text-overlay-preview");
+        overlay.appendChild(preview);
+
+        const text_span = document.createElement("div");
+        text_span.className = "fkng_fake_span"
+        text_span.innerText = text;
+        preview.appendChild(text_span);
+
+        const controls = document.createElement("div");
+        controls.classList.add("ie-text-overlay-controls");
+        overlay.appendChild(controls);
+
+        const scale_rotate_handle = Icons.create("ebee");
+        scale_rotate_handle.classList.add("ie-text-overlay-handle", "ie-text-overlay-handle-scale-rotate");
+        controls.appendChild(scale_rotate_handle);
+
+        const move_handle = Icons.create("f71e");
+        move_handle.classList.add("ie-text-overlay-handle");
+        controls.appendChild(move_handle);
+
+        const confirm_button = Icons.create("e5ca");
+        confirm_button.classList.add("ie-text-overlay-confirm");
+        controls.appendChild(confirm_button);
+
+        document.body.appendChild(overlay);
+
+        const state = { x: 0, y: 0, scale: 1, rotation: 0 };
+        const applyTransform = () => {
+            // the overlay only translates, so its center stays the preview's center - which
+            // `#bakeTextOverlay` reads back via `overlay.getBoundingClientRect()`
+            overlay.style.transform = `translate(-50%, -50%) translate(${state.x}px, ${state.y}px)`;
+            // scaled via font-size rather than CSS scale(): scale() magnifies glyph advances laid out
+            // (and rounded) at the unscaled size, so letter spacing wouldn't match the baked text
+            preview.style.fontSize = `${ImageEditor.#TEXT_OVERLAY_BASE_FONT_SIZE * state.scale}px`;
+            preview.style.transform = `rotate(${state.rotation}deg)`;
+            const radians = state.rotation * Math.PI / 180;
+            const cos = Math.abs(Math.cos(radians));
+            const sin = Math.abs(Math.sin(radians));
+            const width = preview.offsetWidth;
+            const height = preview.offsetHeight;
+            controls.style.width = `${width * cos + height * sin}px`;
+            controls.style.height = `${width * sin + height * cos}px`;
+        };
+        applyTransform();
+
+        // double-clicking the scale/rotate handle resets it back to scale 1 / rotation 0
+        scale_rotate_handle.addEventListener("dblclick", () => {
+            state.scale = 1;
+            state.rotation = 0;
+            applyTransform();
+        });
+
+        MovableUtil.trackMouse(scale_rotate_handle, ({ x, y }) => {
+            // x drag rescales the text (dragging the handle further out grows it), y drag rotates it
+            state.scale = Math.max(
+                ImageEditor.#TEXT_OVERLAY_MIN_SCALE,
+                Math.min(ImageEditor.#TEXT_OVERLAY_MAX_SCALE, state.scale - x * ImageEditor.#TEXT_OVERLAY_SCALE_SENSITIVITY)
+            );
+            state.rotation -= y * ImageEditor.#TEXT_OVERLAY_ROTATION_SENSITIVITY;
+            applyTransform();
+        }, undefined, 1, 1);
+
+        MovableUtil.trackMouse(move_handle, ({ x, y }) => {
+            // negated deltas, mirroring the existing crop move-bar's own convention (see `#createMoveBar`)
+            state.x -= x;
+            state.y -= y;
+            applyTransform();
+        }, undefined, 1, 1);
+
+        const stop_adding_text = () => {
+            if (!owner.status.adding_text) {
+                return;
+            }
+            owner.status.adding_text = false;
+            owner.status.stop_adding_text = undefined;
+            owner.elements.btn_add_text.classList.remove("ie-tool-active");
+            overlay.remove();
+            owner.#hideModeInstructions();
+        };
+        owner.status.stop_adding_text = stop_adding_text;
+
+        confirm_button.addEventListener("click", () => {
+            owner.#bakeTextOverlay(overlay, text, state);
+            stop_adding_text();
+        });
+
+        owner.#showModeInstructions([
+            Locale.at("Trascina i quadratini per spostare, ridimensionare e ruotare il testo"),
+            Locale.at("Clicca sul segno di spunta per confermare"),
+            Locale.at("Esc per annullare"),
+        ], stop_adding_text);
+    }
+    /**
+     * bakes the floating text overlay (see `#startAddingText`) into the image's pixels, following
+     * the same bake pattern as every other destructive tool in this file: draw the current img onto
+     * a fresh natural-resolution canvas, draw the addition on top, then write the result back to
+     * `img.src`
+     * @param {HTMLElement} overlay
+     * @param {string} text
+     * @param {{x: number, y: number, scale: number, rotation: number}} state
+     */
+    #bakeTextOverlay(overlay, text, state) {
+        const owner = this;
+        owner.#pushHistory();
+        const img = owner.elements.img_to_crop;
+        const overlay_rect = overlay.getBoundingClientRect();
+        const center_x = overlay_rect.left + overlay_rect.width / 2;
+        const center_y = overlay_rect.top + overlay_rect.height / 2;
+        const point = owner.#getNaturalPixelFromClientPoint(center_x, center_y);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+
+        // the raw pixel buffer has no CSS rotation/flip applied (the same un-rotated, un-flipped
+        // space erase/restore already work in). The image is displayed via Rotate(owner.status.rotation)
+        // applied on top of Scale(flip_h?-1:1, flip_v?-1:1) (see #applyImageTransform, and the CSS
+        // individual-transform order: scale is closest to the pixels, rotate wraps around it). Undoing
+        // that on bake needs different handling depending on how many axes are flipped:
+        // - neither or both flipped: net effect is a pure rotation (a double flip is just 180°), so a
+        //   plain counter-rotation (plus 180° when both are flipped) is enough - no reflection needed.
+        // - exactly one axis flipped: it's a true mirror, which no rotation can undo by itself, so the
+        //   glyph itself must also be drawn pre-mirrored (via ctx.scale) to cancel back out to normal
+        //   on screen; using the identity Flip*Rotate(a) = Rotate(-a)*Flip, the rotation is negated too.
+        const mirrored = owner.status.flip_h !== owner.status.flip_v;
+        const both_flipped = owner.status.flip_h && owner.status.flip_v;
+        let rotation_to_bake;
+        let flip_x = 1;
+        let flip_y = 1;
+        if (mirrored) {
+            rotation_to_bake = owner.status.rotation - state.rotation;
+            flip_x = owner.status.flip_h ? -1 : 1;
+            flip_y = owner.status.flip_v ? -1 : 1;
+        } else {
+            rotation_to_bake = state.rotation - owner.status.rotation + (both_flipped ? 180 : 0);
+        }
+
+        const scale_x = img.naturalWidth / img.clientWidth;
+        const scale_y = img.naturalHeight / img.clientHeight;
+        // on-screen -> natural-pixel ratio; the overlay's own user-driven scale is already folded
+        // into its on-screen font-size (see `#startAddingText`'s applyTransform)
+        const natural_scale = (scale_x + scale_y) / 2;
+
+        // match the actual on-screen font (family/weight/style), not just its size - the overlay
+        // inherits the app's UI font rather than using a hardcoded one, so a literal "sans-serif"
+        // here would bake in a visibly different (thinner, generic) font than what was previewed.
+        // The size is converted to natural px here rather than via ctx.scale, so glyph advances are
+        // laid out at the final size (ctx.scale would magnify ones rounded at the on-screen size)
+        const text_style = getComputedStyle(overlay.querySelector(".fkng_fake_span"));
+        const font_size = parseFloat(text_style.fontSize) * natural_scale;
+
+        ctx.save();
+        ctx.translate(point.x, point.y);
+        ctx.rotate(rotation_to_bake * Math.PI / 180);
+        ctx.scale(flip_x, flip_y);
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `${text_style.fontStyle} ${text_style.fontWeight} ${font_size}px ${text_style.fontFamily}`;
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(text, 0, 0);
+        ctx.restore();
+
+        img.src = canvas.toDataURL("image/png");
     }
     // owner.self_ref;//access element reference here
     // owner.elementReference();//alternative way to access element reference
@@ -1767,8 +2372,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         const owner = this.fwInstanceReference;
         owner.status.labels_compact = !owner.status.labels_compact;
         owner.elements.toolbox.classList.toggle("ie-labels-compact", owner.status.labels_compact);
+        owner.elements.toolbox_top.classList.toggle("ie-labels-compact", owner.status.labels_compact);
         // owner.elements.btn_toggle_labels.classList.toggle("ie-tool-active", owner.status.labels_compact);
-        owner.elements.toggle_labels_icon.innerText = String.fromCodePoint(owner.status.labels_compact ? 0xf3d2 : 0xf8ab);
+        owner.elements.toggle_labels_icon.innerText = String.fromCodePoint(owner.status.labels_compact ? 0xf1c0 : 0xf8ab);
     }
     async onClickFlipHorizontal() {
         /**
@@ -1789,11 +2395,17 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
          * @type ImageEditor
          */
         const owner = this.fwInstanceReference;
+        if (owner.status.adding_text) {
+            owner.status.stop_adding_text();
+        }
         if (owner.status.erasing) {
             owner.status.stop_erasing();
         }
         if (owner.status.restoring) {
             owner.status.stop_restoring();
+        }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
         }
         if (owner.status.picking_color) {
             owner.status.stop_color_picking();
@@ -1806,11 +2418,17 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
          * @type ImageEditor
          */
         const owner = this.fwInstanceReference;
+        if (owner.status.adding_text) {
+            owner.status.stop_adding_text();
+        }
         if (owner.status.picking_color) {
             owner.status.stop_color_picking();
         }
         if (owner.status.restoring) {
             owner.status.stop_restoring();
+        }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
         }
         if (owner.status.erasing) {
             owner.status.stop_erasing();
@@ -1823,6 +2441,32 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
          * @type ImageEditor
          */
         const owner = this.fwInstanceReference;
+        if (owner.status.adding_text) {
+            owner.status.stop_adding_text();
+        }
+        if (owner.status.picking_color) {
+            owner.status.stop_color_picking();
+        }
+        if (owner.status.erasing) {
+            owner.status.stop_erasing();
+        }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
+        }
+        if (owner.status.restoring) {
+            owner.status.stop_restoring();
+        } else {
+            owner.#startRestoring();
+        }
+    }
+    async onClickDraw() {
+        /**
+         * @type ImageEditor
+         */
+        const owner = this.fwInstanceReference;
+        if (owner.status.adding_text) {
+            owner.status.stop_adding_text();
+        }
         if (owner.status.picking_color) {
             owner.status.stop_color_picking();
         }
@@ -1831,9 +2475,36 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         }
         if (owner.status.restoring) {
             owner.status.stop_restoring();
-        } else {
-            owner.#startRestoring();
         }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
+        } else {
+            owner.#startDrawing();
+        }
+    }
+    async onClickAddText(mevent) {
+
+
+        /** @type ImageEditor */
+        const owner = this.fwInstanceReference;
+        if (owner.status.adding_text) {
+            owner.status.stop_adding_text();
+            return;
+        }
+        if (owner.status.picking_color) {
+            owner.status.stop_color_picking();
+        }
+        if (owner.status.erasing) {
+            owner.status.stop_erasing();
+        }
+        if (owner.status.restoring) {
+            owner.status.stop_restoring();
+        }
+        if (owner.status.drawing) {
+            owner.status.stop_drawing();
+        }
+
+        owner.#promptAddText(mevent);
     }
     async onClickUndo() {
         /**

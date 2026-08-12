@@ -39,41 +39,23 @@ class PosizioneMotore extends FrameworkGC(`${injector_html}`) {
      * automatically gathers elements with attribute `fw-id=` after super()
      */
     elements = {
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         self_ref: this.self_ref,
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         quantity_input_saver: this.self_ref.querySelector(`[id="psc_save-quantity"]`),
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         quantity_input: this.self_ref.querySelector(`[id="psc_quantity-product"]`),
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         label_motore: this.self_ref.getElementsByClassName(`psc_product-id-motore`)[0],
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         label_price: this.self_ref.getElementsByClassName(`psc_product-price`)[0],
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         label_title_prodotto: this.self_ref.getElementsByClassName(`psc_product-title`)[0],
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         img_prodotto: this.self_ref.getElementsByClassName(`psc_product-image`)[0],
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         error_warning: undefined, //creted [setErrorCode]
-        /**
-         * @type HTMLElement
-         */
+        /** @type HTMLElement */
         icon18plus: undefined //created [updateUi]
     }
     #building_options = {

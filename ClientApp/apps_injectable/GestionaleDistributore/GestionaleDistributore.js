@@ -21,10 +21,6 @@ class App extends FrameworkGC(`${injector_html}`) {
      * automatically gathers elements with attribute ` fw-id="xxx" ` after super()
      */
     elements = {
-        /**
-         * @type HTMLElement
-         */
-        self_ref: this.self_ref,
     }
     async #initialize() {
         const owner = this;
@@ -43,7 +39,7 @@ class App extends FrameworkGC(`${injector_html}`) {
 
     //#region FrameworkEventListeners
     //@note private methods do not work :: they get mangled
-    async onButtonTestClick() {// add attribute inside the .html ` fw-click='onButtonTestClick' `
+    async onButtonTestClick() {// add attribute inside the .html ` (click)='onButtonTestClick' `
         /**
          * @type HTMLElement
          */

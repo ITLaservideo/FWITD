@@ -19,6 +19,16 @@ class App {
                 // UiBuilder.Notify("🪒 time " + `cloudflared`);
             }
         }, 750);
+        document.body.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key == "r") {
+                e.stopPropagation();
+                e.preventDefault();
+                Lobby.post("AppRouter/Navigate", { where: "Cloudflared" }, (rsp) => {
+                    resolve();
+                    //owner.elements.button_login.classList.toggle("clicked", false);
+                });
+            }
+        })
     }
     static #onPageFullyLoaded() {
         //TODO
@@ -46,32 +56,27 @@ class App {
                     key: "cf-the-password"
                 });
                 try {
-                    const captha_iframe_container = document.querySelector("[data-testid='challenge-widget-container']");
-                    const rect_captcha = captha_iframe_container.getBoundingClientRect();
-                    await Lobby.postAsync("Windows/MoveMouseAt", {
-                        x: Math.floor(rect_captcha.x + 20),
-                        y: Math.floor(rect_captcha.y + 67)
-                    });
-                    await wait100ms();
-                    await Lobby.postAsync("Windows/ClickAt", {
-                        x: Math.floor(rect_captcha.x + 20),
-                        y: Math.floor(rect_captcha.y + 67)
-                    });
-                    const button_confirm = captha_iframe_container.nextElementSibling;
+                    // const captha_iframe_container = document.querySelector("[data-testid='challenge-widget-container']");
+                    // const rect_captcha = captha_iframe_container.getBoundingClientRect();
+                    // await Lobby.postAsync("Windows/MoveMouseAt", {
+                    //     x: Math.floor(rect_captcha.x + 20),
+                    //     y: Math.floor(rect_captcha.y + 67)
+                    // });
+                    // await wait100ms();
+                    // await Lobby.postAsync("Windows/ClickAt", {
+                    //     x: Math.floor(rect_captcha.x + 20),
+                    //     y: Math.floor(rect_captcha.y + 67)
+                    // });
+                    const button_confirm = document.querySelector('[name="login-submit-button"]');
                     const rect_button_confirm = button_confirm.getBoundingClientRect();
                     const max_iter = 10;
-                    let iter = 0;
-                    while (rect_button_confirm.firstElementChild.disabled && iter < max_iter) {
-                        await wait100ms(1000);
-                        iter++;
-                    }
-                    if (!rect_button_confirm.firstElementChild.disabled) {
-                        await Lobby.postAsync("Windows/MoveMouseAt", {
-                            x: Math.floor(rect_button_confirm.x + 80),
-                            y: Math.floor(rect_button_confirm.y + 20)
-                        });
-                    }
-                } catch { }
+                    await wait100ms();
+                    await wait100ms();
+                    await Lobby.postAsync("Windows/ClickAt", {
+                        x: Math.floor(rect_button_confirm.x + 80),
+                        y: Math.floor(rect_button_confirm.y + 20)
+                    });
+                } catch (e) { console.log("couldn't find btn-login-submit"); console.log(e); }
             },
             title: "type login"
             , style: some_style,
@@ -154,6 +159,7 @@ class App {
                     x: Math.floor(coo_x_domain_selection),
                     y: Math.floor(coo_y_domain_selection)
                 });
+                await wait100ms();
 
                 // step 5: open dropdown service
                 document.getElementById("service.type").focus();

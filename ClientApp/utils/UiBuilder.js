@@ -1,4 +1,9 @@
 class UiBuilder {
+    static createDivisorio() {
+        const div = document.createElement("div");
+        div.className = "divisorio";
+        return div;
+    }
     /**
      * Displays a transient toast notification anchored near the cursor (or centered if no event).
      * The notification removes itself after `timeout` ms. Clicking it closes it early and shows
@@ -40,18 +45,52 @@ class UiBuilder {
         });
     }
     /**
-     * 
-     * @param {Object} options 
-     * @param {Object} options.innertext 
-     * @param {string} options.innertext.on 
-     * @param {string} options.innertext.off 
-     * @param {Function} options.setIsOn
+     * geometry, in px, of each `.the-switch-container` theme variant, transcribed from
+     * `styles.css` (`.the-switch-container`/`.the-mini-switch`/`.the-xxl-switch`) - used to
+     * decide how wide the switch needs to be to fit `options.innerText.on`/`.off` without the
+     * text rendering underneath `.the-switch-circle` (that circle has `z-index: 1`, the text
+     * doesn't, so whenever the text is too wide for the container's fixed CSS width the circle
+     * visually covers part of it instead of the two ever wrapping/overflowing visibly)
+     */
+    static #switch_theme_metrics = {
+        default: { circle_px: 25, base_width_px: 70 },
+        mini: { circle_px: 20, base_width_px: 61 },
+        xxl: { circle_px: 40, base_width_px: 122 },
+    };
+    /**
+     * Renders `text` off-screen with `.the-switch-text`'s own class (so it picks up the same
+     * font as the real switch label) to measure its natural width - independent of the switch's
+     * own layout, which is exactly the fixed-width box this measurement is used to grow past.
+     * @param {string} text
+     * @returns {number} width, in px
+     */
+    static #measureSwitchTextWidth(text) {
+        const probe = document.createElement("span");
+        probe.className = "the-switch-text";
+        probe.style.cssText = "position:fixed;visibility:hidden;left:-9999px;top:-9999px;white-space:pre;width:auto;";
+        probe.innerText = text;
+        document.body.appendChild(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        return width;
+    }
+    /**
+     * @param {Object} options
+     * @param {Object} options.innerText
+     * @param {string} options.innerText.on
+     * @param {string} options.innerText.off
      * @param {Function} options.onClick
-     * @param {bool} [options.isOn] false
-     * @param {string} [options.label]
-     * @param {string} [options.theme] "mini"
-     * 
-     * @returns Element
+     * @param {bool} [options.isOn=false]
+     * @param {string} [options.label] renders a separate clickable text label to the left of the switch
+     * @param {"mini"|"xxl"} [options.theme] default (no value) is the normal-sized switch
+     * @param {string} [options.innerCircleIcon] icon file name (as passed to `Icons`-less raw `<img>` src, under `/Images/Icone2024/ui_2024/`) shown inside the sliding circle
+     * @param {string} [options.hint] hover hint, wired via `addHint`
+     * @param {"top"|"left"|"right"|"bottom"} [options.anchor] hint anchor, used with `options.hint`
+     *
+     * @returns {HTMLDivElement} also gains an `options.setIsOn(is_on)` function (assigned onto the
+     *   `options` object passed in, not onto the returned element) that updates the switch's
+     *   state/label programmatically after creation - keep a reference to the same `options`
+     *   object to call it later, e.g. `options.setIsOn(true)`.
      */
     static createToggle(options) {
         let outer_container;
@@ -67,6 +106,20 @@ class UiBuilder {
                 break;
             default:
                 break;
+        }
+        const theme_metrics = UiBuilder.#switch_theme_metrics[options.theme] ?? UiBuilder.#switch_theme_metrics.default;
+        const widest_label_px = Math.max(
+            UiBuilder.#measureSwitchTextWidth(options.innerText.on),
+            UiBuilder.#measureSwitchTextWidth(options.innerText.off)
+        );
+        const circle_margin_px = 3; // `.the-switch-circle`'s own `margin-left`
+        const text_margin_px = 10; // `.the-switch-text`'s own `margin-left`/`margin-right`
+        const gap_buffer_px = 6; // breathing room between the circle and the text
+        const required_width_px = Math.ceil(widest_label_px) + theme_metrics.circle_px + circle_margin_px + text_margin_px + gap_buffer_px;
+        if (required_width_px > theme_metrics.base_width_px) {
+            container.style.width = `${required_width_px}px`;
+            container.style.minWidth = `${required_width_px}px`;
+            container.style.maxWidth = `${required_width_px}px`;
         }
         const circle = document.createElement("div");
         circle.classList.add("the-switch-circle");
@@ -95,12 +148,12 @@ class UiBuilder {
             wrap.appendChild(container);
             label.innerText = options.label;
             wrap.addEventListener("click", (event) => {
-                options.onClick(event);
+                options.onClick(event, options);
             });
             outer_container = wrap;
         } else {
             container.addEventListener("click", (event) => {
-                options.onClick(event);
+                options.onClick(event, options);
             });
         }
         if (options.hint != undefined) {
@@ -141,10 +194,84 @@ class UiBuilder {
             }
         }
         let num = Number(str);
-        if (isNaN(str)) {
+        if (!isFinite(num)) {
             num = 0;
         }
         return num;
+    }
+    static INVALID_PRICE = 999;
+    /**
+     * 
+     * @param {String} input 
+     * @returns Number
+     */
+    static processPrice(input, to_string = false) {
+        input = `${input}`.trim();
+        if (/[^0-9,\.]/.test(input)) {//if there's any character other than digits, commas, or dots
+            if (to_string) {
+                return UiBuilder.INVALID_PRICE.toFixed(2);
+            }
+            return UiBuilder.INVALID_PRICE;
+        }
+        const comma_i = input.lastIndexOf(',');
+        const dot_i = input.lastIndexOf('.');
+        let NUM_decimal = 0;
+        let NUM_int = UiBuilder.INVALID_PRICE;
+        if (comma_i >= 0 && dot_i >= 0) {
+            if (comma_i > dot_i) {
+                //using , for decimals
+                NUM_decimal = Number((`${input}00`.substring(comma_i)).match(/[0-9]+/)[0]);
+                NUM_int = Number(`0${input.substring(0, comma_i)}`.replaceAll('.', '').match(/[0-9]+/)[0]);
+            } else {
+                //using . for decimals
+                NUM_decimal = Number((`${input}00`.substring(dot_i)).match(/[0-9]+/)[0]);
+                NUM_int = Number(`0${input.substring(0, dot_i)}`.replaceAll(',', '').match(/[0-9]+/)[0]);
+            }
+        } else {
+            if (comma_i >= 0) {
+                if (comma_i < input.length - 3) {
+                    //+3 numbers after the comma, there are no decimals
+                    NUM_int = Number(`0${input}`.replaceAll(',', ''))
+                } else {
+                    //less than 2 numbers after the comma, comma separates decimals
+                    NUM_decimal = Number((`${input}00`.substring(comma_i)).match(/[0-9]+/)[0]);
+                    NUM_int = Number(`0${input.substring(0, comma_i)}`.match(/[0-9]+/)[0]);
+                }
+            } else if (dot_i >= 0) {
+                if (dot_i < input.length - 3) {
+                    //+3 numbers after the dot, there are no decimals
+                    NUM_int = Number(`0${input}`.replaceAll('.', ''))
+                } else {
+                    //less than 2 numbers after the dot, dot separates decimals
+                    NUM_decimal = Number((`${input}00`.substring(dot_i)).match(/[0-9]+/)[0]);
+                    NUM_int = Number(`0${input.substring(0, dot_i)}`.replaceAll('.', '').match(/[0-9]+/)[0]);
+                }
+            } else {
+                //no separators
+                NUM_int = Number(`00${input}`.match(/[0-9]+/)[0]);
+            }
+        }
+        // The decimal separator . (dot) is always interpreted as the decimal separator in JavaScript's number parsing, regardless of locale.
+        const areUKM = `${NUM_int}.${`${NUM_decimal}00`.match(/[0-9]{2}/)[0]}`;
+        const parsed = Number(areUKM);
+        if (parsed < 0 || !isFinite(parsed)) {
+            if (to_string) {
+                return UiBuilder.INVALID_PRICE.toFixed(2);
+            }
+            return UiBuilder.INVALID_PRICE;
+        }
+        if (to_string) {
+            return parsed.toFixed(2).trim();
+        }
+        return parsed;
+    }
+    static parseUnsignedInt(input, to_string = false) {
+        try {
+            const new_iva = Number(`${input}`.match(/[0-9]+/)[0]);
+            return to_string ? new_iva.toFixed(0) : new_iva;
+        } catch {
+            return to_string ? "0" : 0;
+        }
     }
     static used_set_array_ids_seeds = [];
     static newSetArrayOfIds(size, salt = 'ui-builder-ids') {
@@ -350,7 +477,7 @@ class UiBuilder {
      * @param {string} [options.class]
      * @param {string} [options.style] text
      * @param {string} [options.automationID] `automation-id` attribute
-     * @param {1|2} [options.theme] 2 shiny
+     * @param {'shiny'|'text'} [options.theme]
      * @param {boolean} [options.auto_disable_on_click=false] If true, the button will be automatically disabled (by adding a "clicked" class) when clicked, and re-enabled after 1 second.
      * @returns {HTMLDivElement}
      * @throws {Error} If both `options.title` and `options.icon` are undefined, or if neither `options.onClick` nor `options.onRightClick` are provided
@@ -358,11 +485,14 @@ class UiBuilder {
     static createButton(options) {
         const tmp = document.createElement("div");
         switch (options.theme) {
-            case 2:
+            case 'shiny':
                 tmp.classList.add("btn-wrapper");
                 tmp.classList.add("shiny");
                 break;
-            case 1:
+            case 'ez':
+                tmp.classList.add("ez-button");
+                break;
+            case 'text':
                 tmp.classList.add("btn-wrapper");
                 break;
             default:
@@ -379,9 +509,9 @@ class UiBuilder {
                             tmp.classList.toggle("clicked", false);
                         }, 1000);
                     }
-                    options.onClick(event);
+                    options.onClick(event, tmp);
                 } else if (event.button == 2 && options.onRightClick != undefined) {
-                    options.onRightClick(event);
+                    options.onRightClick(event, tmp);
                 }
             });
             if (options.onClick != undefined) {
@@ -396,7 +526,7 @@ class UiBuilder {
         if (options.onRightClick != undefined) {
             tmp.addEventListener("contextmenu", (event) => {
                 event.preventDefault();
-                options.onRightClick(event);
+                // options.onRightClick(event);
             });
         }
         if (options.not_indexable != true) {
@@ -472,44 +602,32 @@ class UiBuilder {
         return tmp;
     }
     /**
-     * 
-     * @param {Object} options 
-     * @param {Function} options.next 
-     * @param {String} options.title 
-     * @param {String} options.title_cancel
-     * @param {String} options.title_confirm
+     * Builds a modal text-input dialog: full-viewport overlay, title, single text field (Enter
+     * triggers the confirm button), and a cancel/confirm button pair. Appends itself to
+     * `document.body` and removes itself on either button click.
+     *
+     * @param {Object} options
+     * @param {string} [options.title] - Text shown above the input.
+     * @param {string} [options.placeholder] - Input placeholder text.
+     * @param {Function} [options.next] - Called with the input's value when confirm is clicked.
+     * @param {Function} [options.onCancel] - Called when cancel is clicked.
+     * @param {string} [options.title_cancel] - Cancel button label.
+     * @param {string} [options.title_confirm] - Confirm button label.
+     * @returns {HTMLElement} The overlay container; has a `.focus()` method that focuses the input on the next tick.
      */
     static createSimpleTextInput(options) {
         const container = document.createElement('div');
-        Object.assign(container.style, {
-            display: 'flex',
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            fontFamily: `'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif`
-        });
+        container.classList.add('simple-text-input-overlay');
         const modalContainer = document.createElement('div');
-        Object.assign(modalContainer.style, {
-            backgroundColor: '#fff',
-            padding: '10px',
-            paddingBottom: '0',
-            paddingTop: '4px',
-            borderRadius: '4px',
-            maxWidth: '400px',
-            width: '100%',
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column'
-        });
+        modalContainer.classList.add('simple-text-input-modal');
         const title = document.createElement("div");
         title.innerText = options.title;
-        title.style.paddingBottom = '4px';
+        title.classList.add('simple-text-input-title');
         modalContainer.appendChild(title);
         const input = document.createElement('input');
         input.type = 'text';
         input.placeholder = options.placeholder ?? '';
+        input.classList.add('simple-text-input-field');
         input.addEventListener("keyup", (event) => {
             if (event.key == "Enter") {
                 setTimeout(() => {
@@ -522,18 +640,8 @@ class UiBuilder {
                 }, 0);
             }
         });
-        Object.assign(input.style, {
-            width: '100%',
-            padding: '4px',
-            marginBottom: '4px',
-            boxSizing: 'border-box',
-        });
         const buttonsContainer = document.createElement('div');
-        Object.assign(buttonsContainer.style, {
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '10px',
-        });
+        buttonsContainer.classList.add('simple-text-input-buttons');
         const cancelButton = UiBuilder.createButton({
             onClick: () => {
                 container.remove();
@@ -543,7 +651,7 @@ class UiBuilder {
             },
             title: options.title_cancel,
         });
-        cancelButton.style.minWidth = '80px';
+        cancelButton.classList.add('simple-text-input-btn');
         const confirmButton = UiBuilder.createButton({
             onClick: () => {
                 const value = input.value;
@@ -554,7 +662,7 @@ class UiBuilder {
             },
             title: options.title_confirm
         });
-        confirmButton.style.minWidth = '80px';
+        confirmButton.classList.add('simple-text-input-btn');
         buttonsContainer.appendChild(cancelButton);
         buttonsContainer.appendChild(confirmButton);
         modalContainer.appendChild(input);
@@ -589,12 +697,38 @@ class UiBuilder {
     static capitalize(val) {
         return String(val).charAt(0).toUpperCase() + String(val).slice(1);
     }
-    static createDropDownButtonSelector({ titles, next, onSelectionChange, label, direction_open = 'top', stealth = true, max_selections_height = '210px' }) {
+    /**
+     * Builds a custom dropdown selector (not a native `<select>`): a clickable "selected" label
+     * that toggles a floating options list, closing on an outside click. There is no destroy
+     * hook - the outside-click listener self-unregisters once `container` is no longer attached
+     * to the document, so it doesn't keep the closure (and subtree) alive forever.
+     *
+     * @param {Object} options
+     * @param {string[]} options.titles - Option labels, in display order; index lines up with `next` and `onSelectionChange`.
+     * @param {Array<Function>} [options.next] - Per-option click callback: `next[index]()`, called right after the displayed label updates and before `onSelectionChange`.
+     * @param {Function} [options.onSelectionChange] - Called with the selected option's index, after `next[index]` (if any) has run.
+     * @param {string} [options.label] - Prefix shown before the current title, both on initial render (paired with `titles[0]`) and after each pick.
+     * @param {'top'|'bottom'} [options.direction_open='top'] - Which side the options list opens toward; also drives the `dd-visible-{direction_open}` class toggled on open/close.
+     * @param {boolean} [options.stealth=true] - When false, adds `cddown-selected-not-stealth` for a more visible resting style on the selected label.
+     * @param {string} [options.max_selections_height='210px'] - CSS `max-height` for the options list before it scrolls.
+     * @param {string} [options.icon_code] - `Icons.create()` codepoint for an optional leading icon.
+     * @returns {HTMLElement} The dropdown container.
+     */
+    static createDropDownButtonSelector({ titles, next, onSelectionChange, label, direction_open = 'top', stealth = true, max_selections_height = '210px', icon_code = undefined, style = undefined }) {
         const container = document.createElement("div");
         container.className = "custom-dropdown-container";
-        const arrow_down = document.createElement("img");
-        Icons.setSrcIcon(arrow_down, "/keyboard_arrow_left.svg");
-        arrow_down.className = "cdc-arrow-open";
+        if (style) {
+            container.style = style;
+        }
+        if (icon_code) {
+            const leftIcon = Icons.create(icon_code);
+            leftIcon.classList.add("cdc-icon-left");
+            container.classList.add("has-left-icon");
+            container.appendChild(leftIcon);
+        }
+
+        const arrow_down = Icons.create('e313');
+        arrow_down.classList.add("cdc-arrow-open");
         container.appendChild(arrow_down);
 
         // if (label) {
@@ -699,27 +833,40 @@ class UiBuilder {
     *        Controls where the dropdown expands relative to the selected element.
     * @param {boolean} [options.stealth=true]
     *        If false, applies a visible style to the selected element.
-    * @param {string} [options.max_selections_height='210px']
+    * @param {string} [options.max_selections_height='215px']
     *        Maximum height of the dropdown list before scrolling.
+    * @param {boolean[]} [options.is_selected=[]]
+    *        Initial selected state per option, by index. Index `0` is always selected
+    *        regardless of this array.
+    * @param {string} [options.prefix_items_selected]
+    *        Text prepended to the "selected" summary (e.g. before the count or the single
+    *        selected title).
+    * @param {string} [options.suffix_items_selected]
+    *        Text appended after the count when more than one item is selected; defaults to
+    *        the localized "items selected".
+    * @param {string} [options.style]
+    *        Inline CSS applied directly to the container element.
     * @returns {HTMLDivElement}
     *        A DOM element containing the fully interactive dropdown component.
     */
-    static createDropDownMultipleSelections(
-        {
-            chained_selection = false,
-            default_title = 'select',
-            titles,
-            next,
-            onSelectionStatusChange,
-            direction_open = 'top',
-            stealth = true,
-            max_selections_height = '210px',
-            omit_rendering = false,
-            onConfirm = undefined
-        }
-    ) {
+    static createDropDownMultipleSelections({
+        chained_selection = false,
+        default_title = 'select',
+        titles,
+        next,
+        onSelectionStatusChange,
+        direction_open = 'top',
+        stealth = true,
+        max_selections_height = '215px',
+        is_selected = [],
+        prefix_items_selected,
+        suffix_items_selected,
+        style = undefined }) {
         const container = document.createElement("div");
         container.className = "custom-dropdown-container";
+        if (style) {
+            container.style = style;
+        }
         const arrow_down = document.createElement("img");
         Icons.setSrcIcon(arrow_down, "/keyboard_arrow_left.svg");
         arrow_down.className = "cdc-arrow-open";
@@ -742,13 +889,18 @@ class UiBuilder {
              * @type Array<Element>
              */
             checkboxes: [],
-            /**
-             * @type HTMLElemetn
-             */
-            btns_container: null,
+            updateUi: () => {
+                const count_selected = self_aware.is_selected.filter(Boolean).length;
+                if (count_selected > 1) {
+                    selected.textContent = `${prefix_items_selected ?? ''} ${count_selected} ${suffix_items_selected ?? window.Locale.TXT["items selected"]}`;
+                } else if (count_selected == 1) {
+                    const index_selected_one = self_aware.is_selected.indexOf(true);
+                    selected.textContent = `${prefix_items_selected ?? ''} ${(self_aware.titles[index_selected_one] ?? '').trim()}`;
+                } else {
+                    selected.textContent = `${default_title}`;
+                }
+            }
         }
-        const tmp_first = `${default_title ?? ''} ${titles[0]}`.trim();
-        selected.textContent = `${tmp_first}`;
         if (!stealth) {
             selected.classList.add("cddown-selected-not-stealth");
         }
@@ -759,9 +911,7 @@ class UiBuilder {
         optionsList.classList.add(direction_open);
         const toggle_all_option = document.createElement("div");
         toggle_all_option.className = "custom-dropdown-option";
-        setTimeout(() => {
-            toggle_all_option.textContent = "toggle all";
-        }, 0);
+        toggle_all_option.textContent = Locale.at("toggle all");
 
         toggle_all_option.addEventListener("click", () => {
             const override_status = self_aware.is_selected.indexOf(true) < 0;
@@ -775,44 +925,12 @@ class UiBuilder {
             if (typeof onSelectionStatusChange === "function") {
                 onSelectionStatusChange(self_aware);
             }
-            const count_selected = self_aware.is_selected.filter(Boolean).length;
-            if (count_selected >= 1) {
-                selected.textContent = `${count_selected} ${("items selected")}`;
-            } else {
-                selected.textContent = `${default_title}`;
-            }
+            self_aware.updateUi();
         });
-        if (onConfirm != undefined) {
-            // optionsList.style.top = "calc(100% + 35px)";
-            const btns_container = document.createElement("div");
-            btns_container.className = "cm-dn-buttons hidden";
-            const b = document.createElement("div");
-            toggle_all_option.className = "";
-            b.addEventListener("click", (event) => {
-                const count_selected = self_aware.is_selected.filter(Boolean).length;
-                if (count_selected >= 1) {
-                    onConfirm();
-                } else {
-                    new Notify({
-                        text: Locale.at("select a value first"),
-                        event: event,
-                        ms_timeout: 1500,
-                        style: 3,
-                        type: 1
-                    });
-                }
-            });
-            b.innerText = Locale.at("confirm");
-            btns_container.appendChild(toggle_all_option);
-            btns_container.appendChild(b);
-            self_aware.btns_container = btns_container;
-            dropdown.appendChild(btns_container);
-        } else {
-            optionsList.appendChild(toggle_all_option);
-        }
+        optionsList.appendChild(toggle_all_option);
         titles.forEach((title, index) => {
             const own_index = index;
-            const default_is_selected = own_index == 0;
+            const default_is_selected = own_index == 0 || is_selected[index] == true;
             self_aware.is_selected.push(default_is_selected);//first selected
             self_aware.titles.push(title);
 
@@ -830,22 +948,10 @@ class UiBuilder {
                 option.classList.toggle("dds-selected", default_is_selected);//first selected
             });
             option.addEventListener("click", () => {
-                const content_selected = (`${title}`.trim());
                 const new_status = !self_aware.is_selected[own_index];
                 checkbox.checked = new_status;
                 self_aware.is_selected[own_index] = new_status;
-                const count_selected = self_aware.is_selected.filter(Boolean).length;
-                if (count_selected > 1) {
-                    if (!omit_rendering) {
-                        selected.textContent = `${count_selected} ${("items selected")}`;
-                    }
-                } else if (count_selected == 1) {
-                    if (!omit_rendering) {
-                        selected.textContent = `${content_selected}`;
-                    }
-                } else {
-                    selected.textContent = `${default_title}`;
-                }
+                self_aware.updateUi();
                 //optionsList.classList.add("hidden");
                 if (new_status) {
                     requestAnimationFrame(() => {
@@ -869,14 +975,7 @@ class UiBuilder {
                                 self_aware.options[i].classList.toggle("dds-selected", new_status);
                                 self_aware.checkboxes[i].checked = new_status;
                             }
-                            const count_selected = self_aware.is_selected.filter(Boolean).length;
-                            if (count_selected >= 1) {
-                                if (!omit_rendering) {
-                                    selected.textContent = `${count_selected} ${("items selected")}`;
-                                }
-                            } else {
-                                selected.textContent = `${default_title}`;
-                            }
+                            self_aware.updateUi();
                         });
                     } else {
                         requestAnimationFrame(() => {
@@ -896,14 +995,7 @@ class UiBuilder {
                                 }
                                 last_true++;
                             }
-                            const count_selected = self_aware.is_selected.filter(Boolean).length;
-                            if (count_selected >= 1) {
-                                if (!omit_rendering) {
-                                    selected.textContent = `${count_selected} ${"items selected"}`;
-                                }
-                            } else {
-                                selected.textContent = `${default_title}`;
-                            }
+                            self_aware.updateUi();
                         });
                     }
                 }
@@ -916,17 +1008,15 @@ class UiBuilder {
 
             optionsList.appendChild(option);
         });
-
+        self_aware.updateUi();
         selected.addEventListener("click", () => {
             setTimeout(() => {
                 if (optionsList.classList.toggle("hidden")) {
                     selected.classList.toggle(`dd-visible-${direction_open}`, false);
-                    self_aware.btns_container?.classList.toggle("hidden", true);
                     // arrow_down.src = "/Images/Icone2024/ui_2024/keyboard_arrow_left.svg";
                     // arrow_down.style.rotate = "-90deg";
                 } else {
                     selected.classList.toggle(`dd-visible-${direction_open}`, true);
-                    self_aware.btns_container?.classList.toggle("hidden", false);
                     // arrow_down.src = "/Images/Icone2024/ui_2024/close_full_view.svg";
                     // arrow_down.style.rotate = "0deg";
                 }
@@ -938,17 +1028,9 @@ class UiBuilder {
         container.appendChild(dropdown);
 
         // Close dropdown if clicked outside
-        document.addEventListener("click", function onDocumentClick(e) {
-            if (!document.body.contains(container)) {
-                // container was discarded without ever being explicitly torn down
-                // (this builder has no destroy hook) - self-unregister so this
-                // closure doesn't keep listening (and keep the whole subtree alive) forever
-                document.removeEventListener("click", onDocumentClick);
-                return;
-            }
+        document.addEventListener("click", (e) => {
             if (!container.contains(e.target)) {
                 optionsList.classList.add("hidden");
-                self_aware.btns_container?.classList.add("hidden");
                 selected.classList.toggle(`dd-visible-${direction_open}`, false);
             }
         });
@@ -956,11 +1038,9 @@ class UiBuilder {
         if (typeof onSelectionStatusChange === "function") {
             setTimeout(() => {
                 onSelectionStatusChange(self_aware);
-                if (!omit_rendering) {
-                    requestAnimationFrame(() => {
-                        selected.textContent = `${default_title} ${selected.textContent}`;
-                    });
-                }
+                requestAnimationFrame(() => {
+                    selected.textContent = `${default_title} ${selected.textContent}`;
+                });
             }, 0);
         }
         return container;
@@ -1508,6 +1588,7 @@ class UiBuilder {
 
         // Create tabs header container
         const tabsHeader = document.createElement("div");
+        tabsHeader.className = 'tabs-header';
         tabsHeader.style.display = "flex";
         tabsHeader.style.borderBottom = "1px solid #aaa";
 
@@ -1576,12 +1657,17 @@ class UiBuilder {
     }
 
     /**
-     * @param {Element} [html_element_content]
+     * Creates a draggable floating container (appended to `document.body`) with a top bar
+     * holding a drag knob, a minimize toggle and a close button.
+     * Closed by the close button, Escape, or SpaHistory back navigation; double-clicking the
+     * top bar restores it when minimized. Overflow is re-checked on window resize.
+     * @param {Element} [html_element_content] content placed inside the container
      * @param {object} [options]
-     * @param {string} [options.direction]  'horizontal' | 'vertical'
-     * @param {Function} [options.onDestroy]
+     * @param {'horizontal' | 'vertical'} [options.direction='horizontal'] added as a css class
+     * @param {Function} [options.onDestroy] called after the container is closed and removed
      * @param {string} [options.id] used to store position between pages in localStorage; omit for no persistence
-     * @param {string} [options.style]
+     * @param {{left: string, top: string}} [options.start_location] css `left`/`top` (e.g. "100px") used when no position is saved yet; only applied when `options.id` is set
+     * @param {string} [options.style] inline css text assigned to the container
      * @returns {HTMLDivElement}
      */
     static createFloatingContainer(html_element_content, options = {}) {
@@ -1604,15 +1690,11 @@ class UiBuilder {
         knob_grip.className = "floating-container-knob-grip";
         knob.appendChild(knob_grip);
 
-        const minimizeBtn = document.createElement("div");
-        minimizeBtn.className = "floating-container-btn floating-container-minimize";
-        minimizeBtn.type = "button";
-        minimizeBtn.textContent = "−";
+        const minimizeBtn = Icons.create("e15b");
+        minimizeBtn.classList.add(..."floating-container-btn floating-container-minimize".split(" "));
 
-        const closeBtn = document.createElement("div");
-        closeBtn.className = "floating-container-btn floating-container-close";
-        closeBtn.type = "button";
-        closeBtn.textContent = "×";
+        const closeBtn = Icons.create("f508");
+        closeBtn.classList.add(..."floating-container-btn floating-container-close".split(" "));
 
         topBar.appendChild(knob);
         topBar.appendChild(minimizeBtn);
@@ -1653,6 +1735,7 @@ class UiBuilder {
                     JSON.stringify({ left: container.style.left, top: container.style.top })
                 );
             }
+            scheduleOverflowCheck();
         };
         const onTouchMove = (e) => {
             if (!isDragging) return;
@@ -1673,11 +1756,18 @@ class UiBuilder {
                     JSON.stringify({ left: container.style.left, top: container.style.top })
                 );
             }
+            scheduleOverflowCheck();
         };
         if (options?.id) {
             try {
                 const saved = JSON.parse(localStorage.getItem(`floating-container:${options.id}`));
-                if (saved?.left) container.style.left = saved.left;
+                if (saved?.left) { container.style.left = saved.left }
+                else {
+                    if (options.start_location != undefined && options.start_location.left != undefined && options.start_location.top) {
+                        container.style.left = options.start_location.left;
+                        container.style.top = options.start_location.top;
+                    }
+                }
                 if (saved?.top) container.style.top = saved.top;
             } catch (_) { }
         }
@@ -1714,14 +1804,14 @@ class UiBuilder {
         minimizeBtn.addEventListener("click", () => {
             isMinimized = !isMinimized;
             container.classList.toggle('is-minimized', isMinimized);
-            minimizeBtn.textContent = isMinimized ? "□" : "−";
+            if (isMinimized) { Icons.setSrcIcon(minimizeBtn, "e3c6") } else { Icons.setSrcIcon(minimizeBtn, "e15b"); }
         });
         topBar.addEventListener("click", (event) => {
             if (event.detail == 2) {
                 if (isMinimized) {
                     isMinimized = !isMinimized;
                     container.classList.toggle('is-minimized', isMinimized);
-                    minimizeBtn.textContent = isMinimized ? "□" : "−";
+                    if (isMinimized) { Icons.setSrcIcon(minimizeBtn, "e3c6") } else { Icons.setSrcIcon(minimizeBtn, "e15b"); }
                 }
             }
         });
@@ -1920,13 +2010,21 @@ class UiBuilder {
         }, 0);
     }
     /**
-     * @type {{element:HTMLDivElement,scroll_owner:(Element|Window),onScroll:Function,scrollToTop:Function}|null}
+     * Singleton state of the floating "scroll to top" button created by `createScrollToTop()`.
+     * - `element`: the button itself
+     * - `speedactions_instance`: hover popup attached to `element`, holding the "go to bottom" button
+     * - `scroll_owner`: what the `scroll` listener is attached to and what gets scrolled (`window` for whole-page scrolling, otherwise the target element)
+     * - `onScroll`: the current `scroll` listener (kept so it can be removed when retargeting)
+     * - `scrollToTop` / `scrollBottom`: smoothly scroll the current target to its top / bottom
+     * @type {{element:HTMLDivElement,speedactions_instance:SpeedActions,scroll_owner:(Element|Window),onScroll:Function,scrollToTop:Function,scrollBottom:Function}|null}
      */
     static #scroll_to_top = null;
     /**
      * Creates (once) a floating "scroll to top" button, fixed to the bottom-right of the
      * viewport and appended to `document.body`. It becomes visible only while `target`'s scroll
      * position is greater than 0, and scrolls `target` back to the top when clicked.
+     * Hovering it shows a `SpeedActions` popup with a "go to bottom" button; the popup auto-hides
+     * once `target` is scrolled all the way down.
      * Calling this again never creates a second button - it retargets the existing one to
      * `options.target`, re-checks its scroll position, and re-appends it to `document.body` so it
      * ends up as the last child (on top of anything appended to body afterwards).
@@ -1942,30 +2040,1065 @@ class UiBuilder {
         const target = options.target ?? document.body;
         const is_whole_page = target === document.body || target === document.documentElement;
         const scroll_owner = is_whole_page ? window : target;
+        // element that actually holds the scroll metrics (scrollTop/scrollHeight/clientHeight)
+        const scroll_el = is_whole_page ? document.scrollingElement : target;
         let instance = UiBuilder.#scroll_to_top;
         if (instance == null) {
             const element = UiBuilder.createButton({
                 icon_code: "e316",
                 class: "scroll-to-top-btn",
+                hint: Locale.at("back to top"),
                 onClick: () => {
                     UiBuilder.#scroll_to_top.scrollToTop();
+                    setTimeout(() => {
+                        if (UiBuilder.#scroll_to_top.speedactions_instance) {
+                            UiBuilder.#scroll_to_top.speedactions_instance.hide();
+                        }
+                    }, 0);
                 },
             });
-            instance = { element, scroll_owner: null, onScroll: null, scrollToTop: null };
+            instance = { element, speedactions_instance: null, scroll_owner: null, onScroll: null, scrollToTop: null, scrollBottom: null };
             UiBuilder.#scroll_to_top = instance;
+            instance.speedactions_instance = new SpeedActions({
+                target: element,
+                createButtons: {
+                    icon_code: "e313",
+                    // class: "scroll-to-top-btn",
+                    hint: Locale.at("go to bottom"),
+                    onClick: () => {
+                        UiBuilder.#scroll_to_top.scrollBottom();
+                    }, style: "margin:0;padding:8px;"
+                },
+                side: 'left',
+                non_relative: true,
+                unpinnable: true,
+                conditionsMet: () => {
+                    const scroll_top = scroll_el.scrollTop;
+                    const scrolled_to_bottom_at_max = scroll_top + scroll_el.clientHeight >= scroll_el.scrollHeight - 1;
+                    return !(scrolled_to_bottom_at_max);
+                }
+            });
         } else {
             instance.scroll_owner.removeEventListener("scroll", instance.onScroll);
         }
         instance.scroll_owner = scroll_owner;
         instance.scrollToTop = () => scroll_owner.scrollTo({ top: 0, behavior: "smooth" });
+        instance.scrollBottom = () => scroll_owner.scrollTo({ top: scroll_el.scrollHeight, behavior: "smooth" });
         instance.onScroll = () => {
-            const scroll_top = is_whole_page ? document.scrollingElement.scrollTop : target.scrollTop;
+            const scroll_top = scroll_el.scrollTop;
             instance.element.classList.toggle("visible", scroll_top > 0);
+            // 1px tolerance: scrollTop can be fractional on zoomed/high-DPI displays
+            const scrolled_to_bottom_at_max = scroll_top + scroll_el.clientHeight >= scroll_el.scrollHeight - 1;
+            if (scrolled_to_bottom_at_max) {
+                setTimeout(() => {
+                    if (UiBuilder.#scroll_to_top.speedactions_instance) {
+                        UiBuilder.#scroll_to_top.speedactions_instance.hide();
+                    }
+                }, 0);
+            }
         };
         scroll_owner.addEventListener("scroll", instance.onScroll);
         instance.onScroll();
         document.body.appendChild(instance.element);
         return instance.element;
+    }
+    /**
+     * A small status pill (e.g. a job/order status column, a count next to a nav item).
+     * @param {string} text
+     * @param {Object} [options]
+     * @param {"neutral"|"info"|"success"|"warning"|"danger"} [options.color="neutral"]
+     * @param {string} [options.hint] optional hover hint, wired via `addHint`
+     * @param {"top"|"left"|"right"|"bottom"} [options.anchor] hint anchor, used with `options.hint`
+     * @returns {HTMLSpanElement}
+     */
+    static createBadge(text, options = {}) {
+        const badge = document.createElement("span");
+        badge.className = `ui-badge ui-badge-${options.color ?? "neutral"}`;
+        badge.innerText = text;
+        if (options.hint != undefined) {
+            UiBuilder.addHint({ hint: options.hint, target: badge, anchor: options.anchor ?? "top" });
+        }
+        return badge;
+    }
+    /**
+     * A debounced search box - fires `options.onSearch(query)` `options.debounce_ms` after typing
+     * stops, instead of on every keystroke.
+     * @param {Object} options
+     * @param {(query: string) => void} options.onSearch
+     * @param {number} [options.debounce_ms=250]
+     * @param {string} [options.placeholder]
+     * @returns {HTMLInputElement}
+     */
+    static createSearchInput(options) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "ui-search-input";
+        input.placeholder = options.placeholder ?? Locale.at("cerca");
+        let debounce_timer_id = null;
+        input.addEventListener("input", () => {
+            if (debounce_timer_id != null) {
+                clearTimeout(debounce_timer_id);
+            }
+            debounce_timer_id = setTimeout(() => {
+                options.onSearch(input.value);
+            }, options.debounce_ms ?? 250);
+        });
+        return input;
+    }
+    /**
+     * A generic `<input>` built from a plain options object:
+     * - `on<event>` functions are wired via `addEventListener("<event>", ...)` (e.g. `oninput`, `onkeyup`)
+     * - `class` accepts a space-separated string or an array of class names
+     * - `value` is set as the live `.value` property (not the `value` attribute)
+     * - any other key is set as an attribute (e.g. `type`, `min`, `max`, `step`, `placeholder`, `id`);
+     *   `true` sets an empty boolean attribute, `false`/`null`/`undefined` are skipped
+     * - `type: "number"` hides the native spinner and returns a `div.ui-number-input` wrapper with
+     *   custom up/down arrows (they `stepUp`/`stepDown` and fire `input` + `change` on the input);
+     *   the wrapper exposes `.input` (the real `<input>`) and a forwarding `.value`
+     * @param {Object} [options]
+     * @param {string} [options.type="text"]
+     * @param {string|string[]} [options.class]
+     * @param {string|number} [options.value]
+     * @returns {HTMLInputElement | HTMLDivElement & { input: HTMLInputElement, value: string }}
+     */
+    static createInput(options = {}) {
+        const input = document.createElement("input");
+        input.type = "text";
+        for (const [key, val] of Object.entries(options)) {
+            if (val === undefined || val === null || val === false) { continue; }
+            if (key.startsWith("on") && typeof val === "function") {
+                input.addEventListener(key.slice(2).toLowerCase(), val);
+            } else if (key === "class") {
+                const classes = Array.isArray(val) ? val : `${val}`.split(/\s+/);
+                input.classList.add(...classes.filter(Boolean));
+            } else if (key === "value") {
+                input.value = `${val}`;
+            } else {
+                input.setAttribute(key, val === true ? "" : `${val}`);
+            }
+        }
+        input.addEventListener("dblclick", () => { input.value = '' });
+        if (input.type !== "number") { return input; }
+
+        // number inputs: the native spinner is hidden via CSS and replaced by two icon arrows,
+        // so the input is returned wrapped; `wrapper.input` is the real <input> and
+        // `wrapper.value` forwards to it
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("ui-number-input");
+        const arrows = document.createElement("div");
+        arrows.classList.add("ui-number-input-arrows");
+        const createArrow = (icon_code, step) => {
+            const arrow = Icons.create(icon_code);
+            arrow.classList.add("ui-number-input-arrow");
+            arrow.addEventListener("pointerdown", (event) => event.preventDefault()); // keep focus on the input
+            arrow.addEventListener("click", () => {
+                if (input.disabled || input.readOnly) { return; }
+                step > 0 ? input.stepUp() : input.stepDown();
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                input.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+            return arrow;
+        };
+        arrows.append(createArrow("e5c7", 1), createArrow("e5c5", -1));
+        wrapper.append(input, arrows);
+        wrapper.input = input;
+        Object.defineProperty(wrapper, "value", {
+            get: () => input.value,
+            set: (val) => { input.value = `${val}`; },
+        });
+        return wrapper;
+    }
+    /**
+     * A single "label + control" settings row (iOS/Android settings-list style).
+     * @param {Object} options
+     * @param {string} options.label
+     * @param {string} [options.description] smaller line shown under the label
+     * @param {Element} options.control typically a `createToggle`/`createButton`/`<input>` result
+     * @param {Function} [options.onClick] makes the whole row clickable, in addition to `control`
+     * @returns {HTMLDivElement}
+     */
+    static createSettingsRow(options) {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const text_container = document.createElement("div");
+        text_container.className = "settings-row-text";
+        const label = document.createElement("div");
+        label.className = "settings-row-label";
+        label.innerText = options.label;
+        text_container.appendChild(label);
+        if (options.description != undefined) {
+            const description = document.createElement("div");
+            description.className = "settings-row-description";
+            description.innerText = options.description;
+            text_container.appendChild(description);
+        }
+        row.appendChild(text_container);
+        const control_container = document.createElement("div");
+        control_container.className = "settings-row-control";
+        control_container.appendChild(options.control);
+        row.appendChild(control_container);
+        if (options.onClick != undefined) {
+            row.classList.add("settings-row-clickable");
+            row.addEventListener("click", options.onClick);
+        }
+        return row;
+    }
+    /**
+     * Groups `createSettingsRow` results under an optional title.
+     * @param {Object} options
+     * @param {string} [options.title]
+     * @param {Element[]} options.rows typically `createSettingsRow(...)` results
+     * @returns {HTMLDivElement}
+     */
+    static createSettingsGroup(options) {
+        const group = document.createElement("div");
+        group.className = "settings-group";
+        if (options.title != undefined) {
+            const title = document.createElement("div");
+            title.className = "settings-group-title";
+            title.innerText = options.title;
+            group.appendChild(title);
+        }
+        const list = document.createElement("div");
+        list.className = "settings-group-list";
+        options.rows.forEach(row => list.appendChild(row));
+        group.appendChild(list);
+        return group;
+    }
+    /**
+     * Like `createButton`, but `options.onClick` may return a Promise: the button auto-disables
+     * (shows a spinner via the `ui-loading` class) while it's pending, and shows an error `Notify`
+     * toast if it rejects - removing the repetitive "disable -> await Lobby.post -> re-enable,
+     * catch errors" boilerplate that shows up around most server-round-trip buttons.
+     * @param {Object} options same as `createButton`, plus:
+     * @param {(event: MouseEvent) => Promise<any>} options.onClick
+     * @param {string} [options.error_text] overrides the default error toast text
+     * @returns {HTMLDivElement}
+     */
+    static createAsyncButton(options) {
+        const { onClick, error_text, ...button_options } = options;
+        const button = UiBuilder.createButton({
+            ...button_options,
+            onClick: async (event) => {
+                if (button.classList.contains("ui-loading")) {
+                    return;
+                }
+                button.classList.add("ui-loading");
+                try {
+                    await onClick(event);
+                } catch (error) {
+                    console.error(error);
+                    new Notify({
+                        text: error_text ?? Locale.at("something went wrong"),
+                        event: event,
+                        type: "error",
+                    });
+                } finally {
+                    button.classList.remove("ui-loading");
+                }
+            },
+        });
+        return button;
+    }
+    /**
+    * 
+    * @param {Object} options
+    * @param {string} [options.id] assigned as the chart container's element id; also used as the
+    *   localStorage key to remember the regression trend's on/off state and blend amount across
+    *   chart re-creations (e.g. page reloads) - omit for no persistence
+    * @param {string} [options.title]
+    * @param {string} [options.title_volume]
+    * @param {string} [options.title_linear]
+    * @param {'linear'|'dotted'|'dots'} [options.type] linear|dotted|dots
+    * @param {number} [options.width=600] CSS px; widen it for long series (e.g. a year of days), so
+    *   points, bars and their hover targets don't shrink to a pixel each
+    * @param {number} [options.height=400] CSS px
+    * @param {Object} options.data
+    * @param {Array<number>} options.data.linear
+    * @param {Array<number>} options.data.volume
+    * @param {Array<Date>} options.data.axys_x
+    */
+    static createChart(options) {
+        if (options.data.linear.length == 0 && options.data.volume.length == 0) {
+            return new EmptyState({
+                icon_code: "f804",
+                title: Locale.at("No Data"),
+                // action_text: Locale.at("retry"),
+                // onAction: () => run(),
+            }).elementReference();
+        }
+        const container = document.createElement("div");
+        container.className = "uib-chart";
+        if (options.id) {
+            container.id = options.id;
+        }
+        // Validate input
+        const { volume, linear, axys_x } = options.data;
+
+        // Theme colors: canvas drawing can't inherit CSS, so pull the vars_vscode_dark.css
+        // custom properties directly - fillStyle/strokeStyle accept any CSS color string
+        const root_style = getComputedStyle(document.documentElement);
+        const theme_var = (name, fallback) => root_style.getPropertyValue(name)?.trim() || fallback;
+        const color_line = theme_var("--vscode-chart-line", "#0077cc");
+        const color_axis = theme_var("--vscode-chart-axis", "#000");
+        const color_guide = theme_var("--vscode-chart-guide", "rgba(0, 0, 0, 0.2)");
+        const color_text = theme_var("--vscode-charts-foreground", "#000");
+        const color_volume = theme_var("--vscode-charts-green", "#66cc66");
+        const color_trend = theme_var("--vscode-charts-purple", "#b180d7");
+        const font_family = theme_var("--vscode-font-family", "Arial, sans-serif");
+
+        if (axys_x !== undefined) {
+            const refLength = volume.length ?? linear.length;
+            if (axys_x.length !== refLength) {
+                throw new Error("Data Mismatch: axys_x length does not match other data arrays");
+            }
+        }
+
+        const canvas = document.createElement("canvas");
+        container.appendChild(canvas);
+        const ctx = canvas.getContext("2d");
+
+        // everything below draws and positions overlays in CSS px (`width`/`height`); the backing
+        // store is scaled by devicePixelRatio so the canvas stays sharp on high-DPI screens
+        const width = options.width ?? 600;
+        const height = options.height ?? 400;
+        const pixel_ratio = window.devicePixelRatio || 1;
+        canvas.width = Math.round(width * pixel_ratio);
+        canvas.height = Math.round(height * pixel_ratio);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.scale(pixel_ratio, pixel_ratio);
+
+        const padding = 50;
+        const chartHeight = height - padding * 2;
+        const chartWidth = width - padding * 2;
+        const pointCount = volume?.length ?? linear?.length;
+        const xLabels = axys_x ?? Array.from({ length: pointCount }, (_, i) => i);
+
+        const getMax = arr => Math.max(...arr);
+        const getMin = arr => Math.min(...arr);
+
+        // Determine combined max for scaling - recomputed on each render() from whichever
+        // dataset(s) are currently toggled on, so hiding one rescales the other to fill the chart
+        const maxLinear = linear ? getMax(linear) : 0;
+        const maxVolume = volume ? getMax(volume) : 0;
+        let overallMax = Math.max(maxLinear, maxVolume, 1); // prevent division by zero
+
+        // Scale functions
+        const scaleX = i => padding + (i / (pointCount - 1)) * chartWidth;
+        const scaleY = val => height - padding - (val / overallMax) * chartHeight;
+
+        // Geometry for the click-to-label toggle below: candidate placements around a point,
+        // tried in this order until one's (rotated) bounding box clears both adjacent line
+        // segments, so the label doesn't get drawn on top of the line it's describing
+        const label_angle = -30 * Math.PI / 180;
+        const label_directions = [
+            { dx: 0, dy: -1 }, // top
+            { dx: 0, dy: 1 }, // bottom
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 }, // right
+            { dx: Math.SQRT1_2, dy: -Math.SQRT1_2 }, // top-right
+            { dx: Math.SQRT1_2, dy: Math.SQRT1_2 }, // bottom-right
+            { dx: -Math.SQRT1_2, dy: -Math.SQRT1_2 }, // top-left
+            { dx: -Math.SQRT1_2, dy: Math.SQRT1_2 }, // bottom-left
+        ];
+        const segments_intersect = (p1, p2, p3, p4) => {
+            const ccw = (a, b, c) => (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
+            return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+        };
+        const point_in_rect = (point, corners) => {
+            let sign = null;
+            for (let k = 0; k < corners.length; k++) {
+                const a = corners[k];
+                const b = corners[(k + 1) % corners.length];
+                const side = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x) > 0;
+                if (sign === null) sign = side;
+                else if (sign !== side) return false;
+            }
+            return true;
+        };
+        const rect_intersects_segment = (corners, p1, p2) => {
+            for (let k = 0; k < corners.length; k++) {
+                if (segments_intersect(corners[k], corners[(k + 1) % corners.length], p1, p2)) return true;
+            }
+            return point_in_rect(p1, corners) || point_in_rect(p2, corners);
+        };
+        const rotated_label_corners = (anchor_x, anchor_y, half_w, half_h) => {
+            const cos_a = Math.cos(label_angle), sin_a = Math.sin(label_angle);
+            return [
+                { x: -half_w, y: -half_h },
+                { x: half_w, y: -half_h },
+                { x: half_w, y: half_h },
+                { x: -half_w, y: half_h },
+            ].map(({ x, y }) => ({
+                x: anchor_x + x * cos_a - y * sin_a,
+                y: anchor_y + x * sin_a + y * cos_a,
+            }));
+        };
+
+        const offstet = 0;
+        const barWidth = volume ? Math.min((chartWidth / pointCount) * 0.7, 30) : 0; // 70% width for bars
+
+        // legend geometry - computed once since the labels/font are static; reused both by
+        // render() below and by the click-to-toggle overlays created after it
+        const legend_baseline_y = padding - 25;
+        const legend_margin = 15;
+        const legend_gap_after_swatch = 5;
+        const legend_gap_between_groups = 15;
+        const legend_swatch_size = 15;
+
+        ctx.font = `bold 12px ${font_family}`;
+        const volume_label = options.title_volume ?? "volume";
+        const line_label = options.title_linear ?? "value";
+        const volume_label_width = ctx.measureText(volume_label).width;
+        const line_label_width = ctx.measureText(line_label).width;
+
+        const line_label_x = width - legend_margin - line_label_width;
+        const line_swatch_end_x = line_label_x - legend_gap_after_swatch;
+        const line_swatch_start_x = line_swatch_end_x - legend_swatch_size;
+        const volume_label_x = line_swatch_start_x - legend_gap_between_groups - volume_label_width;
+        const volume_swatch_end_x = volume_label_x - legend_gap_after_swatch;
+        const volume_swatch_start_x = volume_swatch_end_x - legend_swatch_size;
+
+        // toggled by clicking the legend swatches below
+        let show_linear = true;
+        let show_volume = true;
+
+        // Trend on/off + blend amount, remembered across chart re-creations via localStorage
+        // when options.id is provided (see options.id doc above)
+        const trend_storage_key = options.id ? `chart-trend:${options.id}` : null;
+        let saved_trend_state = null;
+        if (trend_storage_key) {
+            try {
+                saved_trend_state = JSON.parse(localStorage.getItem(trend_storage_key));
+            } catch (e) {
+                console.warn(`Failed to load chart trend state from localStorage: ${e.message}`);
+            }
+        }
+        const save_trend_state = () => {
+            if (!trend_storage_key) return;
+            try {
+                localStorage.setItem(trend_storage_key, JSON.stringify({ show_trend, regression_blend }));
+            } catch (e) {
+                console.warn(`Failed to save chart trend state to localStorage: ${e.message}`);
+            }
+        };
+
+        // toggled by the footer toggle below
+        let show_trend = saved_trend_state?.show_trend ?? false;
+        // 0 (pure linear trend) - 1 (pure LOWESS curve), driven by the footer slider below
+        let regression_blend = saved_trend_state?.regression_blend ?? 0;
+
+        // Same algorithm as ChartBase.blendedRegressionLine (components/GeneralChart/lib), but
+        // duplicated locally rather than called directly: JSProvider.cs's per-page bundler only
+        // pulls a component's JS in when the *page's own* script mentions that component by name,
+        // so a page that calls UiBuilder.createChart() without also using GeneralChart would never
+        // get ChartBase bundled in, throwing "ChartBase is not defined" at runtime.
+        const linear_regression_line = (data) => {
+            const known_points = data
+                .map((value, index) => (value == null ? null : [index, value]))
+                .filter((point) => point != null);
+            if (known_points.length < 2) {
+                return data.map(() => null);
+            }
+            const n = known_points.length;
+            const sum_x = known_points.reduce((sum, [x]) => sum + x, 0);
+            const sum_y = known_points.reduce((sum, [, y]) => sum + y, 0);
+            const sum_xy = known_points.reduce((sum, [x, y]) => sum + x * y, 0);
+            const sum_xx = known_points.reduce((sum, [x]) => sum + x * x, 0);
+            const denominator = n * sum_xx - sum_x * sum_x;
+            const slope = denominator === 0 ? 0 : (n * sum_xy - sum_x * sum_y) / denominator;
+            const intercept = (sum_y - slope * sum_x) / n;
+            return data.map((value, index) => (value == null ? null : slope * index + intercept));
+        };
+        const lowess_regression_line = (data, bandwidth = 0.3) => {
+            const known_points = data
+                .map((value, index) => (value == null ? null : [index, value]))
+                .filter((point) => point != null);
+            const result = data.map(() => null);
+            if (known_points.length < 2) {
+                return result;
+            }
+            const n = known_points.length;
+            const window_size = Math.min(n, Math.max(2, Math.round(bandwidth * n)));
+            known_points.forEach(([x0]) => {
+                const distances = known_points.map(([x]) => Math.abs(x - x0));
+                const max_distance = [...distances].sort((a, b) => a - b)[window_size - 1] || 1e-9;
+                let sum_w = 0, sum_wx = 0, sum_wy = 0, sum_wxy = 0, sum_wxx = 0;
+                known_points.forEach(([x, y], index) => {
+                    const u = distances[index] / max_distance;
+                    const weight = u >= 1 ? 0 : Math.pow(1 - Math.pow(u, 3), 3); // tricube kernel
+                    sum_w += weight;
+                    sum_wx += weight * x;
+                    sum_wy += weight * y;
+                    sum_wxy += weight * x * y;
+                    sum_wxx += weight * x * x;
+                });
+                const denominator = sum_w * sum_wxx - sum_wx * sum_wx;
+                if (denominator === 0) {
+                    result[x0] = sum_wy / sum_w;
+                    return;
+                }
+                const slope = (sum_w * sum_wxy - sum_wx * sum_wy) / denominator;
+                const intercept = (sum_wy - slope * sum_wx) / sum_w;
+                result[x0] = slope * x0 + intercept;
+            });
+            return result;
+        };
+        const blended_regression_line = (data, blend) => {
+            const linear_line = linear_regression_line(data);
+            if (blend <= 0) return linear_line;
+            const lowess_line = lowess_regression_line(data);
+            if (blend >= 1) return lowess_line;
+            return linear_line.map((linear_value, index) => {
+                const lowess_value = lowess_line[index];
+                return linear_value == null || lowess_value == null
+                    ? null
+                    : linear_value * (1 - blend) + lowess_value * blend;
+            });
+        };
+
+        function render() {
+            overallMax = Math.max(show_linear ? maxLinear : 0, show_volume ? maxVolume : 0, 1);
+
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.strokeStyle = color_axis;
+            ctx.lineWidth = 1;
+
+            // Y-axis gridlines + value labels - shown whenever *any* dataset is visible, scaled
+            // to overallMax (which already reflects whichever one that is), not tied to `linear`
+            // specifically - otherwise toggling the line off would take the axis with it
+            if ((linear && show_linear) || (volume && show_volume)) {
+                // Draw dashed horizontal lines at a "nice" step (1/2/5 x10^n) sized off the data's
+                // own range, so sparse gridlines don't disappear when overallMax < 100 and dense
+                // ones don't clutter the chart when overallMax is in the thousands
+                const target_line_count = 10;
+                const rough_step = overallMax / target_line_count;
+                const step_magnitude = Math.pow(10, Math.floor(Math.log10(rough_step)));
+                const step_normalized = rough_step / step_magnitude;
+                const nice_step_normalized = step_normalized <= 1 ? 1 : step_normalized <= 2 ? 2 : step_normalized <= 5 ? 5 : 10;
+                const step = nice_step_normalized * step_magnitude;
+                const numberOfLines = Math.floor(overallMax / step);
+
+                ctx.strokeStyle = color_guide;
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]); // dashed pattern
+
+                for (let i = 1; i <= numberOfLines; i++) {
+                    const yVal = i * step;
+                    const yPos = scaleY(yVal);
+
+                    // Draw dashed line
+                    ctx.beginPath();
+                    ctx.moveTo(padding - offstet, yPos);
+                    ctx.lineTo(width - padding + offstet, yPos);
+                    ctx.stroke();
+
+                    // Draw label on the left side
+                    ctx.font = `10px ${font_family}`;
+                    ctx.fillStyle = color_text;
+                    ctx.setLineDash([]); // reset dash for text
+
+                    const labelText = `${yVal.toString()}` + (show_linear ? ' €' : ' ');
+                    const textWidth = ctx.measureText(labelText).width;
+
+                    ctx.fillText(
+                        labelText,
+                        padding - textWidth - 15 - offstet, // slightly left of y-axis
+                        yPos + 3 // slight vertical adjustment
+                    );
+
+                    // Reset dash pattern for next line
+                    ctx.setLineDash([5, 5]);
+                }
+
+                // Reset dash style after drawing
+                ctx.setLineDash([]);
+            }
+            if (volume) {
+                // Bars drawn before the linear/line series below, so the line renders on top of
+                // the bars instead of being painted over by them.
+
+                // X-axis date labels always drawn (they describe the shared x axis, not the bars
+                // themselves) - only the bars are gated on show_volume
+
+                // With many points the per-point spacing can be narrower than a label, so labels
+                // start overlapping - thin them out to roughly one per `label_stride` points based
+                // on how wide a day-number label actually is versus the space each point gets
+                ctx.font = `10px ${font_family}`;
+                const sample_label_width = ctx.measureText("22").width; // representative 2-digit day
+                const min_label_gap = 4;
+                const point_spacing = chartWidth / pointCount;
+                const label_stride = Math.max(1, Math.ceil((sample_label_width + min_label_gap) / point_spacing));
+
+                volume.forEach((vol, i) => {
+                    const x = scaleX(i);
+
+                    if (show_volume) {
+                        const y = scaleY(vol);
+                        const heightBar = height - padding - y; // height of the bar
+                        ctx.fillStyle = color_volume;
+                        ctx.fillRect(
+                            x - barWidth / 2,
+                            y,
+                            barWidth,
+                            heightBar
+                        );
+                    }
+
+                    // Skip this label if it falls between strides, unless it's the last point
+                    // (so the label row never trails off with an empty gap at the end)
+                    if (i % label_stride !== 0 && i !== pointCount - 1) return;
+
+                    // Prepare label for x-axis (either from axys_x or index)
+                    const label = `${xLabels[i].getDate()}`;
+
+                    const date = xLabels[i]; // assuming xLabels contains Date objects
+                    if (date instanceof Date && date.getDay() === 0) { // getDay() === 0 for Sunday
+                        ctx.font = `bold 12px ${font_family}`; // bold font for Sundays
+                    } else {
+                        ctx.font = `10px ${font_family}`;
+                    }
+                    ctx.fillStyle = color_text;
+
+                    // Measure text width to center it
+                    const textWidth = ctx.measureText(label).width;
+
+                    // Draw label centered under the bar
+                    ctx.fillText(
+                        label,
+                        (x - textWidth / 2),
+                        height - padding + 12 // position below x-axis line
+                    );
+                });
+
+                ctx.fillStyle = color_text;
+                ctx.font = `10px ${font_family}`;
+                const format_month_year = date => `${date.getMonth() + 1}/${date.getFullYear()}`;
+
+                // One "M/YYYY" label per month, placed under that month's first data point
+                // (the very first point always counts, even mid-month, so the chart never opens
+                // without a month label)
+                xLabels.forEach((date, i) => {
+                    if (!(date instanceof Date)) return;
+                    if (i !== 0 && date.getDate() !== 1) return;
+
+                    const label_month_year = format_month_year(date);
+                    const textWidth = ctx.measureText(label_month_year).width;
+
+                    ctx.fillText(
+                        label_month_year,
+                        (scaleX(i)) - offstet + 3,
+                        height - padding + 25 // position below x-axis line
+                    );
+                });
+            }
+            if (linear && show_linear) {
+                ctx.beginPath();
+                ctx.strokeStyle = color_line;
+
+                ctx.lineWidth = 1;
+                if (options.type === "linear" || !options.type) {
+                    // Default linear line
+                    ctx.beginPath();
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                } else if (options.type === "dotted") {
+                    // Dotted line + bigger dots
+                    ctx.beginPath();
+                    ctx.setLineDash([6, 6]); // dashed pattern
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]); // reset
+
+                    // Draw bigger dots at each coordinate
+                    ctx.fillStyle = color_line;
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, 2 * Math.PI); // radius 4px
+                        ctx.fill();
+                    });
+                } else if (options.type === "dots") {
+                    // Only dots, no connecting lines
+                    ctx.fillStyle = color_line;
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 3, 0, 2 * Math.PI); // radius 3px
+                        ctx.fill();
+                    });
+                }
+                ctx.stroke();
+
+                // Blended linear-regression/LOWESS trend overlay, controlled by the footer slider
+                // and footer checkbox
+                if (show_trend) {
+                    const regression_values = blended_regression_line(linear, regression_blend);
+                    ctx.beginPath();
+                    ctx.strokeStyle = color_trend;
+                    ctx.lineWidth = 2;
+                    let trend_started = false;
+                    regression_values.forEach((val, i) => {
+                        if (val == null) return;
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (!trend_started) {
+                            ctx.moveTo(x, y);
+                            trend_started = true;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    });
+                    ctx.stroke();
+                    ctx.lineWidth = 1;
+                }
+            }
+
+            //draw title chart
+            ctx.fillStyle = color_text;
+            ctx.font = `bold 16px ${font_family}`;
+            const titolo_chart = options.title ?? "chart";
+            ctx.fillText(
+                titolo_chart,
+                15,
+                padding - 25// position below x-axis line
+            );
+
+            // legend, right-aligned on the same horizontal line as the title - dimmed when its
+            // dataset is toggled off
+            ctx.font = `bold 12px ${font_family}`;
+
+            //legend volume
+            ctx.globalAlpha = show_volume ? 1 : 0.35;
+            ctx.fillStyle = color_volume;
+            ctx.fillRect(
+                volume_swatch_start_x,
+                legend_baseline_y - 11,
+                legend_swatch_size,
+                legend_swatch_size
+            );
+            ctx.fillStyle = color_text;
+            ctx.fillText(volume_label, volume_label_x, legend_baseline_y);
+            ctx.globalAlpha = 1;
+
+            //legend line
+            ctx.globalAlpha = show_linear ? 1 : 0.35;
+            ctx.strokeStyle = color_line;
+            ctx.beginPath();
+            ctx.moveTo(line_swatch_start_x, legend_baseline_y - 4);
+            ctx.lineTo(line_swatch_end_x, legend_baseline_y - 4);
+            ctx.stroke();
+            ctx.fillStyle = color_text;
+            ctx.fillText(line_label, line_label_x, legend_baseline_y);
+            ctx.globalAlpha = 1;
+
+            ctx.strokeStyle = color_axis;
+            ctx.lineWidth = 1;
+
+            // // Y-axis
+            // ctx.beginPath();
+            // ctx.moveTo(padding - offstet, padding);
+            // ctx.lineTo(padding - offstet, height - padding);
+            // ctx.stroke();
+
+            // // X-axis
+            // ctx.beginPath();
+            // ctx.moveTo(padding - offstet, height - padding);
+            // ctx.lineTo(width - padding + offstet, height - padding);
+            // ctx.stroke();
+        }
+        render();
+
+        // per-index value-label visibility, so a double-click can show/hide every label at once
+        // instead of only the one under the cursor. Labels are redrawn from scratch on every
+        // change (full render() + replay the visible set) rather than patched in place with
+        // getImageData/putImageData - with points this close together, neighboring labels'
+        // bounding boxes can overlap, and restoring one's "before" pixels then leaves residue
+        // from (or erases part of) whichever label was drawn over that same area afterwards
+        const visible_labels = new Set();
+        let all_labels_shown = false;
+
+        // every label shares the same rotation, so un-rotating a candidate anchor by -label_angle
+        // turns its bounding box into an axis-aligned rect in that "label space" - two labels'
+        // boxes then overlap in real space iff their label-space AABBs overlap, which is far
+        // simpler than a general rotated-rect intersection test
+        const to_label_space = (x, y) => {
+            const cos_a = Math.cos(-label_angle), sin_a = Math.sin(-label_angle);
+            return { x: x * cos_a - y * sin_a, y: x * sin_a + y * cos_a };
+        };
+        const rects_overlap = (a, b) => !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
+
+        const compute_label_placement = (i, placed_rects) => {
+            const point_x = scaleX(i);
+            const point_y = scaleY(linear[i]);
+            const prev_point = i > 0 ? { x: scaleX(i - 1), y: scaleY(linear[i - 1]) } : null;
+            const next_point = i < linear.length - 1 ? { x: scaleX(i + 1), y: scaleY(linear[i + 1]) } : null;
+
+            const text_value = `${linear[i]}`;
+            ctx.font = `10px ${font_family}`;
+            const half_w = ctx.measureText(text_value).width / 2 + 4;
+            const half_h = 10; // ~half line height + padding
+            const gap = 16; // distance from the point to the label's center
+
+            const rect_at = (anchor_x, anchor_y) => {
+                const center = to_label_space(anchor_x, anchor_y);
+                return { min_x: center.x - half_w, max_x: center.x + half_w, min_y: center.y - half_h, max_y: center.y + half_h };
+            };
+
+            for (const direction of label_directions) {
+                const anchor_x = point_x + direction.dx * gap;
+                const anchor_y = point_y + direction.dy * gap;
+                const corners = rotated_label_corners(anchor_x, anchor_y, half_w, half_h);
+                const rect = rect_at(anchor_x, anchor_y);
+                const blocked =
+                    (prev_point && rect_intersects_segment(corners, prev_point, { x: point_x, y: point_y })) ||
+                    (next_point && rect_intersects_segment(corners, { x: point_x, y: point_y }, next_point)) ||
+                    placed_rects.some(other => rects_overlap(rect, other));
+                if (!blocked) return { anchor_x, anchor_y, text_value, rect };
+            }
+            // every position collides (e.g. a steep V around this point, or other visible labels
+            // crowding all 8 spots) - fall back to top
+            const anchor_x = point_x + label_directions[0].dx * gap;
+            const anchor_y = point_y + label_directions[0].dy * gap;
+            return { anchor_x, anchor_y, text_value, rect: rect_at(anchor_x, anchor_y) };
+        };
+        const draw_label = (i, placed_rects) => {
+            const placement = compute_label_placement(i, placed_rects);
+            placed_rects.push(placement.rect);
+            ctx.save();
+            ctx.font = `10px ${font_family}`;
+            ctx.translate(placement.anchor_x, placement.anchor_y);
+            ctx.rotate(label_angle);
+            ctx.fillStyle = color_text;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(placement.text_value, 0, 0);
+            ctx.restore();
+        };
+        const redraw_labels = () => {
+            render();
+            // placed in Set insertion order, so a label's spot never moves just because a later
+            // one was added - only later labels adjust to dodge the earlier, already-fixed ones
+            const placed_rects = [];
+            visible_labels.forEach(i => draw_label(i, placed_rects));
+        };
+        const show_label = (i) => {
+            if (!linear || visible_labels.has(i)) return;
+            visible_labels.add(i);
+            redraw_labels();
+        };
+        const hide_label = (i) => {
+            if (!visible_labels.has(i)) return;
+            visible_labels.delete(i);
+            redraw_labels();
+        };
+        const toggle_all_labels = () => {
+            all_labels_shown = !all_labels_shown;
+            visible_labels.clear();
+            if (all_labels_shown) {
+                for (let i = 0; i < pointCount; i++) visible_labels.add(i);
+            }
+            redraw_labels();
+        };
+
+        // one-time hint/click overlays for each bar's index - kept outside render() so toggling
+        // a legend item doesn't tear down and recreate these listeners on every click
+        if (volume) {
+            volume.forEach((vol, i) => {
+                const x = scaleX(i);
+                const date = xLabels[i]; // assuming xLabels contains Date objects
+
+                // Create invisible overlay div for hint
+                const invisible_drawn_bar = document.createElement("div");
+                invisible_drawn_bar.className = "uib-chart-overlay";
+                invisible_drawn_bar.style.left = `${canvas.offsetLeft + (x - barWidth / 2) + offstet}px`;
+                invisible_drawn_bar.style.top = `${canvas.offsetTop + 40}px`;
+                invisible_drawn_bar.style.width = `${barWidth}px`;
+                invisible_drawn_bar.style.height = `${height - 70}px`;
+                container.appendChild(invisible_drawn_bar);
+                if (linear) {
+                    // click toggles just this point's value label; double-click toggles every
+                    // point's label at once (the two clicks that make up the dblclick also fire
+                    // as clicks first, so this point briefly flips on/off before "toggle all" runs)
+                    invisible_drawn_bar.addEventListener("click", () => {
+                        visible_labels.has(i) ? hide_label(i) : show_label(i);
+                    });
+                    invisible_drawn_bar.addEventListener("dblclick", () => toggle_all_labels());
+                }
+                if (date instanceof Date) {
+                    const the_hint = `${Locale.parseDateConvertToReadable(date)}\n${options.title_linear} ${linear[i]}\n${options.title_volume} ${vol}`;
+                    UiBuilder.addHint({
+                        hint: the_hint,
+                        target: invisible_drawn_bar,
+                        anchor: "right",
+                    });
+                }
+            });
+        }
+
+        // legend click overlays - toggle the corresponding dataset's visibility and re-render
+        const make_legend_toggle = (start_x, end_x, top_y, bottom_y, toggle) => {
+            const overlay = document.createElement("div");
+            overlay.className = "uib-chart-overlay uib-chart-legend-toggle";
+            overlay.style.left = `${canvas.offsetLeft + start_x}px`;
+            overlay.style.top = `${canvas.offsetTop + top_y}px`;
+            overlay.style.width = `${end_x - start_x}px`;
+            overlay.style.height = `${bottom_y - top_y}px`;
+            overlay.addEventListener("click", () => {
+                toggle();
+                redraw_labels(); // repaints via render() and replays any still-visible value labels
+            });
+            container.appendChild(overlay);
+        };
+        if (volume) {
+            make_legend_toggle(
+                volume_swatch_start_x, volume_label_x + volume_label_width,
+                legend_baseline_y - 11, legend_baseline_y + 8,
+                () => { show_volume = !show_volume; }
+            );
+        }
+        if (linear) {
+            make_legend_toggle(
+                line_swatch_start_x, line_label_x + line_label_width,
+                legend_baseline_y - 11, legend_baseline_y + 8,
+                () => { show_linear = !show_linear; }
+            );
+        }
+
+        // footer: slider blending the trend overlay from a straight linear-regression line to a
+        // full LOWESS curve, per ChartBase.blendedRegressionLine
+        if (linear) {
+            const footer = document.createElement("div");
+            footer.className = "uib-chart-footer";
+
+            const trend_toggle_options = {
+                label: Locale.at("Regression"),
+                innerText: { on: "on", off: "off" },
+                isOn: show_trend,
+                theme: "mini",
+                onClick: () => {
+                    show_trend = !show_trend;
+                    trend_toggle_options.setIsOn(show_trend);
+                    update_trend_controls_enabled();
+                    save_trend_state();
+                    redraw_labels(); // repaints via render() and replays any still-visible value labels
+                },
+            };
+            footer.appendChild(UiBuilder.createToggle(trend_toggle_options));
+
+            const blend_slider = document.createElement("input");
+            blend_slider.type = "range";
+            blend_slider.min = "0";
+            blend_slider.max = "1";
+            blend_slider.step = "0.01";
+            blend_slider.value = `${regression_blend}`;
+            blend_slider.className = "uib-chart-blend-slider";
+            footer.appendChild(blend_slider);
+
+            const blend_readout = document.createElement("span");
+            blend_readout.className = "uib-chart-blend-readout";
+            const update_blend_readout = () => {
+                blend_readout.innerText = regression_blend <= 0
+                    ? Locale.at("Linear")
+                    : regression_blend >= 1
+                        ? Locale.at("LOWESS")
+                        : `${Math.round(regression_blend * 100)}% ${Locale.at("LOWESS")}`;
+            };
+            update_blend_readout();
+            footer.appendChild(blend_readout);
+
+            const update_trend_controls_enabled = () => {
+                blend_slider.disabled = !show_trend;
+                blend_readout.classList.toggle("is-disabled", !show_trend);
+            };
+            update_trend_controls_enabled();
+
+            blend_slider.addEventListener("input", () => {
+                regression_blend = parseFloat(blend_slider.value);
+                update_blend_readout();
+                save_trend_state();
+                redraw_labels(); // repaints via render() and replays any still-visible value labels
+            });
+
+            container.appendChild(footer);
+        }
+
+        return container;
+    }
+    /**
+     * Standard "fetch -> loading/empty/error/content" lifecycle for a container: shows a
+     * `SkeletonLoader` while `options.promise_factory()` is pending, then swaps it for either the
+     * result of `options.render(data)`, an `EmptyState` (when `options.isEmpty(data)` says so), or
+     * an `EmptyState` wired to retry (on rejection). Replaces the manual loading/empty/error
+     * juggling most fetch-driven views otherwise repeat by hand.
+     * @param {Element} container cleared and populated in place
+     * @param {Object} options
+     * @param {() => Promise<any>} options.promise_factory called once, and again on retry
+     * @param {(data: any) => (Element|void)} options.render builds the real content; if it
+     *   returns an Element, that element is appended into `container` - otherwise `render` is
+     *   assumed to have already populated `container` itself
+     * @param {(data: any) => boolean} [options.isEmpty] defaults to null/undefined/empty-array
+     * @param {Object} [options.skeleton] forwarded to `new SkeletonLoader(...)`
+     * @param {Object} [options.empty] forwarded to `new EmptyState(...)` for the empty case
+     * @param {Object} [options.error] forwarded to `new EmptyState(...)` for the error case,
+     *   overriding its default retry-wired `onAction`/icon/title
+     * @returns {Promise<void>}
+     */
+    static async renderAsyncView(container, options) {
+        const {
+            promise_factory,
+            render,
+            isEmpty = (data) => data == null || (Array.isArray(data) && data.length === 0),
+            skeleton = {},
+            empty = {},
+            error = {},
+        } = options;
+        const run = async () => {
+            container.innerHTML = "";
+            const loader = new SkeletonLoader(skeleton);
+            container.appendChild(loader.elementReference());
+            try {
+                const data = await promise_factory();
+                loader.destroy();
+                container.innerHTML = "";
+                if (isEmpty(data)) {
+                    const empty_state = new EmptyState(empty);
+                    container.appendChild(empty_state.elementReference());
+                    return;
+                }
+                const result = render(data);
+                if (result instanceof Element) {
+                    container.appendChild(result);
+                }
+            } catch (error_thrown) {
+                console.error(error_thrown);
+                loader.destroy();
+                container.innerHTML = "";
+                const error_state = new EmptyState({
+                    icon_code: "e002",
+                    title: Locale.at("something went wrong"),
+                    action_text: Locale.at("retry"),
+                    onAction: () => run(),
+                    ...error,
+                });
+                container.appendChild(error_state.elementReference());
+            }
+        };
+        await run();
     }
     //#endregion
     static toUInt = (str) => {
@@ -1977,5 +3110,113 @@ class UiBuilder {
         } catch (error) {
             return '';
         }
+    }
+    /**
+     * creates 2 sections with a splitter inside, by moving the splitter adjusts each section width/height
+     * @param {Object} options
+     * @param {'vertical'|'horizontal'} [options.type='horizontal'] 'horizontal' places the sections
+     *   side by side and drags the splitter left/right; 'vertical' stacks them top/bottom and drags
+     *   the splitter up/down
+     * @param {'invisible'|'thin'} [options.theme] the grabbing area is always
+     *   `thickness_splitter_grab` thick, by default visible (fully painted). 'invisible' makes it
+     *   position=absolute and transparent (see above); 'thin' keeps its full-thickness hit box but
+     *   only paints a `thickness_splitter`-wide line centered inside it
+     * @param {number} [options.thickness_splitter_grab=4] thickness, in px, of the splitter's own
+     *   hit box - the area that reacts to hover/drag. For the default (visible) theme this is also
+     *   how much layout space it reserves between the two panes; for 'invisible'/'thin' it's just
+     *   the (out-of-flow) hit box size, and `pane_a`+`pane_b` still fill 100% between them
+     * @param {number} [options.thickness_splitter] theme 'thin' only: thickness, in px, of the
+     *   painted line centered inside the grab box (default 1px); ignored for other themes
+     * @param {HTMLElement} [options.content1] appended into the first section
+     * @param {HTMLElement} [options.content2] appended into the second section
+     * @returns {HTMLElement} container with two `.the-split-view-pane` children (in DOM order) to
+     *   append content into, and a `.the-split-view-splitter` between/over them
+     */
+    static createSplitView(options = {}) {
+        const { type = "horizontal", theme, content1, content2, thickness_splitter_grab = 8 } = options;
+        const is_vertical = type === "vertical";
+        const is_invisible = theme === "invisible";
+        const is_thin = theme === "thin";
+        const thickness_splitter = options.thickness_splitter ?? (is_thin ? 1 : thickness_splitter_grab);
+        const min_percent = 10;
+
+        const container = document.createElement("div");
+        container.className = "the-split-view" + (is_vertical ? " the-split-view-vertical" : "");
+
+        const pane_a = document.createElement("div");
+        pane_a.className = "the-split-view-pane";
+        pane_a.style.flex = "0 0 50%";
+        if (content1) pane_a.appendChild(content1);
+
+        const pane_b = document.createElement("div");
+        pane_b.className = "the-split-view-pane";
+        pane_b.style.flex = "1 1 auto";
+        if (content2) pane_b.appendChild(content2);
+
+        const is_overlay = is_invisible || is_thin;
+        const splitter = document.createElement("div");
+        splitter.className = "the-split-view-splitter"
+            + (is_invisible ? " the-split-view-splitter-invisible" : "")
+            + (is_thin ? " the-split-view-splitter-thin" : "");
+        splitter.style.setProperty("--splitter-line-thickness", `${thickness_splitter}px`);
+        splitter.style.setProperty("--splitter-line-offset", `${(thickness_splitter_grab - thickness_splitter) / 2}px`);
+        if (is_overlay) {
+            splitter.style[is_vertical ? "height" : "width"] = `${thickness_splitter_grab}px`;
+            splitter.style[is_vertical ? "top" : "left"] = `calc(50% - ${thickness_splitter_grab / 2}px)`;
+        } else {
+            splitter.style.flex = `0 0 ${thickness_splitter_grab}px`;
+        }
+
+        container.append(pane_a, splitter, pane_b);
+
+        let percent = 50;
+        const applyPercent = () => {
+            pane_a.style.flex = `0 0 ${percent}%`;
+            if (is_overlay) {
+                splitter.style[is_vertical ? "top" : "left"] = `calc(${percent}% - ${thickness_splitter_grab / 2}px)`;
+            }
+        };
+
+        let drag_start_client_pos = 0;
+        let drag_start_percent = 50;
+        let drag_axis_px = 0;
+
+        const onMove = (client_pos) => {
+            const delta_percent = ((client_pos - drag_start_client_pos) / drag_axis_px) * 100;
+            percent = Math.min(Math.max(drag_start_percent + delta_percent, min_percent), 100 - min_percent);
+            applyPercent();
+        };
+        const onMouseMove = (e) => onMove(is_vertical ? e.clientY : e.clientX);
+        const onTouchMove = (e) => {
+            onMove(is_vertical ? e.touches[0].clientY : e.touches[0].clientX);
+            e.preventDefault();
+        };
+        const stopDragging = () => {
+            splitter.classList.remove("is-dragging");
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", stopDragging);
+            document.removeEventListener("touchmove", onTouchMove);
+            document.removeEventListener("touchend", stopDragging);
+        };
+        const startDragging = (client_pos) => {
+            const rect = container.getBoundingClientRect();
+            drag_start_client_pos = client_pos;
+            drag_start_percent = percent;
+            drag_axis_px = is_vertical ? rect.height : rect.width;
+            splitter.classList.add("is-dragging");
+        };
+        splitter.addEventListener("mousedown", (e) => {
+            startDragging(is_vertical ? e.clientY : e.clientX);
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", stopDragging);
+            e.preventDefault();
+        });
+        splitter.addEventListener("touchstart", (e) => {
+            startDragging(is_vertical ? e.touches[0].clientY : e.touches[0].clientX);
+            document.addEventListener("touchmove", onTouchMove, { passive: false });
+            document.addEventListener("touchend", stopDragging);
+        }, { passive: false });
+
+        return container;
     }
 }

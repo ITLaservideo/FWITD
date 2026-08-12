@@ -38,6 +38,8 @@ class KeyBoard extends FrameworkGC(`${injector_html}`) {
      * @param {boolean} [options.disable_symbols] - hides the "switch to symbols" key
      * @param {boolean} [options.only_numbers] - collapses the layout down to a compact numeric pad
      * @param {Function} [options.onConfirmClick] - called instead of dispatching a synthetic Enter keydown when "Conferma" is pressed
+     * @param {string} [options.confirm_label] - replaces the localized "Conferma" text of the confirm key
+     * @param {string} [options.confirm_f_icon] - code point of an icon appended to the confirm key, see `Icons.create`
      * @param {Function} [options.onClickOutside] - called when the user taps the dimmed backdrop outside the keyboard itself
      * @param {Function|Array<Function>} [options.onClose] - callback(s) to be called on destroy
      * @param {Function} [options.onReady] - callback to be called when component is ready
@@ -108,6 +110,12 @@ class KeyBoard extends FrameworkGC(`${injector_html}`) {
         owner.elements.lockCase = owner.self_ref.querySelector("#tkb-lock-case");
         owner.elements.backspace = owner.self_ref.querySelector("#tkb-backspace").parentElement;
         owner.elements.confirm = owner.self_ref.querySelector("#tkb-conferma");
+        if (owner.options.confirm_label != undefined) {
+            owner.elements.confirm.innerText = owner.options.confirm_label;
+        }
+        if (owner.options.confirm_f_icon != undefined) {
+            owner.elements.confirm.appendChild(Icons.create(owner.options.confirm_f_icon));
+        }
         owner.elements.spazio = owner.self_ref.querySelector("#tkb-spazio");
         owner.elements.symbols = owner.self_ref.querySelector("#tkb-symbols");
     }

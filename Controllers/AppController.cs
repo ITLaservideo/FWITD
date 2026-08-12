@@ -33,5 +33,19 @@ namespace FWITD.Controllers {
             var base64 = await AssetLoader.LoadAssetFileAsBase64Async(full_path);
             return new { src = $"data:{mime};base64,{base64}" };
         }
+
+        // the pdf.js worker's image codecs (see utils/external_libs/pdfjs_wasm/readme.md), handed to it as bytes
+        // since pdf.js runs with `useWorkerFetch: false` and there's no URL they could be fetched from
+        private static readonly HashSet<string> _pdfjsWasmFiles = new(StringComparer.Ordinal) { "jbig2.wasm", "openjpeg.wasm" };
+
+        // JS usage: await Lobby.postAsync("App/GetPdfJsWasm", { filename: "jbig2.wasm" });
+        public async Task<object> GetPdfJsWasm(JsonNode req) {
+            var filename = req["filename"]?.GetValue<string>()
+                ?? throw new ArgumentException("Missing 'filename'");
+            if (!_pdfjsWasmFiles.Contains(filename))
+                throw new ArgumentException($"Unknown pdf.js wasm file: {filename}");
+
+            return new { base64 = await AssetLoader.LoadAssetFileAsBase64Async(JSProvider.path_pdfjs_wasm + filename) };
+        }
     }
 }

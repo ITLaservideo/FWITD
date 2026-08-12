@@ -32,13 +32,10 @@ class AppRouter {
         });
     }
 
-    /**
-     * @param {enumAppRouting} enum_app_routing
-     */
-    async navigate(enum_app_routing) {
-        const key = Object.keys(enumAppRouting).find(k => enumAppRouting[k] === enum_app_routing);
+    async navigate(key) {
+        // const key = Object.keys(enumAppRouting).find(k => enumAppRouting[k] === enum_app_routing);
         if (!key) {
-            console.error('Invalid routing enum:', enum_app_routing);
+            console.error('Invalid routing enum:', key);
             return;
         }
         if (typeof SpaHistory !== "undefined") {

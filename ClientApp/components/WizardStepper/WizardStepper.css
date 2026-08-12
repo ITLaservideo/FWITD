@@ -67,4 +67,5 @@
     border: 1px solid var(--vscode-widget-border);
     border-radius: 8px;
     background-color: var(--vscode-editorWidget-background);
+    min-height: 125px;
 }

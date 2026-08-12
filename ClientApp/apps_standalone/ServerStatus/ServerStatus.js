@@ -20,6 +20,16 @@ class App {
     #timerId = null;
     #settingsFloater = null;
     constructor() {
+        document.body.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key == "r") {
+                e.stopPropagation();
+                e.preventDefault();
+                Lobby.post("AppRouter/Navigate", { where: "ServerStatus" }, (rsp) => {
+                    resolve();
+                    //owner.elements.button_login.classList.toggle("clicked", false);
+                });
+            }
+        })
         AppStatus.displayVersion();
         this.elements.retryBtn.addEventListener("click", () => this.retryAll());
         this.elements.btn_lounch_app.addEventListener("click", () => Lobby.closeApp());
@@ -54,13 +64,15 @@ class App {
         const btn = UiBuilder.createButton({
             onClick: () => this.#toggleSettings(),
             icon_code: "e8b8",
-            hint: Locale.at("settings")
+            hint: Locale.at("settings"),
+            anchor: 'bottom'
         });
         contianer.appendChild(btn);
         const btn2 = UiBuilder.createButton({
             onClick: () => Lobby.closeApp(true),
             icon_code: "f508",
-            hint: Locale.at("close app")
+            hint: Locale.at("close app"),
+            anchor: 'bottom'
         });
         contianer.appendChild(btn2);
         this.elements.page.appendChild(contianer);
