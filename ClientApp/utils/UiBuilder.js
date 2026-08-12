@@ -448,7 +448,9 @@ class UiBuilder {
                     break;
             }
         } else if (options.icon_code != undefined) {
-            tmp.classList.toggle("reversed");
+            if (options.title != undefined) {
+                tmp.classList.toggle("reversed");
+            }
             tmp.appendChild(Icons.create(options.icon_code));
         }
         if (options.icon == undefined && options.title == undefined && options.icon_code == undefined) {
@@ -1916,6 +1918,54 @@ class UiBuilder {
                 popup.remove();
             });
         }, 0);
+    }
+    /**
+     * @type {{element:HTMLDivElement,scroll_owner:(Element|Window),onScroll:Function,scrollToTop:Function}|null}
+     */
+    static #scroll_to_top = null;
+    /**
+     * Creates (once) a floating "scroll to top" button, fixed to the bottom-right of the
+     * viewport and appended to `document.body`. It becomes visible only while `target`'s scroll
+     * position is greater than 0, and scrolls `target` back to the top when clicked.
+     * Calling this again never creates a second button - it retargets the existing one to
+     * `options.target`, re-checks its scroll position, and re-appends it to `document.body` so it
+     * ends up as the last child (on top of anything appended to body afterwards).
+     *
+     * `document.body`/`document.documentElement` (whole-page scrolling) is special-cased: the
+     * browser never fires `scroll` on the body/html element itself - it fires on `window` - and
+     * `body.scrollTo()` doesn't move the page either, so that case is routed through `window`.
+     * @param {Object} [options]
+     * @param {Element} [options.target] element whose scroll position is watched/scrolled to 0; defaults to `document.body`
+     * @returns {HTMLDivElement}
+     */
+    static createScrollToTop(options = {}) {
+        const target = options.target ?? document.body;
+        const is_whole_page = target === document.body || target === document.documentElement;
+        const scroll_owner = is_whole_page ? window : target;
+        let instance = UiBuilder.#scroll_to_top;
+        if (instance == null) {
+            const element = UiBuilder.createButton({
+                icon_code: "e316",
+                class: "scroll-to-top-btn",
+                onClick: () => {
+                    UiBuilder.#scroll_to_top.scrollToTop();
+                },
+            });
+            instance = { element, scroll_owner: null, onScroll: null, scrollToTop: null };
+            UiBuilder.#scroll_to_top = instance;
+        } else {
+            instance.scroll_owner.removeEventListener("scroll", instance.onScroll);
+        }
+        instance.scroll_owner = scroll_owner;
+        instance.scrollToTop = () => scroll_owner.scrollTo({ top: 0, behavior: "smooth" });
+        instance.onScroll = () => {
+            const scroll_top = is_whole_page ? document.scrollingElement.scrollTop : target.scrollTop;
+            instance.element.classList.toggle("visible", scroll_top > 0);
+        };
+        scroll_owner.addEventListener("scroll", instance.onScroll);
+        instance.onScroll();
+        document.body.appendChild(instance.element);
+        return instance.element;
     }
     //#endregion
     static toUInt = (str) => {
