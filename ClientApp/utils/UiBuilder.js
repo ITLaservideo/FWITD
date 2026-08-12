@@ -40,18 +40,52 @@ class UiBuilder {
         });
     }
     /**
-     * 
-     * @param {Object} options 
-     * @param {Object} options.innertext 
-     * @param {string} options.innertext.on 
-     * @param {string} options.innertext.off 
-     * @param {Function} options.setIsOn
+     * geometry, in px, of each `.the-switch-container` theme variant, transcribed from
+     * `styles.css` (`.the-switch-container`/`.the-mini-switch`/`.the-xxl-switch`) - used to
+     * decide how wide the switch needs to be to fit `options.innerText.on`/`.off` without the
+     * text rendering underneath `.the-switch-circle` (that circle has `z-index: 1`, the text
+     * doesn't, so whenever the text is too wide for the container's fixed CSS width the circle
+     * visually covers part of it instead of the two ever wrapping/overflowing visibly)
+     */
+    static #switch_theme_metrics = {
+        default: { circle_px: 25, base_width_px: 70 },
+        mini: { circle_px: 20, base_width_px: 61 },
+        xxl: { circle_px: 40, base_width_px: 122 },
+    };
+    /**
+     * Renders `text` off-screen with `.the-switch-text`'s own class (so it picks up the same
+     * font as the real switch label) to measure its natural width - independent of the switch's
+     * own layout, which is exactly the fixed-width box this measurement is used to grow past.
+     * @param {string} text
+     * @returns {number} width, in px
+     */
+    static #measureSwitchTextWidth(text) {
+        const probe = document.createElement("span");
+        probe.className = "the-switch-text";
+        probe.style.cssText = "position:fixed;visibility:hidden;left:-9999px;top:-9999px;white-space:pre;width:auto;";
+        probe.innerText = text;
+        document.body.appendChild(probe);
+        const width = probe.getBoundingClientRect().width;
+        probe.remove();
+        return width;
+    }
+    /**
+     * @param {Object} options
+     * @param {Object} options.innerText
+     * @param {string} options.innerText.on
+     * @param {string} options.innerText.off
      * @param {Function} options.onClick
-     * @param {bool} [options.isOn] false
-     * @param {string} [options.label]
-     * @param {string} [options.theme] "mini"
-     * 
-     * @returns Element
+     * @param {bool} [options.isOn=false]
+     * @param {string} [options.label] renders a separate clickable text label to the left of the switch
+     * @param {"mini"|"xxl"} [options.theme] default (no value) is the normal-sized switch
+     * @param {string} [options.innerCircleIcon] icon file name (as passed to `Icons`-less raw `<img>` src, under `/Images/Icone2024/ui_2024/`) shown inside the sliding circle
+     * @param {string} [options.hint] hover hint, wired via `addHint`
+     * @param {"top"|"left"|"right"|"bottom"} [options.anchor] hint anchor, used with `options.hint`
+     *
+     * @returns {HTMLDivElement} also gains an `options.setIsOn(is_on)` function (assigned onto the
+     *   `options` object passed in, not onto the returned element) that updates the switch's
+     *   state/label programmatically after creation - keep a reference to the same `options`
+     *   object to call it later, e.g. `options.setIsOn(true)`.
      */
     static createToggle(options) {
         let outer_container;
@@ -67,6 +101,20 @@ class UiBuilder {
                 break;
             default:
                 break;
+        }
+        const theme_metrics = UiBuilder.#switch_theme_metrics[options.theme] ?? UiBuilder.#switch_theme_metrics.default;
+        const widest_label_px = Math.max(
+            UiBuilder.#measureSwitchTextWidth(options.innerText.on),
+            UiBuilder.#measureSwitchTextWidth(options.innerText.off)
+        );
+        const circle_margin_px = 3; // `.the-switch-circle`'s own `margin-left`
+        const text_margin_px = 10; // `.the-switch-text`'s own `margin-left`/`margin-right`
+        const gap_buffer_px = 6; // breathing room between the circle and the text
+        const required_width_px = Math.ceil(widest_label_px) + theme_metrics.circle_px + circle_margin_px + text_margin_px + gap_buffer_px;
+        if (required_width_px > theme_metrics.base_width_px) {
+            container.style.width = `${required_width_px}px`;
+            container.style.minWidth = `${required_width_px}px`;
+            container.style.maxWidth = `${required_width_px}px`;
         }
         const circle = document.createElement("div");
         circle.classList.add("the-switch-circle");
@@ -1966,6 +2014,202 @@ class UiBuilder {
         instance.onScroll();
         document.body.appendChild(instance.element);
         return instance.element;
+    }
+    /**
+     * A small status pill (e.g. a job/order status column, a count next to a nav item).
+     * @param {string} text
+     * @param {Object} [options]
+     * @param {"neutral"|"info"|"success"|"warning"|"danger"} [options.color="neutral"]
+     * @param {string} [options.hint] optional hover hint, wired via `addHint`
+     * @param {"top"|"left"|"right"|"bottom"} [options.anchor] hint anchor, used with `options.hint`
+     * @returns {HTMLSpanElement}
+     */
+    static createBadge(text, options = {}) {
+        const badge = document.createElement("span");
+        badge.className = `ui-badge ui-badge-${options.color ?? "neutral"}`;
+        badge.innerText = text;
+        if (options.hint != undefined) {
+            UiBuilder.addHint({ hint: options.hint, target: badge, anchor: options.anchor ?? "top" });
+        }
+        return badge;
+    }
+    /**
+     * A debounced search box - fires `options.onSearch(query)` `options.debounce_ms` after typing
+     * stops, instead of on every keystroke.
+     * @param {Object} options
+     * @param {(query: string) => void} options.onSearch
+     * @param {number} [options.debounce_ms=250]
+     * @param {string} [options.placeholder]
+     * @returns {HTMLInputElement}
+     */
+    static createSearchInput(options) {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "ui-search-input";
+        input.placeholder = options.placeholder ?? Locale.at("cerca");
+        let debounce_timer_id = null;
+        input.addEventListener("input", () => {
+            if (debounce_timer_id != null) {
+                clearTimeout(debounce_timer_id);
+            }
+            debounce_timer_id = setTimeout(() => {
+                options.onSearch(input.value);
+            }, options.debounce_ms ?? 250);
+        });
+        return input;
+    }
+    /**
+     * A single "label + control" settings row (iOS/Android settings-list style).
+     * @param {Object} options
+     * @param {string} options.label
+     * @param {string} [options.description] smaller line shown under the label
+     * @param {Element} options.control typically a `createToggle`/`createButton`/`<input>` result
+     * @param {Function} [options.onClick] makes the whole row clickable, in addition to `control`
+     * @returns {HTMLDivElement}
+     */
+    static createSettingsRow(options) {
+        const row = document.createElement("div");
+        row.className = "settings-row";
+        const text_container = document.createElement("div");
+        text_container.className = "settings-row-text";
+        const label = document.createElement("div");
+        label.className = "settings-row-label";
+        label.innerText = options.label;
+        text_container.appendChild(label);
+        if (options.description != undefined) {
+            const description = document.createElement("div");
+            description.className = "settings-row-description";
+            description.innerText = options.description;
+            text_container.appendChild(description);
+        }
+        row.appendChild(text_container);
+        const control_container = document.createElement("div");
+        control_container.className = "settings-row-control";
+        control_container.appendChild(options.control);
+        row.appendChild(control_container);
+        if (options.onClick != undefined) {
+            row.classList.add("settings-row-clickable");
+            row.addEventListener("click", options.onClick);
+        }
+        return row;
+    }
+    /**
+     * Groups `createSettingsRow` results under an optional title.
+     * @param {Object} options
+     * @param {string} [options.title]
+     * @param {Element[]} options.rows typically `createSettingsRow(...)` results
+     * @returns {HTMLDivElement}
+     */
+    static createSettingsGroup(options) {
+        const group = document.createElement("div");
+        group.className = "settings-group";
+        if (options.title != undefined) {
+            const title = document.createElement("div");
+            title.className = "settings-group-title";
+            title.innerText = options.title;
+            group.appendChild(title);
+        }
+        const list = document.createElement("div");
+        list.className = "settings-group-list";
+        options.rows.forEach(row => list.appendChild(row));
+        group.appendChild(list);
+        return group;
+    }
+    /**
+     * Like `createButton`, but `options.onClick` may return a Promise: the button auto-disables
+     * (shows a spinner via the `ui-loading` class) while it's pending, and shows an error `Notify`
+     * toast if it rejects - removing the repetitive "disable -> await Lobby.post -> re-enable,
+     * catch errors" boilerplate that shows up around most server-round-trip buttons.
+     * @param {Object} options same as `createButton`, plus:
+     * @param {(event: MouseEvent) => Promise<any>} options.onClick
+     * @param {string} [options.error_text] overrides the default error toast text
+     * @returns {HTMLDivElement}
+     */
+    static createAsyncButton(options) {
+        const { onClick, error_text, ...button_options } = options;
+        const button = UiBuilder.createButton({
+            ...button_options,
+            onClick: async (event) => {
+                if (button.classList.contains("ui-loading")) {
+                    return;
+                }
+                button.classList.add("ui-loading");
+                try {
+                    await onClick(event);
+                } catch (error) {
+                    console.error(error);
+                    new Notify({
+                        text: error_text ?? Locale.at("something went wrong"),
+                        event: event,
+                        type: -1,
+                    });
+                } finally {
+                    button.classList.remove("ui-loading");
+                }
+            },
+        });
+        return button;
+    }
+    /**
+     * Standard "fetch -> loading/empty/error/content" lifecycle for a container: shows a
+     * `SkeletonLoader` while `options.promise_factory()` is pending, then swaps it for either the
+     * result of `options.render(data)`, an `EmptyState` (when `options.isEmpty(data)` says so), or
+     * an `EmptyState` wired to retry (on rejection). Replaces the manual loading/empty/error
+     * juggling most fetch-driven views otherwise repeat by hand.
+     * @param {Element} container cleared and populated in place
+     * @param {Object} options
+     * @param {() => Promise<any>} options.promise_factory called once, and again on retry
+     * @param {(data: any) => (Element|void)} options.render builds the real content; if it
+     *   returns an Element, that element is appended into `container` - otherwise `render` is
+     *   assumed to have already populated `container` itself
+     * @param {(data: any) => boolean} [options.isEmpty] defaults to null/undefined/empty-array
+     * @param {Object} [options.skeleton] forwarded to `new SkeletonLoader(...)`
+     * @param {Object} [options.empty] forwarded to `new EmptyState(...)` for the empty case
+     * @param {Object} [options.error] forwarded to `new EmptyState(...)` for the error case,
+     *   overriding its default retry-wired `onAction`/icon/title
+     * @returns {Promise<void>}
+     */
+    static async renderAsyncView(container, options) {
+        const {
+            promise_factory,
+            render,
+            isEmpty = (data) => data == null || (Array.isArray(data) && data.length === 0),
+            skeleton = {},
+            empty = {},
+            error = {},
+        } = options;
+        const run = async () => {
+            container.innerHTML = "";
+            const loader = new SkeletonLoader(skeleton);
+            container.appendChild(loader.elementReference());
+            try {
+                const data = await promise_factory();
+                loader.destroy();
+                container.innerHTML = "";
+                if (isEmpty(data)) {
+                    const empty_state = new EmptyState(empty);
+                    container.appendChild(empty_state.elementReference());
+                    return;
+                }
+                const result = render(data);
+                if (result instanceof Element) {
+                    container.appendChild(result);
+                }
+            } catch (error_thrown) {
+                console.error(error_thrown);
+                loader.destroy();
+                container.innerHTML = "";
+                const error_state = new EmptyState({
+                    icon_code: "e002",
+                    title: Locale.at("something went wrong"),
+                    action_text: Locale.at("retry"),
+                    onAction: () => run(),
+                    ...error,
+                });
+                container.appendChild(error_state.elementReference());
+            }
+        };
+        await run();
     }
     //#endregion
     static toUInt = (str) => {

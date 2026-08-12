@@ -1,0 +1,33 @@
+.general-chart-template {
+    position: relative;
+    box-sizing: border-box;
+    min-height: 320px;
+    min-width: 320px;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+
+    .general-chart-canvas {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .general-chart-line-controls {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 14px;
+        flex-shrink: 0;
+    }
+}
+
+.general-chart-template.chart-fade-out {
+    opacity: 0;
+    transform: scale(0.96);
+}

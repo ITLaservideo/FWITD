@@ -50,7 +50,8 @@ class App {
             OpenLittleSettings.style = `display: flex;justify-content: center;padding-top: 9px;`;
             OpenLittleSettings.innerHTML = policy.createHTML(`some content chart`);
 
-            const chart = new PieChart({
+            const chart = new GeneralChart({
+                type: "pie",
                 products: [
                     new PCMockProduct("Products 1", 120),
                     new PCMockProduct("Products 2", 80)
