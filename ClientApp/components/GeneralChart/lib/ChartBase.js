@@ -44,14 +44,42 @@ class ChartBase {
         return ChartBase.#chart_js_ready;
     }
     /**
-     * Replaces `owner.chart_instance` with a freshly built Chart.js chart, destroying the
-     * previous one (if any) first.
+     * Creates `owner.chart_instance` on first call; on later calls (e.g. a toggle/slider driving
+     * `GeneralChart`'s overlay controls) reuses the existing Chart.js instance instead of
+     * destroying and recreating it.
+     *
+     * Just assigning a freshly-built `data`/`options` and calling `update()` is NOT enough to get
+     * an animated transition: Chart.js links each dataset to its previously-rendered elements by
+     * object identity (`Chart.getDatasetMeta` matches via `meta._dataset === dataset`), so handing
+     * it a brand new plain object for every dataset on every call - which `GeneralChart`'s
+     * `buildChartConfig` does - makes it treat every dataset as unrelated to what's already on
+     * screen. It then animates each one in from scratch (elements growing up from the axis),
+     * which looks identical to a full chart rebuild even though the `Chart` instance itself is
+     * being reused. So incoming datasets carrying a `key` (see `buildChartConfig`) are matched
+     * against the chart's current datasets by that key first, and their values are copied onto
+     * the SAME object Chart.js already knows about - only a dataset whose `key` wasn't present
+     * before (or that has no `key` at all) renders as a genuinely new series and animates in.
      * @param {{chart_instance:(Chart|null), elements:{canvas:HTMLCanvasElement}}} owner
-     * @param {Object} chartjs_config a Chart.js `config` object (`type`/`data`/`options`)
+     * @param {Object} chartjs_config a Chart.js `config` object (`type`/`data`/`options`); each
+     *   entry in `chartjs_config.data.datasets` may carry a `key` for identity across calls
      */
     static createOrUpdateChart(owner, chartjs_config) {
-        if (owner.chart_instance != null) {
-            owner.chart_instance.destroy();
+        const chart = owner.chart_instance;
+        if (chart != null) {
+            const previous_by_key = new Map(chart.data.datasets.map((dataset) => [dataset.key, dataset]));
+            chart.data.labels = chartjs_config.data.labels;
+            chart.data.datasets = chartjs_config.data.datasets.map((incoming_dataset) => {
+                const existing_dataset = incoming_dataset.key != null ? previous_by_key.get(incoming_dataset.key) : null;
+                if (existing_dataset == null) {
+                    return incoming_dataset;
+                }
+                Object.assign(existing_dataset, incoming_dataset);
+                return existing_dataset;
+            });
+            chart.config.type = chartjs_config.type;
+            chart.options = chartjs_config.options;
+            chart.update();
+            return;
         }
         owner.chart_instance = new Chart(owner.elements.canvas.getContext("2d"), chartjs_config);
     }
@@ -138,6 +166,79 @@ class ChartBase {
         const slope = denominator === 0 ? 0 : (n * sum_xy - sum_x * sum_y) / denominator;
         const intercept = (sum_y - slope * sum_x) / n;
         return data.map((value, index) => (value == null ? null : slope * index + intercept));
+    }
+    /**
+     * LOWESS (locally weighted scatterplot smoothing) curve over `data` (x = index) - unlike
+     * `linearRegressionLine`'s single straight line, this fits a local weighted linear regression
+     * around every point (tricube-weighted by distance, within a `bandwidth`-sized neighborhood),
+     * so it follows curvature/bends in the series while still smoothing out point-to-point noise.
+     * Same `null`-handling contract as `linearRegressionLine`.
+     * @param {Array<number|null>} data
+     * @param {Object} [options]
+     * @param {number} [options.bandwidth=0.3] fraction (0-1] of the known points to include in
+     *   each local fit's neighborhood; smaller follows the data more closely, larger smooths more
+     * @returns {Array<number|null>}
+     */
+    static lowessRegressionLine(data, options = {}) {
+        const known_points = data
+            .map((value, index) => (value == null ? null : [index, value]))
+            .filter((point) => point != null);
+        const result = data.map(() => null);
+        if (known_points.length < 2) {
+            return result;
+        }
+        const bandwidth = options.bandwidth ?? 0.3;
+        const n = known_points.length;
+        const window_size = Math.min(n, Math.max(2, Math.round(bandwidth * n)));
+        known_points.forEach(([x0]) => {
+            const distances = known_points.map(([x]) => Math.abs(x - x0));
+            const max_distance = [...distances].sort((a, b) => a - b)[window_size - 1] || 1e-9;
+            let sum_w = 0, sum_wx = 0, sum_wy = 0, sum_wxy = 0, sum_wxx = 0;
+            known_points.forEach(([x, y], index) => {
+                const u = distances[index] / max_distance;
+                const weight = u >= 1 ? 0 : Math.pow(1 - Math.pow(u, 3), 3); // tricube kernel
+                sum_w += weight;
+                sum_wx += weight * x;
+                sum_wy += weight * y;
+                sum_wxy += weight * x * y;
+                sum_wxx += weight * x * x;
+            });
+            const denominator = sum_w * sum_wxx - sum_wx * sum_wx;
+            if (denominator === 0) {
+                result[x0] = sum_wy / sum_w;
+                return;
+            }
+            const slope = (sum_w * sum_wxy - sum_wx * sum_wy) / denominator;
+            const intercept = (sum_wy - slope * sum_wx) / sum_w;
+            result[x0] = slope * x0 + intercept;
+        });
+        return result;
+    }
+    /**
+     * Blends `ChartBase.linearRegressionLine` and `ChartBase.lowessRegressionLine` point-by-point,
+     * so a single continuous control can morph the overlay from the straight trend line
+     * (`blend=0`) to the full LOWESS curve (`blend=1`) instead of the two being independent
+     * on/off overlays. Same `null`-handling contract as both.
+     * @param {Array<number|null>} data
+     * @param {number} blend 0 (pure linear) - 1 (pure LOWESS)
+     * @param {Object} [lowess_options] forwarded to `ChartBase.lowessRegressionLine`
+     * @returns {Array<number|null>}
+     */
+    static blendedRegressionLine(data, blend, lowess_options = {}) {
+        const linear = ChartBase.linearRegressionLine(data);
+        if (blend <= 0) {
+            return linear;
+        }
+        const lowess = ChartBase.lowessRegressionLine(data, lowess_options);
+        if (blend >= 1) {
+            return lowess;
+        }
+        return linear.map((linear_value, index) => {
+            const lowess_value = lowess[index];
+            return linear_value == null || lowess_value == null
+                ? null
+                : linear_value * (1 - blend) + lowess_value * blend;
+        });
     }
     /**
      * Simple or exponential moving average of `data`, used to smooth out noise and make the

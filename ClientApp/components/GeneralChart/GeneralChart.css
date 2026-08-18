@@ -21,9 +21,40 @@
     .general-chart-line-controls {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         justify-content: center;
         gap: 14px;
         flex-shrink: 0;
+    }
+
+    .general-chart-regression-blend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: opacity 0.15s ease;
+
+        input[type="range"] {
+            width: 120px;
+        }
+
+        .general-chart-regression-blend-caption {
+            font-size: 0.85em;
+            white-space: nowrap;
+            position: relative;
+            padding-right: 3.4em;
+            /* reserves room for .general-chart-regression-blend-caption-value so its digit count can't reflow this */
+        }
+
+        .general-chart-regression-blend-caption-value {
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+    }
+
+    .general-chart-regression-blend.disabled {
+        opacity: 0.5;
+        pointer-events: none;
     }
 }
 

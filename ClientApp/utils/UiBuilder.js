@@ -637,12 +637,19 @@ class UiBuilder {
     static capitalize(val) {
         return String(val).charAt(0).toUpperCase() + String(val).slice(1);
     }
-    static createDropDownButtonSelector({ titles, next, onSelectionChange, label, direction_open = 'top', stealth = true, max_selections_height = '210px' }) {
+    static createDropDownButtonSelector({ titles, next, onSelectionChange, label, direction_open = 'top', stealth = true, max_selections_height = '210px', icon_code = undefined }) {
         const container = document.createElement("div");
         container.className = "custom-dropdown-container";
-        const arrow_down = document.createElement("img");
-        Icons.setSrcIcon(arrow_down, "/keyboard_arrow_left.svg");
-        arrow_down.className = "cdc-arrow-open";
+
+        if (icon_code) {
+            const leftIcon = Icons.create(icon_code);
+            leftIcon.classList.add("cdc-icon-left");
+            container.classList.add("has-left-icon");
+            container.appendChild(leftIcon);
+        }
+
+        const arrow_down = Icons.create('e313');
+        arrow_down.classList.add("cdc-arrow-open");
         container.appendChild(arrow_down);
 
         // if (label) {
@@ -2149,6 +2156,747 @@ class UiBuilder {
             },
         });
         return button;
+    }
+    /**
+    * 
+    * @param {Object} options
+    * @param {string} [options.id] assigned as the chart container's element id; also used as the
+    *   localStorage key to remember the regression trend's on/off state and blend amount across
+    *   chart re-creations (e.g. page reloads) - omit for no persistence
+    * @param {string} [options.title]
+    * @param {string} [options.title_volume]
+    * @param {string} [options.title_linear]
+    * @param {'linear'|'dotted'|'dots'} [options.type] linear|dotted|dots
+    * @param {Object} options.data
+    * @param {Array<number>} options.data.linear
+    * @param {Array<number>} options.data.volume
+    * @param {Array<Date>} options.data.axys_x
+    */
+    static createChart(options) {
+        if (options.data.linear.length == 0 && options.data.volume.length == 0) {
+            return new EmptyState({
+                icon_code: "f804",
+                title: Locale.at("No Data"),
+                // action_text: Locale.at("retry"),
+                // onAction: () => run(),
+            }).elementReference();
+        }
+        const container = document.createElement("div");
+        if (options.id) {
+            container.id = options.id;
+        }
+        container.style.marginLeft = "auto";
+        container.style.marginRight = "auto";
+        container.style.position = "relative";
+        // Validate input
+        const { volume, linear, axys_x } = options.data;
+
+        // Theme colors: canvas drawing can't inherit CSS, so pull the vars_vscode_dark.css
+        // custom properties directly - fillStyle/strokeStyle accept any CSS color string
+        const root_style = getComputedStyle(document.documentElement);
+        const theme_var = (name, fallback) => root_style.getPropertyValue(name)?.trim() || fallback;
+        const color_line = theme_var("--vscode-chart-line", "#0077cc");
+        const color_axis = theme_var("--vscode-chart-axis", "#000");
+        const color_guide = theme_var("--vscode-chart-guide", "rgba(0, 0, 0, 0.2)");
+        const color_text = theme_var("--vscode-charts-foreground", "#000");
+        const color_volume = theme_var("--vscode-charts-green", "#66cc66");
+        const color_trend = theme_var("--vscode-charts-purple", "#b180d7");
+        const font_family = theme_var("--vscode-font-family", "Arial, sans-serif");
+
+        if (axys_x !== undefined) {
+            const refLength = volume.length ?? linear.length;
+            if (axys_x.length !== refLength) {
+                throw new Error("Data Mismatch: axys_x length does not match other data arrays");
+            }
+        }
+
+        const canvas = document.createElement("canvas");
+        container.appendChild(canvas);
+        const ctx = canvas.getContext("2d");
+
+        const width = 600;
+        const height = 400;
+        canvas.width = width;
+        canvas.height = height;
+
+        const padding = 50;
+        const chartHeight = height - padding * 2;
+        const chartWidth = width - padding * 2;
+        const pointCount = volume?.length ?? linear?.length;
+        const xLabels = axys_x ?? Array.from({ length: pointCount }, (_, i) => i);
+
+        const getMax = arr => Math.max(...arr);
+        const getMin = arr => Math.min(...arr);
+
+        // Determine combined max for scaling - recomputed on each render() from whichever
+        // dataset(s) are currently toggled on, so hiding one rescales the other to fill the chart
+        const maxLinear = linear ? getMax(linear) : 0;
+        const maxVolume = volume ? getMax(volume) : 0;
+        let overallMax = Math.max(maxLinear, maxVolume, 1); // prevent division by zero
+
+        // Scale functions
+        const scaleX = i => padding + (i / (pointCount - 1)) * chartWidth;
+        const scaleY = val => height - padding - (val / overallMax) * chartHeight;
+
+        // Geometry for the click-to-label toggle below: candidate placements around a point,
+        // tried in this order until one's (rotated) bounding box clears both adjacent line
+        // segments, so the label doesn't get drawn on top of the line it's describing
+        const label_angle = -30 * Math.PI / 180;
+        const label_directions = [
+            { dx: 0, dy: -1 }, // top
+            { dx: 0, dy: 1 }, // bottom
+            { dx: -1, dy: 0 }, // left
+            { dx: 1, dy: 0 }, // right
+            { dx: Math.SQRT1_2, dy: -Math.SQRT1_2 }, // top-right
+            { dx: Math.SQRT1_2, dy: Math.SQRT1_2 }, // bottom-right
+            { dx: -Math.SQRT1_2, dy: -Math.SQRT1_2 }, // top-left
+            { dx: -Math.SQRT1_2, dy: Math.SQRT1_2 }, // bottom-left
+        ];
+        const segments_intersect = (p1, p2, p3, p4) => {
+            const ccw = (a, b, c) => (c.y - a.y) * (b.x - a.x) > (b.y - a.y) * (c.x - a.x);
+            return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+        };
+        const point_in_rect = (point, corners) => {
+            let sign = null;
+            for (let k = 0; k < corners.length; k++) {
+                const a = corners[k];
+                const b = corners[(k + 1) % corners.length];
+                const side = (b.x - a.x) * (point.y - a.y) - (b.y - a.y) * (point.x - a.x) > 0;
+                if (sign === null) sign = side;
+                else if (sign !== side) return false;
+            }
+            return true;
+        };
+        const rect_intersects_segment = (corners, p1, p2) => {
+            for (let k = 0; k < corners.length; k++) {
+                if (segments_intersect(corners[k], corners[(k + 1) % corners.length], p1, p2)) return true;
+            }
+            return point_in_rect(p1, corners) || point_in_rect(p2, corners);
+        };
+        const rotated_label_corners = (anchor_x, anchor_y, half_w, half_h) => {
+            const cos_a = Math.cos(label_angle), sin_a = Math.sin(label_angle);
+            return [
+                { x: -half_w, y: -half_h },
+                { x: half_w, y: -half_h },
+                { x: half_w, y: half_h },
+                { x: -half_w, y: half_h },
+            ].map(({ x, y }) => ({
+                x: anchor_x + x * cos_a - y * sin_a,
+                y: anchor_y + x * sin_a + y * cos_a,
+            }));
+        };
+
+        const offstet = 0;
+        const barWidth = volume ? Math.min((chartWidth / pointCount) * 0.7, 30) : 0; // 70% width for bars
+
+        // legend geometry - computed once since the labels/font are static; reused both by
+        // render() below and by the click-to-toggle overlays created after it
+        const legend_baseline_y = padding - 25;
+        const legend_margin = 15;
+        const legend_gap_after_swatch = 5;
+        const legend_gap_between_groups = 15;
+        const legend_swatch_size = 15;
+
+        ctx.font = `bold 12px ${font_family}`;
+        const volume_label = options.title_volume ?? "volume";
+        const line_label = options.title_linear ?? "value";
+        const volume_label_width = ctx.measureText(volume_label).width;
+        const line_label_width = ctx.measureText(line_label).width;
+
+        const line_label_x = width - legend_margin - line_label_width;
+        const line_swatch_end_x = line_label_x - legend_gap_after_swatch;
+        const line_swatch_start_x = line_swatch_end_x - legend_swatch_size;
+        const volume_label_x = line_swatch_start_x - legend_gap_between_groups - volume_label_width;
+        const volume_swatch_end_x = volume_label_x - legend_gap_after_swatch;
+        const volume_swatch_start_x = volume_swatch_end_x - legend_swatch_size;
+
+        // toggled by clicking the legend swatches below
+        let show_linear = true;
+        let show_volume = true;
+
+        // Trend on/off + blend amount, remembered across chart re-creations via localStorage
+        // when options.id is provided (see options.id doc above)
+        const trend_storage_key = options.id ? `chart-trend:${options.id}` : null;
+        let saved_trend_state = null;
+        if (trend_storage_key) {
+            try {
+                saved_trend_state = JSON.parse(localStorage.getItem(trend_storage_key));
+            } catch (e) {
+                console.warn(`Failed to load chart trend state from localStorage: ${e.message}`);
+            }
+        }
+        const save_trend_state = () => {
+            if (!trend_storage_key) return;
+            try {
+                localStorage.setItem(trend_storage_key, JSON.stringify({ show_trend, regression_blend }));
+            } catch (e) {
+                console.warn(`Failed to save chart trend state to localStorage: ${e.message}`);
+            }
+        };
+
+        // toggled by the footer toggle below
+        let show_trend = saved_trend_state?.show_trend ?? false;
+        // 0 (pure linear trend) - 1 (pure LOWESS curve), driven by the footer slider below
+        let regression_blend = saved_trend_state?.regression_blend ?? 0;
+
+        // Same algorithm as ChartBase.blendedRegressionLine (components/GeneralChart/lib), but
+        // duplicated locally rather than called directly: JSProvider.cs's per-page bundler only
+        // pulls a component's JS in when the *page's own* script mentions that component by name,
+        // so a page that calls UiBuilder.createChart() without also using GeneralChart would never
+        // get ChartBase bundled in, throwing "ChartBase is not defined" at runtime.
+        const linear_regression_line = (data) => {
+            const known_points = data
+                .map((value, index) => (value == null ? null : [index, value]))
+                .filter((point) => point != null);
+            if (known_points.length < 2) {
+                return data.map(() => null);
+            }
+            const n = known_points.length;
+            const sum_x = known_points.reduce((sum, [x]) => sum + x, 0);
+            const sum_y = known_points.reduce((sum, [, y]) => sum + y, 0);
+            const sum_xy = known_points.reduce((sum, [x, y]) => sum + x * y, 0);
+            const sum_xx = known_points.reduce((sum, [x]) => sum + x * x, 0);
+            const denominator = n * sum_xx - sum_x * sum_x;
+            const slope = denominator === 0 ? 0 : (n * sum_xy - sum_x * sum_y) / denominator;
+            const intercept = (sum_y - slope * sum_x) / n;
+            return data.map((value, index) => (value == null ? null : slope * index + intercept));
+        };
+        const lowess_regression_line = (data, bandwidth = 0.3) => {
+            const known_points = data
+                .map((value, index) => (value == null ? null : [index, value]))
+                .filter((point) => point != null);
+            const result = data.map(() => null);
+            if (known_points.length < 2) {
+                return result;
+            }
+            const n = known_points.length;
+            const window_size = Math.min(n, Math.max(2, Math.round(bandwidth * n)));
+            known_points.forEach(([x0]) => {
+                const distances = known_points.map(([x]) => Math.abs(x - x0));
+                const max_distance = [...distances].sort((a, b) => a - b)[window_size - 1] || 1e-9;
+                let sum_w = 0, sum_wx = 0, sum_wy = 0, sum_wxy = 0, sum_wxx = 0;
+                known_points.forEach(([x, y], index) => {
+                    const u = distances[index] / max_distance;
+                    const weight = u >= 1 ? 0 : Math.pow(1 - Math.pow(u, 3), 3); // tricube kernel
+                    sum_w += weight;
+                    sum_wx += weight * x;
+                    sum_wy += weight * y;
+                    sum_wxy += weight * x * y;
+                    sum_wxx += weight * x * x;
+                });
+                const denominator = sum_w * sum_wxx - sum_wx * sum_wx;
+                if (denominator === 0) {
+                    result[x0] = sum_wy / sum_w;
+                    return;
+                }
+                const slope = (sum_w * sum_wxy - sum_wx * sum_wy) / denominator;
+                const intercept = (sum_wy - slope * sum_wx) / sum_w;
+                result[x0] = slope * x0 + intercept;
+            });
+            return result;
+        };
+        const blended_regression_line = (data, blend) => {
+            const linear_line = linear_regression_line(data);
+            if (blend <= 0) return linear_line;
+            const lowess_line = lowess_regression_line(data);
+            if (blend >= 1) return lowess_line;
+            return linear_line.map((linear_value, index) => {
+                const lowess_value = lowess_line[index];
+                return linear_value == null || lowess_value == null
+                    ? null
+                    : linear_value * (1 - blend) + lowess_value * blend;
+            });
+        };
+
+        function render() {
+            overallMax = Math.max(show_linear ? maxLinear : 0, show_volume ? maxVolume : 0, 1);
+
+            ctx.clearRect(0, 0, width, height);
+
+            ctx.strokeStyle = color_axis;
+            ctx.lineWidth = 1;
+
+            // Y-axis gridlines + value labels - shown whenever *any* dataset is visible, scaled
+            // to overallMax (which already reflects whichever one that is), not tied to `linear`
+            // specifically - otherwise toggling the line off would take the axis with it
+            if ((linear && show_linear) || (volume && show_volume)) {
+                // Draw dashed horizontal lines at a "nice" step (1/2/5 x10^n) sized off the data's
+                // own range, so sparse gridlines don't disappear when overallMax < 100 and dense
+                // ones don't clutter the chart when overallMax is in the thousands
+                const target_line_count = 10;
+                const rough_step = overallMax / target_line_count;
+                const step_magnitude = Math.pow(10, Math.floor(Math.log10(rough_step)));
+                const step_normalized = rough_step / step_magnitude;
+                const nice_step_normalized = step_normalized <= 1 ? 1 : step_normalized <= 2 ? 2 : step_normalized <= 5 ? 5 : 10;
+                const step = nice_step_normalized * step_magnitude;
+                const numberOfLines = Math.floor(overallMax / step);
+
+                ctx.strokeStyle = color_guide;
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 5]); // dashed pattern
+
+                for (let i = 1; i <= numberOfLines; i++) {
+                    const yVal = i * step;
+                    const yPos = scaleY(yVal);
+
+                    // Draw dashed line
+                    ctx.beginPath();
+                    ctx.moveTo(padding - offstet, yPos);
+                    ctx.lineTo(width - padding + offstet, yPos);
+                    ctx.stroke();
+
+                    // Draw label on the left side
+                    ctx.font = `10px ${font_family}`;
+                    ctx.fillStyle = color_text;
+                    ctx.setLineDash([]); // reset dash for text
+
+                    const labelText = `${yVal.toString()}` + (show_linear ? ' €' : ' ');
+                    const textWidth = ctx.measureText(labelText).width;
+
+                    ctx.fillText(
+                        labelText,
+                        padding - textWidth - 15 - offstet, // slightly left of y-axis
+                        yPos + 3 // slight vertical adjustment
+                    );
+
+                    // Reset dash pattern for next line
+                    ctx.setLineDash([5, 5]);
+                }
+
+                // Reset dash style after drawing
+                ctx.setLineDash([]);
+            }
+            if (linear && show_linear) {
+                ctx.beginPath();
+                ctx.strokeStyle = color_line;
+
+                ctx.lineWidth = 1;
+                if (options.type === "linear" || !options.type) {
+                    // Default linear line
+                    ctx.beginPath();
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                } else if (options.type === "dotted") {
+                    // Dotted line + bigger dots
+                    ctx.beginPath();
+                    ctx.setLineDash([6, 6]); // dashed pattern
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]); // reset
+
+                    // Draw bigger dots at each coordinate
+                    ctx.fillStyle = color_line;
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, 2 * Math.PI); // radius 4px
+                        ctx.fill();
+                    });
+                } else if (options.type === "dots") {
+                    // Only dots, no connecting lines
+                    ctx.fillStyle = color_line;
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 3, 0, 2 * Math.PI); // radius 3px
+                        ctx.fill();
+                    });
+                }
+                ctx.stroke();
+
+                // Blended linear-regression/LOWESS trend overlay, controlled by the footer slider
+                // and footer checkbox
+                if (show_trend) {
+                    const regression_values = blended_regression_line(linear, regression_blend);
+                    ctx.beginPath();
+                    ctx.strokeStyle = color_trend;
+                    ctx.lineWidth = 2;
+                    let trend_started = false;
+                    regression_values.forEach((val, i) => {
+                        if (val == null) return;
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (!trend_started) {
+                            ctx.moveTo(x, y);
+                            trend_started = true;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    });
+                    ctx.stroke();
+                    ctx.lineWidth = 1;
+                }
+            }
+            if (volume) {
+                // X-axis date labels always drawn (they describe the shared x axis, not the bars
+                // themselves) - only the bars are gated on show_volume
+
+                // With many points the per-point spacing can be narrower than a label, so labels
+                // start overlapping - thin them out to roughly one per `label_stride` points based
+                // on how wide a day-number label actually is versus the space each point gets
+                ctx.font = `10px ${font_family}`;
+                const sample_label_width = ctx.measureText("22").width; // representative 2-digit day
+                const min_label_gap = 4;
+                const point_spacing = chartWidth / pointCount;
+                const label_stride = Math.max(1, Math.ceil((sample_label_width + min_label_gap) / point_spacing));
+
+                volume.forEach((vol, i) => {
+                    const x = scaleX(i);
+
+                    if (show_volume) {
+                        const y = scaleY(vol);
+                        const heightBar = height - padding - y; // height of the bar
+                        ctx.fillStyle = color_volume;
+                        ctx.fillRect(
+                            x - barWidth / 2,
+                            y,
+                            barWidth,
+                            heightBar
+                        );
+                    }
+
+                    // Skip this label if it falls between strides, unless it's the last point
+                    // (so the label row never trails off with an empty gap at the end)
+                    if (i % label_stride !== 0 && i !== pointCount - 1) return;
+
+                    // Prepare label for x-axis (either from axys_x or index)
+                    const label = `${xLabels[i].getDate()}`;
+
+                    const date = xLabels[i]; // assuming xLabels contains Date objects
+                    if (date instanceof Date && date.getDay() === 0) { // getDay() === 0 for Sunday
+                        ctx.font = `bold 12px ${font_family}`; // bold font for Sundays
+                    } else {
+                        ctx.font = `10px ${font_family}`;
+                    }
+                    ctx.fillStyle = color_text;
+
+                    // Measure text width to center it
+                    const textWidth = ctx.measureText(label).width;
+
+                    // Draw label centered under the bar
+                    ctx.fillText(
+                        label,
+                        (x - textWidth / 2),
+                        height - padding + 12 // position below x-axis line
+                    );
+                });
+
+                ctx.fillStyle = color_text;
+                ctx.font = `10px ${font_family}`;
+                const format_month_year = date => `${date.getMonth() + 1}/${date.getFullYear()}`;
+
+                // One "M/YYYY" label per month, placed under that month's first data point
+                // (the very first point always counts, even mid-month, so the chart never opens
+                // without a month label)
+                xLabels.forEach((date, i) => {
+                    if (!(date instanceof Date)) return;
+                    if (i !== 0 && date.getDate() !== 1) return;
+
+                    const label_month_year = format_month_year(date);
+                    const textWidth = ctx.measureText(label_month_year).width;
+
+                    ctx.fillText(
+                        label_month_year,
+                        (scaleX(i)) - offstet + 3,
+                        height - padding + 25 // position below x-axis line
+                    );
+                });
+            }
+
+            //draw title chart
+            ctx.fillStyle = color_text;
+            ctx.font = `bold 16px ${font_family}`;
+            const titolo_chart = options.title ?? "chart";
+            ctx.fillText(
+                titolo_chart,
+                15,
+                padding - 25// position below x-axis line
+            );
+
+            // legend, right-aligned on the same horizontal line as the title - dimmed when its
+            // dataset is toggled off
+            ctx.font = `bold 12px ${font_family}`;
+
+            //legend volume
+            ctx.globalAlpha = show_volume ? 1 : 0.35;
+            ctx.fillStyle = color_volume;
+            ctx.fillRect(
+                volume_swatch_start_x,
+                legend_baseline_y - 11,
+                legend_swatch_size,
+                legend_swatch_size
+            );
+            ctx.fillStyle = color_text;
+            ctx.fillText(volume_label, volume_label_x, legend_baseline_y);
+            ctx.globalAlpha = 1;
+
+            //legend line
+            ctx.globalAlpha = show_linear ? 1 : 0.35;
+            ctx.strokeStyle = color_line;
+            ctx.beginPath();
+            ctx.moveTo(line_swatch_start_x, legend_baseline_y - 4);
+            ctx.lineTo(line_swatch_end_x, legend_baseline_y - 4);
+            ctx.stroke();
+            ctx.fillStyle = color_text;
+            ctx.fillText(line_label, line_label_x, legend_baseline_y);
+            ctx.globalAlpha = 1;
+
+            ctx.strokeStyle = color_axis;
+            ctx.lineWidth = 1;
+
+            // // Y-axis
+            // ctx.beginPath();
+            // ctx.moveTo(padding - offstet, padding);
+            // ctx.lineTo(padding - offstet, height - padding);
+            // ctx.stroke();
+
+            // // X-axis
+            // ctx.beginPath();
+            // ctx.moveTo(padding - offstet, height - padding);
+            // ctx.lineTo(width - padding + offstet, height - padding);
+            // ctx.stroke();
+        }
+        render();
+
+        // per-index value-label visibility, so a double-click can show/hide every label at once
+        // instead of only the one under the cursor. Labels are redrawn from scratch on every
+        // change (full render() + replay the visible set) rather than patched in place with
+        // getImageData/putImageData - with points this close together, neighboring labels'
+        // bounding boxes can overlap, and restoring one's "before" pixels then leaves residue
+        // from (or erases part of) whichever label was drawn over that same area afterwards
+        const visible_labels = new Set();
+        let all_labels_shown = false;
+
+        // every label shares the same rotation, so un-rotating a candidate anchor by -label_angle
+        // turns its bounding box into an axis-aligned rect in that "label space" - two labels'
+        // boxes then overlap in real space iff their label-space AABBs overlap, which is far
+        // simpler than a general rotated-rect intersection test
+        const to_label_space = (x, y) => {
+            const cos_a = Math.cos(-label_angle), sin_a = Math.sin(-label_angle);
+            return { x: x * cos_a - y * sin_a, y: x * sin_a + y * cos_a };
+        };
+        const rects_overlap = (a, b) => !(a.max_x < b.min_x || b.max_x < a.min_x || a.max_y < b.min_y || b.max_y < a.min_y);
+
+        const compute_label_placement = (i, placed_rects) => {
+            const point_x = scaleX(i);
+            const point_y = scaleY(linear[i]);
+            const prev_point = i > 0 ? { x: scaleX(i - 1), y: scaleY(linear[i - 1]) } : null;
+            const next_point = i < linear.length - 1 ? { x: scaleX(i + 1), y: scaleY(linear[i + 1]) } : null;
+
+            const text_value = `${linear[i]}`;
+            ctx.font = `10px ${font_family}`;
+            const half_w = ctx.measureText(text_value).width / 2 + 4;
+            const half_h = 10; // ~half line height + padding
+            const gap = 16; // distance from the point to the label's center
+
+            const rect_at = (anchor_x, anchor_y) => {
+                const center = to_label_space(anchor_x, anchor_y);
+                return { min_x: center.x - half_w, max_x: center.x + half_w, min_y: center.y - half_h, max_y: center.y + half_h };
+            };
+
+            for (const direction of label_directions) {
+                const anchor_x = point_x + direction.dx * gap;
+                const anchor_y = point_y + direction.dy * gap;
+                const corners = rotated_label_corners(anchor_x, anchor_y, half_w, half_h);
+                const rect = rect_at(anchor_x, anchor_y);
+                const blocked =
+                    (prev_point && rect_intersects_segment(corners, prev_point, { x: point_x, y: point_y })) ||
+                    (next_point && rect_intersects_segment(corners, { x: point_x, y: point_y }, next_point)) ||
+                    placed_rects.some(other => rects_overlap(rect, other));
+                if (!blocked) return { anchor_x, anchor_y, text_value, rect };
+            }
+            // every position collides (e.g. a steep V around this point, or other visible labels
+            // crowding all 8 spots) - fall back to top
+            const anchor_x = point_x + label_directions[0].dx * gap;
+            const anchor_y = point_y + label_directions[0].dy * gap;
+            return { anchor_x, anchor_y, text_value, rect: rect_at(anchor_x, anchor_y) };
+        };
+        const draw_label = (i, placed_rects) => {
+            const placement = compute_label_placement(i, placed_rects);
+            placed_rects.push(placement.rect);
+            ctx.save();
+            ctx.font = `10px ${font_family}`;
+            ctx.translate(placement.anchor_x, placement.anchor_y);
+            ctx.rotate(label_angle);
+            ctx.fillStyle = color_text;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(placement.text_value, 0, 0);
+            ctx.restore();
+        };
+        const redraw_labels = () => {
+            render();
+            // placed in Set insertion order, so a label's spot never moves just because a later
+            // one was added - only later labels adjust to dodge the earlier, already-fixed ones
+            const placed_rects = [];
+            visible_labels.forEach(i => draw_label(i, placed_rects));
+        };
+        const show_label = (i) => {
+            if (!linear || visible_labels.has(i)) return;
+            visible_labels.add(i);
+            redraw_labels();
+        };
+        const hide_label = (i) => {
+            if (!visible_labels.has(i)) return;
+            visible_labels.delete(i);
+            redraw_labels();
+        };
+        const toggle_all_labels = () => {
+            all_labels_shown = !all_labels_shown;
+            visible_labels.clear();
+            if (all_labels_shown) {
+                for (let i = 0; i < pointCount; i++) visible_labels.add(i);
+            }
+            redraw_labels();
+        };
+
+        // one-time hint/click overlays for each bar's index - kept outside render() so toggling
+        // a legend item doesn't tear down and recreate these listeners on every click
+        if (volume) {
+            volume.forEach((vol, i) => {
+                const x = scaleX(i);
+                const date = xLabels[i]; // assuming xLabels contains Date objects
+
+                // Create invisible overlay div for hint
+                const invisible_drawn_bar = document.createElement("div");
+                invisible_drawn_bar.style.position = "absolute";
+                invisible_drawn_bar.style.background = "transparent"; // invisible
+                // invisible_drawn_bar.style.outline = "1px solid red"; // debug
+                invisible_drawn_bar.style.left = `${canvas.offsetLeft + (x - barWidth / 2) + offstet}px`;
+                invisible_drawn_bar.style.top = `${canvas.offsetTop + 40}px`;
+                invisible_drawn_bar.style.width = `${barWidth}px`;
+                invisible_drawn_bar.style.height = `${canvas.height - 70}px`;
+                container.appendChild(invisible_drawn_bar);
+                if (linear) {
+                    // click toggles just this point's value label; double-click toggles every
+                    // point's label at once (the two clicks that make up the dblclick also fire
+                    // as clicks first, so this point briefly flips on/off before "toggle all" runs)
+                    invisible_drawn_bar.addEventListener("click", () => {
+                        visible_labels.has(i) ? hide_label(i) : show_label(i);
+                    });
+                    invisible_drawn_bar.addEventListener("dblclick", () => toggle_all_labels());
+                }
+                if (date instanceof Date) {
+                    const the_hint = `${Locale.parseDateConvertToReadable(date)}\n${options.title_linear} ${linear[i]}\n${options.title_volume} ${vol}`;
+                    UiBuilder.addHint({
+                        hint: the_hint,
+                        target: invisible_drawn_bar,
+                        anchor: "right",
+                    });
+                }
+            });
+        }
+
+        // legend click overlays - toggle the corresponding dataset's visibility and re-render
+        const make_legend_toggle = (start_x, end_x, top_y, bottom_y, toggle) => {
+            const overlay = document.createElement("div");
+            overlay.style.position = "absolute";
+            overlay.style.cursor = "pointer";
+            overlay.style.background = "transparent";
+            overlay.style.left = `${canvas.offsetLeft + start_x}px`;
+            overlay.style.top = `${canvas.offsetTop + top_y}px`;
+            overlay.style.width = `${end_x - start_x}px`;
+            overlay.style.height = `${bottom_y - top_y}px`;
+            overlay.addEventListener("click", () => {
+                toggle();
+                redraw_labels(); // repaints via render() and replays any still-visible value labels
+            });
+            container.appendChild(overlay);
+        };
+        if (volume) {
+            make_legend_toggle(
+                volume_swatch_start_x, volume_label_x + volume_label_width,
+                legend_baseline_y - 11, legend_baseline_y + 8,
+                () => { show_volume = !show_volume; }
+            );
+        }
+        if (linear) {
+            make_legend_toggle(
+                line_swatch_start_x, line_label_x + line_label_width,
+                legend_baseline_y - 11, legend_baseline_y + 8,
+                () => { show_linear = !show_linear; }
+            );
+        }
+
+        // footer: slider blending the trend overlay from a straight linear-regression line to a
+        // full LOWESS curve, per ChartBase.blendedRegressionLine
+        if (linear) {
+            const footer = document.createElement("div");
+            footer.style.display = "flex";
+            footer.style.alignItems = "center";
+            footer.style.gap = "8px";
+            footer.style.padding = "6px 15px 0";
+            footer.style.fontFamily = "var(--vscode-font-family)";
+            footer.style.fontSize = "12px";
+            footer.style.color = "var(--vscode-descriptionForeground)";
+
+            const trend_toggle_options = {
+                label: Locale.at("Regression"),
+                innerText: { on: "on", off: "off" },
+                isOn: show_trend,
+                theme: "mini",
+                onClick: () => {
+                    show_trend = !show_trend;
+                    trend_toggle_options.setIsOn(show_trend);
+                    update_trend_controls_enabled();
+                    save_trend_state();
+                    redraw_labels(); // repaints via render() and replays any still-visible value labels
+                },
+            };
+            footer.appendChild(UiBuilder.createToggle(trend_toggle_options));
+
+            const blend_slider = document.createElement("input");
+            blend_slider.type = "range";
+            blend_slider.min = "0";
+            blend_slider.max = "1";
+            blend_slider.step = "0.01";
+            blend_slider.value = `${regression_blend}`;
+            blend_slider.style.flex = "1";
+            footer.appendChild(blend_slider);
+
+            const blend_readout = document.createElement("span");
+            blend_readout.style.minWidth = "100px";
+            blend_readout.style.textAlign = "right";
+            const update_blend_readout = () => {
+                blend_readout.innerText = regression_blend <= 0
+                    ? Locale.at("Linear")
+                    : regression_blend >= 1
+                        ? Locale.at("LOWESS")
+                        : `${Math.round(regression_blend * 100)}% ${Locale.at("LOWESS")}`;
+            };
+            update_blend_readout();
+            footer.appendChild(blend_readout);
+
+            const update_trend_controls_enabled = () => {
+                blend_slider.disabled = !show_trend;
+                blend_slider.style.opacity = show_trend ? "1" : "0.4";
+                blend_readout.style.opacity = show_trend ? "1" : "0.4";
+            };
+            update_trend_controls_enabled();
+
+            blend_slider.addEventListener("input", () => {
+                regression_blend = parseFloat(blend_slider.value);
+                update_blend_readout();
+                save_trend_state();
+                redraw_labels(); // repaints via render() and replays any still-visible value labels
+            });
+
+            container.appendChild(footer);
+        }
+
+        return container;
     }
     /**
      * Standard "fetch -> loading/empty/error/content" lifecycle for a container: shows a

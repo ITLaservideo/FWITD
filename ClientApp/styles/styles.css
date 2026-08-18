@@ -491,6 +491,7 @@ html {
         margin-right: 10px;
         width: fit-content;
         height: fit-content;
+        line-height: 0;
     }
 }
 
@@ -606,14 +607,36 @@ html {
 
 /*#endregion*/
 
+
 /* #region custom dropdown */
 
 .custom-dropdown-container {
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: var(--vscode-font-family);
     display: inline-block;
     min-width: 160px;
     position: relative;
     --height-btns: 44px;
+
+    &.has-left-icon {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        .custom-dropdown {
+            flex: 1;
+        }
+
+        .custom-dropdown-selected {
+            padding-left: 25px;
+        }
+    }
+
+    .cdc-icon-left {
+        flex: none;
+        position: absolute;
+        z-index: 1;
+        margin-left: 8px;
+    }
 
     .custom-dropdown-option-image {
         max-width: 100px;
@@ -623,12 +646,6 @@ html {
     .cdc-arrow-open {
         position: absolute;
         right: 5px;
-        bottom: 0;
-        top: 0;
-        margin: auto;
-        z-index: 1;
-        pointer-events: none;
-        rotate: -90deg;
     }
 
     .custom-dropdown {
@@ -636,7 +653,7 @@ html {
         border-radius: 4px;
         cursor: pointer;
         user-select: none;
-        font-size: min(3.2vw, 3.2vh, 18px);
+        font-size: min(3.2vh, 18px);
 
         .cm-dn-buttons {
             height: var(--height-btns);
@@ -647,10 +664,10 @@ html {
             flex-direction: row;
             width: 100%;
             justify-content: space-around;
-            border: 1px solid #ccc;
+            border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
             border-top: none;
             border-bottom: unset;
-            background: #fff;
+            background: var(--vscode-dropdown-background, var(--vscode-input-background));
             box-sizing: border-box;
 
             >div {
@@ -672,19 +689,19 @@ html {
 
 
     .custom-dropdown-selected.cddown-selected-not-stealth {
-        background-color: #f1f0f4c2;
+        background-color: var(--vscode-input-background);
         height: 24px;
         min-height: fit-content;
     }
 
     .custom-dropdown-selected {
-        padding: 8px 12px;
+        padding: 1px;
         border-radius: 4px;
         text-align: center;
         padding-right: 27px;
 
         &:hover {
-            background-color: #f1f0f4;
+            background-color: var(--vscode-list-hoverBackground);
         }
     }
 
@@ -692,7 +709,7 @@ html {
         border-radius: 2px;
         border-end-end-radius: 4px;
         border-end-start-radius: 4px;
-        outline: 1px solid #ccc;
+        outline: 1px solid var(--vscode-focusBorder);
     }
 
     .custom-dropdown-options {
@@ -700,20 +717,20 @@ html {
         width: 100%;
         top: 100%;
         left: 0;
-        background: #fff;
-        border: 1px solid #ccc;
+        background: var(--vscode-dropdown-background, var(--vscode-input-background));
+        border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
         border-top: none;
         z-index: 100;
         max-height: 210px;
         overflow-y: auto;
         box-sizing: border-box;
-        border-top: 1px solid #49494912;
+        border-top: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
     }
 
     .custom-dropdown-options.top {
         top: unset;
         bottom: 100%;
-        border-top: 1px solid #ccc;
+        border-top: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
         border-bottom: none;
     }
 
@@ -738,12 +755,12 @@ html {
     }
 
     .custom-dropdown-option.dds-selected {
-        background-color: #e6e6e6 !important;
+        background-color: var(--vscode-list-inactiveSelectionBackground) !important;
     }
 
 
     .custom-dropdown-option:hover {
-        background-color: #f0f0f0;
+        background-color: var(--vscode-list-hoverBackground);
     }
 
     .hidden {
