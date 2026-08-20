@@ -650,10 +650,12 @@ function consumeOps(ops) {
 }
 DragAndDrop.load();
 window.DragAndDrop = DragAndDrop;
-new Notify({
-    text: "drag and drop VERSION 11 -- " + new Date().getMilliseconds(),
-    event: { clientX: 450, clientY: 150 },
-    ms_timeout: 2000,
-    style: 3,
-    type: 1
-});
+setTimeout(() => {
+    new Notify({
+        text: "drag and drop VERSION 11 -- " + new Date().getMilliseconds(),
+        event: { clientX: 450, clientY: 150 },
+        ms_timeout: 2000,
+        style: 3,
+        type: 1
+    });
+}, 0);

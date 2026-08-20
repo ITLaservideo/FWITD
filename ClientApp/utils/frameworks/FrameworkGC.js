@@ -116,12 +116,32 @@ class Utils {
         if (typeof value === "number") return value !== 0 && !Number.isNaN(value);
 
         const str = String(value).trim().toLowerCase();
-        if (["true", "1", "yes", "y", "on", "t"].includes(str)) return true;
-        if (["false", "0", "no", "n", "off", "f", ""].includes(str)) return false;
+        if (["☑", "true", "1", "yes", "y", "on", "t"].includes(str)) return true;
+        if (["☐", "false", "0", "no", "n", "off", "f", ""].includes(str)) return false;
 
         const num = Number(str);
         if (!Number.isNaN(num)) return num !== 0;
 
         return false;
+    }
+
+    static determineDimensionsElement(element) {
+        return new Promise((resolve) => {
+            const clone = element.cloneNode(true);
+            clone.style.position = "absolute";
+            //clone.style.visibility = "hidden";
+            clone.style.height = "auto";
+            clone.style.left = 0;
+            clone.style.top = 0;
+            clone.style.width = element.style.width || "auto";
+
+            document.body.appendChild(clone);
+            setTimeout(() => {
+                const height = clone.offsetHeight;
+                const width = clone.offsetWidth;
+                document.body.removeChild(clone);
+                resolve({ height: height, width: width });
+            }, 0);
+        });
     }
 }

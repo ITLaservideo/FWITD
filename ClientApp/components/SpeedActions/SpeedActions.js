@@ -149,7 +149,7 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
                 hint: Locale.at('prevent auto-closing'),
                 class: 'speed-actions-pin-btn',
                 onClick: () => SpeedActions.pinned.toggle(),
-                theme: 1,
+                theme: 'text',
                 anchor: "right",
             });
         }

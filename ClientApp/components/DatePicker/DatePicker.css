@@ -5,6 +5,13 @@
     align-items: center;
     width: fit-content;
     padding: 10px;
+    user-select: none;
+
+    .f-icon-i {
+        &:active {
+            opacity: 0.7;
+        }
+    }
 
     .date-picker-header {
         display: flex;
@@ -83,7 +90,7 @@
     }
 
     .body-selections {
-        min-height: 280px;
+        min-height: 291px;
     }
 
     .calendar-container {
@@ -128,6 +135,20 @@
         outline: 1px solid var(--vscode-focusBorder);
     }
 
+}
+
+.dp-month-splitter {
+    .template-operations-container {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
+.dp-year-splitter {
+    .template-operations-container {
+        display: grid !important;
+        grid-template-columns: repeat(10, 1fr) !important;
+    }
 }
 
 /* delete me */

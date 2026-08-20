@@ -29,11 +29,25 @@ class Icons {
     }
 
     static #iconCache = new Map();
+    static #ICON_CODE_PATTERN = /^[0-9a-f]{3,6}$/i;
     /**
-     * @param {HTMLImageElement} target
-     * @param {string} icon_name file name (optionally prefixed with `/`) inside `ClientApp/icons`, e.g. `/search.svg`
+     * @param {HTMLImageElement|HTMLElement} target `<img>` when passing an `icon_name`; an icon-font
+     * element (the `f-icon`/`data-icon` or `f-icon-i` convention, see `create()`) when passing an `icon_code`
+     * @param {string} icon_name_or_code file name (optionally prefixed with `/`) inside `ClientApp/icons`,
+     * e.g. `/search.svg`; or a hex code point from https://fonts.google.com/icons, e.g. `e86c`
      */
-    static async setSrcIcon(target, icon_name) {
+    static async setSrcIcon(target, icon_name_or_code) {
+        if (Icons.#ICON_CODE_PATTERN.test(icon_name_or_code)) {
+            const char = String.fromCodePoint(parseInt(icon_name_or_code, 16));
+            if (target.classList.contains("f-icon")) {
+                target.setAttribute("data-icon", char);
+            } else {
+                target.classList.toggle("f-icon-i", true);
+                target.innerText = char;
+            }
+            return;
+        }
+        const icon_name = icon_name_or_code;
         const cached = Icons.#iconCache.get(icon_name);
         if (cached != undefined) {
             target.src = cached;

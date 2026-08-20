@@ -21,21 +21,32 @@ class MousePopUp {
     #func_delete_me;
     /**
      * @param {Object} options
-     * @param {String[]}  options.action_titles
-     * @param {Function[]} options.next
-     * @param {Event} options.event
-     * @param {Function[]} [options.onClose]
-     * @param {Function} [options.onIgnore]
-     * @param {string[]} [options.svgs] file_name.svg :: from ui_2024
-     * @param {boolean} [options.reusable] (await mouse_pop_up_i).onComplete();
-     * @param {String} [options.title]
-     * @param {Function} [options.onReady]
-     * @param {Element} [options.beforeSelectionsRow] insert an element
-     * @param {Element} [options.afterTitleRow] insert an element
-     * @param {string} [options.afterTitleImg] specify full image src
-     * @param {Object} [options.toggles]
-     * @param {Bool[]} [options.toggles.statuses]
-     * @param {Number} [options.style] 0 | 1 | 2 | 4
+     * @param {string[]} [options.action_titles] - Label for each selection button/row, one entry per row. Defaults to `[]` (no selections).
+     * @param {Array<(event: MouseEvent) => (boolean|Promise<boolean>)>} [options.next] - Click handler per `action_titles` entry, same index. With `options.reusable` + `options.toggles`, the (possibly awaited) return value flips that row's toggle on/off. Must have at least as many entries as `action_titles` unless `options.iAmAwareThereAreNoSelections` is true.
+     * @param {boolean} [options.iAmAwareThereAreNoSelections] - Bypasses the `next.length >= action_titles.length` safety check, for popups with no selection rows at all.
+     * @param {{clientX: number, clientY: number}} [options.event] - Where to position the popup; defaults to `{clientX: 20, clientY: 20}`.
+     * @param {Function|Function[]} [options.onClose] - Callback(s) run when the popup is destroyed.
+     * @param {Function} [options.onIgnore] - Called (before destroy) when the popup is dismissed via its close button, or auto-closed by another popup opening - not called on a normal selection click.
+     * @param {string[]} [options.svgs] - Icon filename per `action_titles` entry, loaded from `/Icons/`; ignored when `options.toggles` is set.
+     * @param {string[]} [options.text_svgs] - Alternative to `options.svgs`: an `Icons.ezIcon()` codepoint per entry, inserted before the row's text. Only used when neither `options.svgs` nor `options.toggles` applies.
+     * @param {number} [options.prefer_next] - Index of the entry to mark as the suggested/default action (adds the `prefer-this-action` class).
+     * @param {string[]} [options.override_backgrounds_color] - CSS background value per entry, overriding that row's default background.
+     * @param {boolean} [options.reusable] - If true, clicking a selection doesn't close the popup (pair with `options.toggles`); the caller is responsible for eventually calling the instance's `onComplete()` to re-enable the clicked row.
+     * @param {Object} [options.toggles] - Renders each selection as a toggle switch instead of a plain row.
+     * @param {boolean[]} [options.toggles.statuses] - Initial on/off state per `action_titles` entry.
+     * @param {string} [options.title] - Popup title text (HTML-escaped).
+     * @param {Function} [options.onReady] - Called once the popup has been added to the DOM and faded in.
+     * @param {Element} [options.beforeSelectionsRow] - Element inserted right after the title, before the selection rows.
+     * @param {Element} [options.afterTitleRow] - Element appended into the content-preview area (below the title, above the selections).
+     * @param {string} [options.afterTitleImg] - Full image `src` shown in the content-preview area.
+     * @param {'alert'|'plain'|'info'|'multi-select'|'ez'} [options.style='alert'] - Visual style preset.
+     * @param {string} [options.class] - Extra CSS class(es) (space-separated), added to the popup container alongside the `options.style` preset.
+     * @param {boolean} [options.visible_button_close] - Forces the close ("X") button visible even when it would otherwise be hidden.
+     * @param {boolean} [options.full_screen] - Expands the popup to near-fullscreen, centered, with an enlarged close button.
+     * @param {boolean} [options.horizontal_buttons] - Lays the selection rows out horizontally instead of stacked.
+     * @param {boolean} [options.ops_as_last] - Moves the selections container to the end of the popup instead of its default position.
+     * @param {boolean} [options.requireToBeMovable] - Makes the popup draggable by its title bar (blanking the title first if it's empty, so there's a visible drag handle).
+     * @param {boolean} [options.allowMultipleInstances] - If false/omitted, opening this popup auto-closes every other currently-open `MousePopUp` instance.
      */
     constructor(options) {
         this.#initialize(options);
@@ -67,7 +78,7 @@ class MousePopUp {
         if (options.style != undefined) {
             owner.applyStyle(options.style);
         } else {
-            owner.applyStyle(0);
+            owner.applyStyle('alert');
         }
         if (!(options.iAmAwareThereAreNoSelections == true) && options.action_titles.length > options.next.length) {
             throw new Error("next[].length inferiore alle action_titles fornite");
@@ -149,11 +160,21 @@ class MousePopUp {
             owner.#buttons.push(element);
         }
         const main_container = owner.#self_ref.getElementsByClassName("template-mouse-pop-up-container")[0];
+        if (options.class != undefined) {
+            main_container.classList.add(...options.class.split(" ").filter(Boolean));
+        }
         if (options.event == undefined) {
             options.event = { clientX: 20, clientY: 20 };
         }
         main_container.style.left = `${options.event.clientX}px`;// + window.scrollX;
         main_container.style.top = `${options.event.clientY}px`;// + window.scrollY;
+        const button_close = owner.#self_ref.getElementsByClassName("button-close")[0];
+        button_close.addEventListener("click", () => {
+            owner.#self_ref.autoRemove();
+        });
+        if (options.visible_button_close) {
+            button_close.style.display = 'flex';
+        }
         if (options.full_screen == true) {
             main_container.style.left = `${Math.min(options.event.clientX, 50)}px`;
             main_container.style.top = `${Math.min(options.event.clientY, 50)}px`;
@@ -161,11 +182,8 @@ class MousePopUp {
             main_container.style.bottom = `${Math.min(options.event.clientY, 50)}px`;
             main_container.style.margin = 'auto';
             main_container.style['justifyContent'] = 'center';
-            const button_close = owner.#self_ref.getElementsByClassName("button-close")[0];
-            button_close.setAttribute("style", "width: 50px;height: 50px;background: black; color: white;");
-            button_close.addEventListener("click", () => {
-                owner.#self_ref.autoRemove();
-            });
+            button_close.setAttribute("style", "width: 50px;height: 50px;background: black; color: white;display:flex;");
+
             owner.#self_ref.getElementsByClassName("template-operations-container")[0].style['paddingLeft'] = '55px';
             owner.#self_ref.getElementsByClassName("template-operations-container")[0].style['paddingRight'] = '55px';
         }
@@ -182,12 +200,6 @@ class MousePopUp {
             if (options.title == undefined || options.title.trim().length == 0) {
                 title_placeholder.innerText = '-   -   -   -   -';
             }
-        }
-        if (options.full_screen != true) {
-            owner.#self_ref.getElementsByClassName("button-close")[0].style = '';
-            owner.#self_ref.getElementsByClassName("button-close")[0].addEventListener("click", () => {
-                owner.destroy();
-            });
         }
         owner.#self_ref.autoRemove = () => {
             if (options.onIgnore != undefined) {
@@ -209,7 +221,7 @@ class MousePopUp {
             if (options.title == undefined || options.title.trim().length == 0) {
                 title_placeholder.innerText = '-   -   -   -   -';
             }
-            //MousePopUp.#makeItMovable(title_placeholder);
+            MousePopUp.#makeItMovable(title_placeholder);
         }
         setTimeout(() => {
             owner.#addEventListeners();
@@ -344,24 +356,24 @@ class MousePopUp {
             }
         }
     }
-    applyStyle(num) {
+    applyStyle(name) {
         const container = this.#self_ref.getElementsByClassName("template-mouse-pop-up-container")[0];
         container.className = "template-mouse-pop-up-container";
         try {
-            const styles = MousePopUp.#styles[Number(num)].split(" ");
+            const styles = MousePopUp.#styles[name].split(" ");
             for (let s = 0; s < styles.length; s++) {
                 container.classList.toggle(styles[s], true);
             }
         } catch (error) {
-            container.classList.toggle(MousePopUp.#styles[0], true);
+            container.classList.toggle(MousePopUp.#styles['alert'], true);
         }
     }
     static #styles = {
-        0: 'style-alert',
-        1: '',
-        2: 'info-dispenser-no-actions',
-        3: 'multiple-box-selection style-alert',
-        4: 'ez'
+        alert: 'style-alert',
+        plain: '',
+        info: 'info-dispenser-no-actions',
+        'multi-select': 'multiple-box-selection style-alert',
+        ez: 'ez'
     }
     /**
      * 
@@ -424,13 +436,7 @@ class MousePopUp {
      */
     static #makeItMovable(element) {
         (async () => {
-            if (window.MovableUtil == undefined) {
-                const load_time = new Date();
-                const cache_id = `v=${load_time.getDate()}${load_time.getMonth() + 1}${load_time.getFullYear()}`;
-                const { default: tmp } = await import(`../../../utils/move_with_mouse.min.js?${cache_id}`);
-                window.MovableUtil = tmp;
-            }
-            window.MovableUtil.makeItMovable(element, element.parentElement);
+            MovableUtil.makeItMovable(element, element.parentElement);
         })()
             .catch(error => {
                 // Handle/report error

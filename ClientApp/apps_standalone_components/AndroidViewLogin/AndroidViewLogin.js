@@ -57,7 +57,7 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
         }
         return;
     }
-    // demo fw-click listern
+    // demo (click) listern
     // static incrementer = 0;
     // async onClickGigioed(event) {
     //     const element_with_this_event = this;
@@ -132,7 +132,7 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                         text_icon.innerHTML = "&#xf656;";
                         setTimeout(async () => {
                             await new Promise((resolve) => {
-                                Lobby.post("AppRouter/Navigate",{where:"GestionaleDistributore"}, (rsp) => {
+                                Lobby.post("AppRouter/Navigate", { where: "GestionaleDistributore" }, (rsp) => {
                                     resolve();
                                     //owner.elements.button_login.classList.toggle("clicked", false);
                                 });

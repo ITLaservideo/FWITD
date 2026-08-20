@@ -45,7 +45,7 @@ class AndroidViewSettings extends FrameworkGC(`${injector_html}`) {
     // owner.options;//access building options here
 
     //#region FrameworkEventListeners
-    async #onButtonTestClick() {// add attribute inside the .html ` fw-click='#onButtonTestClick' `
+    async #onButtonTestClick() {// add attribute inside the .html ` (click)='#onButtonTestClick' `
         /**
          * @type HTMLElement
          */

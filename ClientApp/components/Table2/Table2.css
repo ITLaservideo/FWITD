@@ -81,13 +81,11 @@
 
                 .mftml-searchbox.mit-scope {
                     >input {
-                        border-radius: 12px;
-                        padding: 5px;
                         margin-left: 35px;
                         z-index: 1;
                     }
 
-                    >img {
+                    >.f-icon-i {
                         z-index: 2;
                     }
                 }
@@ -183,6 +181,14 @@
         display: flex;
         align-items: center;
         justify-content: center;
+
+        .page-number {
+            display: flex;
+            justify-content: center;
+            height: 100%;
+            align-items: center;
+            cursor: pointer;
+        }
     }
 }
 
@@ -219,6 +225,11 @@
     }
 }
 
+.hide-in-place {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
 .f-table-button.twj-button {
     background-color: transparent;
     border: unset;
@@ -240,5 +251,42 @@
 
     &:hover {
         background-color: transparent;
+    }
+}
+
+.mftml-table {
+
+    .enhance-errror-0,
+    .enhance-errror-1,
+    .enhance-inizio-fine-sessione {
+        position: relative;
+
+        &::after {
+            content: '';
+            position: absolute;
+            margin: auto;
+            width: 100%;
+            height: 93%;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background-color: color-mix(in srgb, var(--vscode-editorError-foreground) 10%, transparent);
+            opacity: 0;
+            pointer-events: none;
+            animation: opacity1 0.1s ease-in forwards;
+        }
+    }
+
+    .enhance-errror-1 {
+
+        &::after {
+            background-color: color-mix(in srgb, var(--vscode-editorError-foreground) 23%, transparent);
+        }
+    }
+
+    .enhance-inizio-fine-sessione {
+        &::after {
+            background-color: color-mix(in srgb, var(--vscode-editorInfo-foreground) 17%, transparent);
+        }
     }
 }

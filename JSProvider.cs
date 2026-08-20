@@ -230,7 +230,7 @@ namespace FWITD {
             };
             internal enum pages { AndroidAppDemo, AndroidLogin, AndroidMasterSettings, DashboardLettoreBarcode, ImageEditor, left_panel, ServerStatus, some_page, test_page }
             internal enum injectable_apps { cloudflared, GestionaleDistributore, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
-            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, ExportDataButton, FrameworkTestComponent, ImageEditor, Insight, KeyBoard, ListBox, MousePopUp, Notify, OTPComponent, PieChart, PosizioneMotore, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip, WizardStepper }
+            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, BreadCrumbs, CardRefillmentSuggestions, DataAnalizis1, DatePicker, DockWindow, DragAndDrop, EmptyState, ExportDataButton, FrameworkTestComponent, GeneralChart, ImageEditor, Insight, KeyBoard, ListBox, MousePopUp, Notify, OTPComponent, PosizioneMotore, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, SystemSettings, Table, Table2, TaskItem, ThemeSelector, Tooltip, WizardStepper }
             internal enum utils { AppRouter, Icons, LiveLogger, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
             internal enum frameworks { AppStatus, FrameworkGC }
             private static Dictionary<JS.pages, string> cache_path_files = new Dictionary<pages, string>();
@@ -286,6 +286,7 @@ namespace FWITD {
                 foreach (var directory in allDirectories) {
                     var jsFiles = Directory.GetFiles(directory, $"*{minimized_folder_extension}js", SearchOption.TopDirectoryOnly)
                         .Where(f => minimized_folder_extension == ".min." || !f.EndsWith(".min.js"))
+                        .Where(f => !Path.GetFileName(f).StartsWith('.'))
                         .ToArray();
                     foreach (var jsFile in jsFiles) {
                         try {
@@ -310,6 +311,7 @@ namespace FWITD {
                     var children = assets.List(subdir);
                     if (children == null || children.Length == 0) continue; // it's a file, not a dir
                     foreach (var child in children) {
+                        if (child.StartsWith('.')) continue;
                         if (child.EndsWith($"{minimized_folder_extension}js", StringComparison.OrdinalIgnoreCase)
                                 && (minimized_folder_extension == ".min." || !child.EndsWith(".min.js", StringComparison.OrdinalIgnoreCase))) {
                             try {

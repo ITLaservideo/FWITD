@@ -49,7 +49,8 @@ namespace FWITD {
         /// <c>Directory.GetFiles(dir, "*{ext}js", TopDirectoryOnly)</c> used by the non-Android/non-WPF
         /// branch of <c>JSProvider.JS.loadAllOtherJSFiles</c>: every embedded js file at any depth under
         /// <paramref name="path"/> (but not directly in <paramref name="path"/> itself, matching
-        /// GetDirectories excluding the root), skipping anything under a "components" segment.
+        /// GetDirectories excluding the root), skipping anything under a "components" segment and
+        /// any file whose name starts with a dot.
         /// </summary>
         internal static async Task<string> LoadAllOtherEmbeddedJSFilesAsync(string path, string minimized_folder_extension) {
             string logicalPrefix = ToLogicalName(path).TrimEnd('/') + "/";
@@ -61,6 +62,7 @@ namespace FWITD {
                 if (segments.Length < 2) continue; // must be in a descendant directory, not directly under path
                 if (segments.Take(segments.Length - 1).Any(s => s.Equals("components", StringComparison.OrdinalIgnoreCase))) continue;
                 var last = segments[^1];
+                if (last.StartsWith('.')) continue;
                 if (!last.EndsWith($"{minimized_folder_extension}js", StringComparison.OrdinalIgnoreCase)) continue;
                 if (minimized_folder_extension != ".min." && last.EndsWith(".min.js", StringComparison.OrdinalIgnoreCase)) continue;
                 try {

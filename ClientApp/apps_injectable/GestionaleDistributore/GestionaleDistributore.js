@@ -43,7 +43,7 @@ class App extends FrameworkGC(`${injector_html}`) {
 
     //#region FrameworkEventListeners
     //@note private methods do not work :: they get mangled
-    async onButtonTestClick() {// add attribute inside the .html ` fw-click='onButtonTestClick' `
+    async onButtonTestClick() {// add attribute inside the .html ` (click)='onButtonTestClick' `
         /**
          * @type HTMLElement
          */

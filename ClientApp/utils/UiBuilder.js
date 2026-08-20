@@ -1,4 +1,9 @@
 class UiBuilder {
+    static createDivisorio() {
+        const div = document.createElement("div");
+        div.className = "divisorio";
+        return div;
+    }
     /**
      * Displays a transient toast notification anchored near the cursor (or centered if no event).
      * The notification removes itself after `timeout` ms. Clicking it closes it early and shows
@@ -398,7 +403,7 @@ class UiBuilder {
      * @param {string} [options.class]
      * @param {string} [options.style] text
      * @param {string} [options.automationID] `automation-id` attribute
-     * @param {1|2} [options.theme] 2 shiny
+     * @param {'shiny'|'text'} [options.theme]
      * @param {boolean} [options.auto_disable_on_click=false] If true, the button will be automatically disabled (by adding a "clicked" class) when clicked, and re-enabled after 1 second.
      * @returns {HTMLDivElement}
      * @throws {Error} If both `options.title` and `options.icon` are undefined, or if neither `options.onClick` nor `options.onRightClick` are provided
@@ -406,11 +411,14 @@ class UiBuilder {
     static createButton(options) {
         const tmp = document.createElement("div");
         switch (options.theme) {
-            case 2:
+            case 'shiny':
                 tmp.classList.add("btn-wrapper");
                 tmp.classList.add("shiny");
                 break;
-            case 1:
+            case 'ez':
+                tmp.classList.add("ez-button");
+                break;
+            case 'text':
                 tmp.classList.add("btn-wrapper");
                 break;
             default:
@@ -520,44 +528,32 @@ class UiBuilder {
         return tmp;
     }
     /**
-     * 
-     * @param {Object} options 
-     * @param {Function} options.next 
-     * @param {String} options.title 
-     * @param {String} options.title_cancel
-     * @param {String} options.title_confirm
+     * Builds a modal text-input dialog: full-viewport overlay, title, single text field (Enter
+     * triggers the confirm button), and a cancel/confirm button pair. Appends itself to
+     * `document.body` and removes itself on either button click.
+     *
+     * @param {Object} options
+     * @param {string} [options.title] - Text shown above the input.
+     * @param {string} [options.placeholder] - Input placeholder text.
+     * @param {Function} [options.next] - Called with the input's value when confirm is clicked.
+     * @param {Function} [options.onCancel] - Called when cancel is clicked.
+     * @param {string} [options.title_cancel] - Cancel button label.
+     * @param {string} [options.title_confirm] - Confirm button label.
+     * @returns {HTMLElement} The overlay container; has a `.focus()` method that focuses the input on the next tick.
      */
     static createSimpleTextInput(options) {
         const container = document.createElement('div');
-        Object.assign(container.style, {
-            display: 'flex',
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            justifyContent: 'center',
-            alignItems: 'center',
-            fontFamily: `'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif`
-        });
+        container.classList.add('simple-text-input-overlay');
         const modalContainer = document.createElement('div');
-        Object.assign(modalContainer.style, {
-            backgroundColor: '#fff',
-            padding: '10px',
-            paddingBottom: '0',
-            paddingTop: '4px',
-            borderRadius: '4px',
-            maxWidth: '400px',
-            width: '100%',
-            boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column'
-        });
+        modalContainer.classList.add('simple-text-input-modal');
         const title = document.createElement("div");
         title.innerText = options.title;
-        title.style.paddingBottom = '4px';
+        title.classList.add('simple-text-input-title');
         modalContainer.appendChild(title);
         const input = document.createElement('input');
         input.type = 'text';
         input.placeholder = options.placeholder ?? '';
+        input.classList.add('simple-text-input-field');
         input.addEventListener("keyup", (event) => {
             if (event.key == "Enter") {
                 setTimeout(() => {
@@ -570,18 +566,8 @@ class UiBuilder {
                 }, 0);
             }
         });
-        Object.assign(input.style, {
-            width: '100%',
-            padding: '4px',
-            marginBottom: '4px',
-            boxSizing: 'border-box',
-        });
         const buttonsContainer = document.createElement('div');
-        Object.assign(buttonsContainer.style, {
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: '10px',
-        });
+        buttonsContainer.classList.add('simple-text-input-buttons');
         const cancelButton = UiBuilder.createButton({
             onClick: () => {
                 container.remove();
@@ -591,7 +577,7 @@ class UiBuilder {
             },
             title: options.title_cancel,
         });
-        cancelButton.style.minWidth = '80px';
+        cancelButton.classList.add('simple-text-input-btn');
         const confirmButton = UiBuilder.createButton({
             onClick: () => {
                 const value = input.value;
@@ -602,7 +588,7 @@ class UiBuilder {
             },
             title: options.title_confirm
         });
-        confirmButton.style.minWidth = '80px';
+        confirmButton.classList.add('simple-text-input-btn');
         buttonsContainer.appendChild(cancelButton);
         buttonsContainer.appendChild(confirmButton);
         modalContainer.appendChild(input);
@@ -637,6 +623,23 @@ class UiBuilder {
     static capitalize(val) {
         return String(val).charAt(0).toUpperCase() + String(val).slice(1);
     }
+    /**
+     * Builds a custom dropdown selector (not a native `<select>`): a clickable "selected" label
+     * that toggles a floating options list, closing on an outside click. There is no destroy
+     * hook - the outside-click listener self-unregisters once `container` is no longer attached
+     * to the document, so it doesn't keep the closure (and subtree) alive forever.
+     *
+     * @param {Object} options
+     * @param {string[]} options.titles - Option labels, in display order; index lines up with `next` and `onSelectionChange`.
+     * @param {Array<Function>} [options.next] - Per-option click callback: `next[index]()`, called right after the displayed label updates and before `onSelectionChange`.
+     * @param {Function} [options.onSelectionChange] - Called with the selected option's index, after `next[index]` (if any) has run.
+     * @param {string} [options.label] - Prefix shown before the current title, both on initial render (paired with `titles[0]`) and after each pick.
+     * @param {'top'|'bottom'} [options.direction_open='top'] - Which side the options list opens toward; also drives the `dd-visible-{direction_open}` class toggled on open/close.
+     * @param {boolean} [options.stealth=true] - When false, adds `cddown-selected-not-stealth` for a more visible resting style on the selected label.
+     * @param {string} [options.max_selections_height='210px'] - CSS `max-height` for the options list before it scrolls.
+     * @param {string} [options.icon_code] - `Icons.create()` codepoint for an optional leading icon.
+     * @returns {HTMLElement} The dropdown container.
+     */
     static createDropDownButtonSelector({ titles, next, onSelectionChange, label, direction_open = 'top', stealth = true, max_selections_height = '210px', icon_code = undefined }) {
         const container = document.createElement("div");
         container.className = "custom-dropdown-container";
@@ -2466,80 +2469,10 @@ class UiBuilder {
                 // Reset dash style after drawing
                 ctx.setLineDash([]);
             }
-            if (linear && show_linear) {
-                ctx.beginPath();
-                ctx.strokeStyle = color_line;
-
-                ctx.lineWidth = 1;
-                if (options.type === "linear" || !options.type) {
-                    // Default linear line
-                    ctx.beginPath();
-                    linear.forEach((val, i) => {
-                        const x = scaleX(i);
-                        const y = scaleY(val);
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    });
-                    ctx.stroke();
-                } else if (options.type === "dotted") {
-                    // Dotted line + bigger dots
-                    ctx.beginPath();
-                    ctx.setLineDash([6, 6]); // dashed pattern
-                    linear.forEach((val, i) => {
-                        const x = scaleX(i);
-                        const y = scaleY(val);
-                        if (i === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    });
-                    ctx.stroke();
-                    ctx.setLineDash([]); // reset
-
-                    // Draw bigger dots at each coordinate
-                    ctx.fillStyle = color_line;
-                    linear.forEach((val, i) => {
-                        const x = scaleX(i);
-                        const y = scaleY(val);
-                        ctx.beginPath();
-                        ctx.arc(x, y, 4, 0, 2 * Math.PI); // radius 4px
-                        ctx.fill();
-                    });
-                } else if (options.type === "dots") {
-                    // Only dots, no connecting lines
-                    ctx.fillStyle = color_line;
-                    linear.forEach((val, i) => {
-                        const x = scaleX(i);
-                        const y = scaleY(val);
-                        ctx.beginPath();
-                        ctx.arc(x, y, 3, 0, 2 * Math.PI); // radius 3px
-                        ctx.fill();
-                    });
-                }
-                ctx.stroke();
-
-                // Blended linear-regression/LOWESS trend overlay, controlled by the footer slider
-                // and footer checkbox
-                if (show_trend) {
-                    const regression_values = blended_regression_line(linear, regression_blend);
-                    ctx.beginPath();
-                    ctx.strokeStyle = color_trend;
-                    ctx.lineWidth = 2;
-                    let trend_started = false;
-                    regression_values.forEach((val, i) => {
-                        if (val == null) return;
-                        const x = scaleX(i);
-                        const y = scaleY(val);
-                        if (!trend_started) {
-                            ctx.moveTo(x, y);
-                            trend_started = true;
-                        } else {
-                            ctx.lineTo(x, y);
-                        }
-                    });
-                    ctx.stroke();
-                    ctx.lineWidth = 1;
-                }
-            }
             if (volume) {
+                // Bars drawn before the linear/line series below, so the line renders on top of
+                // the bars instead of being painted over by them.
+
                 // X-axis date labels always drawn (they describe the shared x axis, not the bars
                 // themselves) - only the bars are gated on show_volume
 
@@ -2613,6 +2546,79 @@ class UiBuilder {
                         height - padding + 25 // position below x-axis line
                     );
                 });
+            }
+            if (linear && show_linear) {
+                ctx.beginPath();
+                ctx.strokeStyle = color_line;
+
+                ctx.lineWidth = 1;
+                if (options.type === "linear" || !options.type) {
+                    // Default linear line
+                    ctx.beginPath();
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                } else if (options.type === "dotted") {
+                    // Dotted line + bigger dots
+                    ctx.beginPath();
+                    ctx.setLineDash([6, 6]); // dashed pattern
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]); // reset
+
+                    // Draw bigger dots at each coordinate
+                    ctx.fillStyle = color_line;
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 4, 0, 2 * Math.PI); // radius 4px
+                        ctx.fill();
+                    });
+                } else if (options.type === "dots") {
+                    // Only dots, no connecting lines
+                    ctx.fillStyle = color_line;
+                    linear.forEach((val, i) => {
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        ctx.beginPath();
+                        ctx.arc(x, y, 3, 0, 2 * Math.PI); // radius 3px
+                        ctx.fill();
+                    });
+                }
+                ctx.stroke();
+
+                // Blended linear-regression/LOWESS trend overlay, controlled by the footer slider
+                // and footer checkbox
+                if (show_trend) {
+                    const regression_values = blended_regression_line(linear, regression_blend);
+                    ctx.beginPath();
+                    ctx.strokeStyle = color_trend;
+                    ctx.lineWidth = 2;
+                    let trend_started = false;
+                    regression_values.forEach((val, i) => {
+                        if (val == null) return;
+                        const x = scaleX(i);
+                        const y = scaleY(val);
+                        if (!trend_started) {
+                            ctx.moveTo(x, y);
+                            trend_started = true;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    });
+                    ctx.stroke();
+                    ctx.lineWidth = 1;
+                }
             }
 
             //draw title chart

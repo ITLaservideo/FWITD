@@ -10,9 +10,13 @@
  *      0:{ImgP: 'T0001295.png', Prodotto: 'VEO STICKS PURPLE CLICK ', Barcode: '80882350', Selezione: '1', quantità: 19, …}
  *      ...
  */
+
 class Table {
     elements = {
         table: null,
+        /**
+         * @type HTMLElement
+         */
         tbody: null,
         header: {
             columns: []
@@ -21,7 +25,8 @@ class Table {
             container: null,
             title_table: null,
             exporting_button: undefined,
-            graph: undefined
+            graph: undefined,
+            search_box: null
         },
         footer: {
             container: null,
@@ -53,6 +58,9 @@ class Table {
          */
         raw_data: null,
         displaying_data: {
+            /**
+             * per page
+             */
             threshold: 10,
             page_selected: 1,//start from 1
             page_count: 0,
@@ -183,8 +191,12 @@ class Table {
         // Use properties from the first object as column headers
         const columns = Object.keys(owner.data.displaying_data.data[0]);
         let th_i = 0;
+        let th_i_visible = 0;
         const rnd = Math.random();
         columns.forEach(col => {
+            if (owner.options.override_column_names != undefined && owner.options.override_column_names[col] != undefined) {
+                col = owner.options.override_column_names[col];
+            }
             owner.data.columns.raw.push(col);
             if (col == "ImgP") {
                 owner.configuration.hasImgP.yes = true;
@@ -204,7 +216,7 @@ class Table {
             } else {
                 owner.data.columns.hidden.push(false);
                 const width_column = (Array.isArray(options.widths_columns) ?
-                    (options.widths_columns.length > th_i ? options.widths_columns[th_i] : 10)
+                    (options.widths_columns.length > th_i_visible ? options.widths_columns[th_i_visible] : 10)
                     : 10);
                 headerRow.appendChild(owner.#makeHeader(col,
                     {
@@ -213,6 +225,7 @@ class Table {
                         width: width_column,
                         th_i: th_i
                     }));
+                th_i_visible++;
             }
             th_i++;
         });
@@ -225,6 +238,7 @@ class Table {
 
         // Create table body
         const tbody = document.createElement('tbody');
+        tbody.setAttribute("tabindex", "0");
         owner.elements.tbody = tbody;
         table.appendChild(tbody);
         table.appendChild(owner.#createTableFooter());
@@ -233,14 +247,35 @@ class Table {
         if (options != undefined && options.exportable_data == false) {
             //owner.#addExportingButtons();
         } else {
-            //owner.#addExportingButtons(options);
+            owner.#addExportingButtons(options);
         }
         if (options != undefined && options.createGraphElement != undefined) {
             owner.#addGraphButton(options);
         }
+        owner.#addFaqButton(options);
         if (`${localStorage.getItem("show-images-in-tables")}` == "false") {
             owner.#changeVisibilityImageColumns(false);
         }
+    }
+    #addFaqButton(options) {
+        return;//demo
+        const owner = this;
+        if (options == null || options.faq == null || options.faq.length < 1) {
+            return;
+        }
+        if (options.to_be_printed) {
+            return;
+        }
+        const btn = UiBuilder.createButton({
+            hint: options.faq[0],
+            onClick: async (event) => {
+                alert("open faq");
+            },
+            icon: "info_circle.svg",
+            style: "width:28px; height:28px;box-shadow: unset;background: unset;"
+        });
+        owner.elements.toolbox.faq_button = btn;
+        owner.elements.toolbox.container.insertBefore(btn, owner.elements.toolbox.container.children[0].nextSibling);
     }
     #addGraphButton(options) {
         const owner = this;
@@ -248,7 +283,7 @@ class Table {
             return;
         }
         const btn = UiBuilder.createButton({
-            hint: `${Locale.at.grafico}\n${owner.elements.toolbox.title_table.innerText}` ?? "chart", onClick: async (event) => {
+            hint: `${Locale.TXT.grafico}\n${owner.elements.toolbox.title_table.innerText}` ?? "chart", onClick: async (event) => {
                 if (owner.elements.toolbox.graph) {
                     owner.elements.toolbox.graph.classList.add("disable-pointer-events");
                 }
@@ -266,14 +301,13 @@ class Table {
                 mppoptions.afterTitleRow.firstElementChild.style.borderRadius = 0;
                 // self_aware_i.instance = await newDynamicModule.MousePopUp(options);
 
-                new MousePopUp(mppoptions);
+                newDynamicModule.MousePopUp(mppoptions);
                 setTimeout(() => {
                     owner.elements.toolbox.graph.classList.remove("disable-pointer-events");
                 }, 100);
-                setTimeout(() => {
-                    btn.reset();
-                }, 0);
-            }, icon: "finance_24.svg", style: "width:28px; height:28px;"
+            },
+            icon: "finance_24.svg",
+            style: "width:28px; height:28px;box-shadow: unset;background: unset;"
         });
         owner.elements.toolbox.graph = btn;
         owner.elements.toolbox.container.insertBefore(btn, owner.elements.toolbox.container.children[0].nextSibling);
@@ -292,6 +326,10 @@ class Table {
         localStorage.setItem("show-images-in-tables", visible);
         owner.updateViewingData();
     }
+    #scrolling_table_status = {
+        scroll_direction_bottom: true,
+        n_records_overload: 0
+    }
     /**
      * Builds the table footer with pagination and record counter.
      *
@@ -300,7 +338,7 @@ class Table {
      */
     #createTableFooter() {
         const owner = this;
-        const tfoot = owner.elements.tfoot;
+        const tfoot = document.createElement('tfoot');
         const tr = document.createElement('tr');
         const td = document.createElement("td");
         const span = document.createElement("span");
@@ -321,16 +359,201 @@ class Table {
         container.appendChild(toolbox_left);
         container.appendChild(owner.#createPaginator());
         container.appendChild(record_counter);
+
+        // const Mouse = (() => {
+        //     let x = 0, y = 0;
+        //     document.addEventListener("mousemove", e => {
+        //         x = e.clientX;
+        //         y = e.clientY;
+        //     });
+        //     return {
+        //         get x() { return x },
+        //         get y() { return y }
+        //     };
+        // })();
+        owner.elements.tbody.addEventListener("wheel", (event) => {
+            if (document.activeElement !== owner.elements.tbody) {
+                return;
+            }
+            if (owner.elements.footer.next_page == undefined || owner.elements.footer.previous_page == undefined) {
+                return;
+            }
+            const paginator_status = owner.data.displaying_data;
+            if (paginator_status.threshold > 50) {
+                return;//no thank you, when the page is way too big i want default behaviour
+            }
+            if (event.deltaY < 0) {
+                if (owner.data.displaying_data.data != undefined && owner.data.displaying_data.data.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const columns = Object.keys(owner.data.displaying_data.data[0]);
+                    const paginator_status = owner.data.displaying_data;
+                    const start = (paginator_status.page_selected - 1) * paginator_status.threshold;
+                    if (owner.#scrolling_table_status.scroll_direction_bottom) {
+                        owner.#scrolling_table_status.scroll_direction_bottom = false;
+                    }
+                    const the_next_index = start + owner.#scrolling_table_status.n_records_overload - 1;
+                    if (the_next_index < 0) {
+                        return
+                    };
+                    const the_next_row_object = owner.data.raw_data[the_next_index];
+                    if (the_next_row_object != undefined) {
+                        owner.#scrolling_table_status.n_records_overload--;
+                        const row = owner.#createTheMainTableRow(columns, the_next_row_object);
+                        owner.elements.tbody.insertBefore(row, owner.elements.tbody.firstElementChild);
+                    }
+                    if (owner.elements.tbody.children.length > paginator_status.threshold) {
+                        owner.elements.tbody.lastElementChild.remove();
+                    }
+                    if (owner.elements.footer.page_number != undefined) {
+                        owner.elements.footer.page_number.innerText = `?${paginator_status.page_selected}/${paginator_status.page_count}`;
+                    }
+                }
+            } else if (event.deltaY > 0) {
+                if (owner.data.displaying_data.data != undefined && owner.data.displaying_data.data.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const columns = Object.keys(owner.data.displaying_data.data[0]);
+                    const start = (paginator_status.page_selected - 1) * paginator_status.threshold;
+                    if (!owner.#scrolling_table_status.scroll_direction_bottom) {
+                        owner.#scrolling_table_status.scroll_direction_bottom = true;
+                    }
+                    const end = owner.elements.tbody.children.length + owner.#scrolling_table_status.n_records_overload;
+                    const the_next_index = start + end;
+                    if (the_next_index < 0) return;
+                    const the_next_row_object = owner.data.raw_data[the_next_index];
+                    if (the_next_row_object != undefined) {
+                        owner.#scrolling_table_status.n_records_overload++;
+                        const row = owner.#createTheMainTableRow(columns, the_next_row_object);
+                        owner.elements.tbody.appendChild(row);
+                        setTimeout(() => {
+                            try {
+                                row.scrollIntoViewIfNeeded();
+                            } catch (error) { }
+                        }, 0);
+                    }
+                    if (owner.elements.tbody.children.length > paginator_status.threshold) {
+                        owner.elements.tbody.firstElementChild.remove();
+                    }
+                    if (owner.elements.footer.page_number != undefined) {
+                        owner.elements.footer.page_number.innerText = `?${paginator_status.page_selected}/${paginator_status.page_count}`;
+                    }
+                }
+            }
+        }, true)
+        owner.elements.tbody.addEventListener("keydown", (event) => {
+            if (event.key == "Escape") {
+                owner.elements.tbody.blur();
+                return;
+            }
+            if (event.key == "f" && !event.ctrlKey) {
+                owner.#addTheSearchbox(true);
+                event.preventDefault();
+                event.stopPropagation();
+                const the_input_element = owner.elements.toolbox.search_box.getElementsByTagName("input")[0];
+                the_input_element.value = "";
+                setTimeout(() => {
+                    the_input_element.focus();
+                }, 100);
+                return;
+            }
+            if (owner.elements.footer.next_page == undefined || owner.elements.footer.previous_page == undefined) {
+                return;
+            }
+            const paginator_status = owner.data.displaying_data;
+            if (event.key === "ArrowDown") {
+                if (owner.data.displaying_data.data != undefined && owner.data.displaying_data.data.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const columns = Object.keys(owner.data.displaying_data.data[0]);
+                    const start = (paginator_status.page_selected - 1) * paginator_status.threshold;
+                    if (!owner.#scrolling_table_status.scroll_direction_bottom) {
+                        const els_to_save = [];
+                        for (let i = 0; i < paginator_status.threshold; i++) {
+                            const element = owner.elements.tbody.children[owner.elements.tbody.children.length - 1 - i];
+                            if (element != null) {
+                                els_to_save.push(element);
+                            }
+                        }
+                        owner.elements.tbody.innerText = '';
+                        for (let i = els_to_save.length - 1; i >= 0; i--) {
+                            const element = els_to_save[i];
+                            owner.elements.tbody.appendChild(element);
+                        }
+                        owner.#scrolling_table_status.scroll_direction_bottom = true;
+                        owner.#scrolling_table_status.n_records_overload = 0;
+                    }
+                    owner.#scrolling_table_status.n_records_overload++;
+                    const end = owner.elements.tbody.children.length;
+                    const the_next_index = start + end;
+                    const the_next_row_object = owner.data.raw_data[the_next_index];
+                    if (the_next_row_object != undefined) {
+                        const row = owner.#createTheMainTableRow(columns, the_next_row_object);
+                        owner.elements.tbody.appendChild(row);
+                        setTimeout(() => {
+                            try {
+                                row.scrollIntoViewIfNeeded();
+                            } catch (error) { }
+                        }, 0);
+                    }
+                    if (owner.elements.footer.page_number != undefined) {
+                        owner.elements.footer.page_number.innerText = `?${paginator_status.page_selected}/${paginator_status.page_count}`;
+                    }
+                }
+            }
+            if (event.key === "ArrowUp") {
+                if (owner.data.displaying_data.data != undefined && owner.data.displaying_data.data.length > 0) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const columns = Object.keys(owner.data.displaying_data.data[0]);
+                    const paginator_status = owner.data.displaying_data;
+                    const start = (paginator_status.page_selected - 1) * paginator_status.threshold;
+                    if (owner.#scrolling_table_status.scroll_direction_bottom) {
+                        const els_to_save = [];
+                        for (let i = 0; i < paginator_status.threshold; i++) {
+                            const element = owner.elements.tbody.children[i];
+                            if (element != null) {
+                                els_to_save.push(element);
+                            }
+                        }
+                        owner.elements.tbody.innerText = '';
+                        for (let i = 0; i < els_to_save.length; i++) {
+                            const element = els_to_save[i];
+                            owner.elements.tbody.appendChild(element);
+                        }
+                        owner.#scrolling_table_status.scroll_direction_bottom = false;
+                        owner.#scrolling_table_status.n_records_overload = 0;
+                    }
+                    owner.#scrolling_table_status.n_records_overload++;
+                    const the_next_index = start - owner.#scrolling_table_status.n_records_overload;
+                    if (the_next_index < 0) return;
+                    const the_next_row_object = owner.data.raw_data[the_next_index];
+                    if (the_next_row_object != undefined) {
+                        const row = owner.#createTheMainTableRow(columns, the_next_row_object);
+                        owner.elements.tbody.insertBefore(row, owner.elements.tbody.firstElementChild);
+                    }
+                    if (owner.elements.footer.page_number != undefined) {
+                        owner.elements.footer.page_number.innerText = `?${paginator_status.page_selected}/${paginator_status.page_count}`;
+                    }
+                }
+            };
+            if (event.key == "ArrowRight") {
+                owner.elements.footer.next_page.onClick(event);
+            }
+            if (event.key == "ArrowLeft") {
+                owner.elements.footer.previous_page.onClick(event);
+            }
+        }, true); //capturing phase
         if (owner.configuration.hasImgP.yes && !owner.options.to_be_printed) {
             setTimeout(() => {
                 const self_aware = {
                     yes: (!(`${localStorage.getItem("show-images-in-tables")}` == "false"))
                 }
                 const options_create_toggle = {
-                    label: Locale.at.show_images ?? "Show Images",
+                    label: Locale.TXT.show_images ?? "Show Images",
                     innerText: {
-                        on: Locale.at.is_on,
-                        off: Locale.at.is_off
+                        on: Locale.TXT.is_on,
+                        off: Locale.TXT.is_off
                     },
                     onClick: (event) => {
                         if (self_aware.yes) {
@@ -344,7 +567,7 @@ class Table {
                     isOn: self_aware.yes,
                     theme: "mini"
                 };
-                const toggle = UiBuilder.createToggle(options_create_toggle);
+                const toggle = UiBuilder2.createToggle(options_create_toggle);
                 toggle.style.marginLeft = "4px";
                 toolbox_left.appendChild(toggle);
             }, 0);
@@ -369,37 +592,12 @@ class Table {
 
         const title_table = document.createElement("div");
         title_table.classList.add("table-toolbox-title-talbe");
-
-        const start_tutorial = UiBuilder.createButton({
-            onClick: () => {
-                owner.startTutorial();
-                setTimeout(() => {
-                    start_tutorial.reset();
-                }, 0);
-            },
-            hint: `explain what I'm seeing`, title: '!', style: "min-width:30px;"
-        });
         toolbox.appendChild(title_table);
-        toolbox.appendChild(start_tutorial);
         //toolbox.appendChild(owner.#createPaginator());
         headerRow.appendChild(toolbox);
-        if (owner.options.searchable_columns != undefined && owner.options.searchable_columns.length > 0) {
-            if (owner.options.to_be_printed == true) {
-                if (owner.configuration.filtered_data.by_search.length > 0) {
-                    if (owner.configuration.filtered_data.by_search.length > 7) {
-                        title_table.setAttribute("data-suffix", `(${Locale.at.filtered_by_search}: ${owner.configuration.filtered_data.by_search.substring(0, 5)}...)`);
-                    } else {
-                        title_table.setAttribute("data-suffix", `(${Locale.at.filtered_by_search}: ${owner.configuration.filtered_data.by_search})`);
-                    }
-                }
-            } else {
-                toolbox.appendChild(owner.#createSearchBox());
-                toolbox.style.flexDirection = "row-reverse";
-                headerRow.style.height = "42px";
-            }
-        }
         owner.elements.toolbox.container = toolbox;
         owner.elements.toolbox.title_table = title_table;
+        owner.#addTheSearchbox(false);
 
         if (owner.options != undefined) {
             if (owner.options.toolbox_hidden == true) {
@@ -407,6 +605,36 @@ class Table {
             }
         }
         return headerRow;
+    }
+    #addTheSearchbox(force = false) {
+        const owner = this;
+        if (owner.elements.toolbox.search_box != undefined) {
+            console.log("searchbox already exists...");
+            return;
+        }
+        if (force == true) {
+            if (owner.options.searchable_columns == undefined) {
+                owner.options.searchable_columns = [0];
+            }
+            owner.options.searchable_columns_can_change_scope = true;
+        }
+        if (owner.options.searchable_columns != undefined && owner.options.searchable_columns.length > 0) {
+            if (owner.options.to_be_printed == true) {
+                if (owner.configuration.filtered_data.by_search.length > 0) {
+                    if (owner.configuration.filtered_data.by_search.length > 7) {
+                        owner.elements.toolbox.title_table.setAttribute("data-suffix", `(${Locale.TXT.filtered_by_search}: ${owner.configuration.filtered_data.by_search.substring(0, 5)}...)`);
+                    } else {
+                        owner.elements.toolbox.title_table.setAttribute("data-suffix", `(${Locale.TXT.filtered_by_search}: ${owner.configuration.filtered_data.by_search})`);
+                    }
+                }
+            } else {
+                const the_search_box = owner.#createSearchBox();
+                owner.elements.toolbox.search_box = the_search_box;
+                owner.elements.toolbox.container.appendChild(the_search_box);
+                owner.elements.toolbox.container.style.flexDirection = "row-reverse";
+                /*the_header_row*/(owner.elements.toolbox.container.parentElement).style.height = "42px";
+            }
+        }
     }
     #doing_heavy_task = {
         trigger_search_id: undefined,
@@ -420,8 +648,7 @@ class Table {
         container.style.display = "flex";
         container.style.position = "relative";
         const icon = document.createElement("img");
-        //icon.src = "https://app.local/search.svg";
-        Icons.setSrcIcon(icon, "/search.svg");
+        icon.src = "/Images/Icone2024/ui_2024/search.svg"
         icon.style = "position: absolute;right: 5px;bottom: 0;top: 0;margin: auto;";
         const input = document.createElement("input");
         icon.addEventListener("click", () => {
@@ -437,9 +664,9 @@ class Table {
         input.addEventListener("keyup", () => {
             requestAnimationFrame((() => {
                 if (input.value.trim().length > 0) {
-                    Icons.setSrcIcon(icon, "/backspace.svg");
+                    icon.src = "/Images/Icone2024/ui_2024/backspace.svg";
                 } else {
-                    Icons.setSrcIcon(icon, "/search.svg");
+                    icon.src = "/Images/Icone2024/ui_2024/search.svg";
                 }
             }));
             clearTimeout(owner.#doing_heavy_task.trigger_search_id);
@@ -459,38 +686,38 @@ class Table {
                             owner.#doing_heavy_task.worker.terminate();
                             owner.#doing_heavy_task.worker = undefined
                         }
-                        try {
-                            //fetch from server
-                            const code = `onmessage=function(t){const e=t.data.array_of_objects,s=t.data.indexes_columns_to_search,n=t.data.value_to_search,a=[];if(n.length>0&&e.length>0){const t=Object.keys(e[0]),r=[];t.forEach((function(t){r.push(Utils.getProcessRows(e[0][t]))})),e.forEach((function(e){s.some((function(s){const a=t[s];if(!a||null==e[a])return!1;return(r&&r[s]?String(r[s](e[a])):String(e[a])).toLowerCase().includes(n)}))&&a.push(e)}))}else try{a.push.apply(a,e)}catch(t){a.length=0,e.forEach((function(t){a.push(t)}))}self.postMessage(a)};class Utils{static getProcessRows(t){return String(t).trim().match(/([0-9]{4}).([0-9]{2}).([0-9]{2}).([0-9]{2}).([0-9]{2}).([0-9]{2})/)?Utils.format1:null}static format1(t){const e=new Date(t);return String(e.getDate()).padStart(2,"0")+"-"+String(e.getMonth()+1).padStart(2,"0")+"-"+e.getFullYear()+" "+String(e.getHours()).padStart(2,"0")+":"+String(e.getMinutes()).padStart(2,"0")+":"+String(e.getSeconds()).padStart(2,"0")}}`;
-                            const blob = new Blob([code], { type: "application/javascript" });
-                            const workerUrl = URL.createObjectURL(blob);
-                            owner.#doing_heavy_task.worker = new Worker(workerUrl);
-                            owner.#doing_heavy_task.worker.onmessage = function (e) {
-                                const results = e.data;
-                                owner.data.raw_data.length = 0;
-                                try {
-                                    owner.data.raw_data.push(...results);
-                                } catch (error) {
+                        if (window.Worker) {
+                            owner.#doing_heavy_task.worker = new Worker("js/utils/workers/searching_table.min.js");
+                            try {
+                                owner.#doing_heavy_task.worker.onmessage = function (e) {
+                                    const results = e.data;
                                     owner.data.raw_data.length = 0;
-                                    results.forEach(obj => {
-                                        owner.data.raw_data.push(obj);
-                                    });
+                                    try {
+                                        owner.data.raw_data.push(...results);
+                                    } catch (error) {
+                                        owner.data.raw_data.length = 0;
+                                        results.forEach(obj => {
+                                            owner.data.raw_data.push(obj);
+                                        });
+                                    }
+                                    owner.configuration.filtered_data.by_search = value_to_search;
+                                    owner.changeIndexRowsPerPage();
+                                };
+                                owner.#doing_heavy_task.worker.onerror = (e) => {
+                                    console.error("Worker error:", e);
                                 }
-                                owner.configuration.filtered_data.by_search = value_to_search;
-                                owner.changeIndexRowsPerPage();
-                            };
-                            owner.#doing_heavy_task.worker.onerror = (e) => {
-                                console.error("Worker error:", e);
+                                owner.#doing_heavy_task.worker.onmessageerror = (e) => {
+                                    console.error(e)
+                                }
+                                owner.#doing_heavy_task.worker.postMessage({
+                                    array_of_objects: owner.data.raw_provided_data,
+                                    indexes_columns_to_search: owner.options.searchable_columns,
+                                    value_to_search: input.value.trim().toLowerCase(),
+                                });
+                            } catch (error) {
+                                console.error(error);
                             }
-                            owner.#doing_heavy_task.worker.onmessageerror = (e) => {
-                                console.error(e)
-                            }
-                            owner.#doing_heavy_task.worker.postMessage({
-                                array_of_objects: owner.data.raw_provided_data,
-                                indexes_columns_to_search: owner.options.searchable_columns,
-                                value_to_search: input.value.trim().toLowerCase(),
-                            });
-                        } catch (error) {//sort on main thread
+                        } else {//sort on main thread
                             const keys = Object.keys(array_of_objects[0]);//assume all objects have same keys as first record
                             array_of_objects.forEach(obj => {
                                 // Check if any of the searchable columns contain the search value
@@ -537,7 +764,7 @@ class Table {
                 enablePointerEvents(input);
                 return;
             } else {
-                const keyboard_i = new KeyBoard({
+                const keyboard_i = await newDynamicModule.Keyboard({
                     input_target: input,
                     only_numbers: false,
                     onClickOutside: () => {
@@ -561,61 +788,88 @@ class Table {
         input.type = "search";
         input.style = "border-radius:12px;"
         input.style.padding = "5px";
+        input.classList.add("please");
 
         if (owner.data.raw_provided_data.length > 0 && owner.options.searchable_columns.length > 0) {
             const keys = Object.keys(owner.data.raw_provided_data[0]);//assume all objects have same keys as first record
             const key = keys[owner.options.searchable_columns[0]] ?? '';
-            input.placeholder = `${window.Locale.at.cerca} ${key}`;
+            input.placeholder = `${window.Locale.TXT.cerca} ${key}`;
             let sc_i = 1;
             while (sc_i < owner.options.searchable_columns.length) {
                 input.placeholder = input.placeholder + `/${(keys[owner.options.searchable_columns[sc_i]] ?? '')}`
                 sc_i++;
             }
         } else {
-            input.placeholder = window.Locale.at.cerca;
+            input.placeholder = window.Locale.TXT.cerca;
         }
         if (owner.options.searchable_columns_can_change_scope == true) {
             container.classList.add("mit-scope");
             const scope_selector = document.createElement("div");
             scope_selector.classList.add("mftml-scope")
             const scs_icon = document.createElement("img");
-            Icons.setSrcIcon(scs_icon, "/search_column.svg");
+            scs_icon.src = "/Images/Icone2024/ui_2024/search_column.svg"
             container.appendChild(scope_selector);
             UiBuilder.addHint({
-                hint: Locale.at.cj0039,
+                hint: Locale.TXT.cj0039,
                 target: scope_selector,
                 anchor: "top"
             });
-            scope_selector.addEventListener("click", async (event) => {
-                const titles = [];
-                const next = [];
-                const array_of_objects = owner.data.raw_provided_data;
-                if (array_of_objects.length > 0) {
-                    const keys = Object.keys(array_of_objects[0]);//assume all objects have same keys as first record
-                    let ki = 0;
-                    keys.forEach(chiave => {
-                        const the_ki = ki;
-                        if (!owner.data.columns.hidden[the_ki]) {
-                            titles.push(chiave);
-                            next.push(() => {
-                                input.placeholder = `${window.Locale.at.cerca} ${chiave}`;
-                                if (owner.options.searchable_columns != undefined) {
-                                    owner.options.searchable_columns.length = 0;
-                                    owner.options.searchable_columns.push(the_ki);
-                                }
-                            });
-                        }
-                        ki++;
-                    });
-                }
-                new MousePopUp({
-                    action_titles: titles,
-                    next: next,
-                    event: event,
-                    title: Locale.at.cj0039,
-                    style: 4
+            const titles = [];
+            const next = [];
+            const array_of_objects = owner.data.raw_provided_data;
+            if (array_of_objects.length > 0) {
+                const keys = Object.keys(array_of_objects[0]);//assume all objects have same keys as first record
+                let ki = 0;
+                keys.forEach(chiave => {
+                    const the_ki = ki;
+                    if (!owner.data.columns.hidden[the_ki]) {
+                        titles.push(chiave);
+                        next.push(() => {
+                            input.value = '';
+                            input.placeholder = `${window.Locale.TXT.cerca} ${chiave}`;
+                            if (owner.options.searchable_columns != undefined) {
+                                owner.options.searchable_columns.length = 0;
+                                owner.options.searchable_columns.push(the_ki);
+                            }
+                            input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+                            setTimeout(() => {
+                                input.focus();
+                            }, 50);
+                        });
+                    }
+                    ki++;
                 });
-            });
+            }
+            (async () => {
+                if (window.SpeedActions == undefined) {
+                    await import("../FWComponents/SpeedActions/SpeedActions.min.js?v=018");
+                }
+                const btns = [];
+                for (let i = 0; i < next.length; i++) {
+                    const func = next[i];
+                    const i_title = titles[i];
+                    btns.push(
+                        {
+                            title: i_title,
+                            onClick: func
+                        },
+                    );
+                }
+                new window.SpeedActions({
+                    label: Locale.TXT.cj0039,
+                    target: scope_selector,
+                    createButtons: btns
+                });
+            })();
+            // scope_selector.addEventListener("click", async (event) => {
+            //     await newDynamicModule.MousePopUp({
+            //         action_titles: titles,
+            //         next: next,
+            //         event: event,
+            //         title: Locale.TXT.cj0039,
+            //         style: 4
+            //     });
+            // });
             scope_selector.appendChild(scs_icon);
         }
         container.appendChild(icon);
@@ -674,8 +928,8 @@ class Table {
          * @type Element
         */
         const dropdown_btn = UiBuilder.createDropDownButtonSelector({
-            label: Locale.at("righe per pagina"),
-            override_first_label: `${Locale.at("righe per pagina")} ${owner.data.displaying_data.threshold}`,
+            label: Locale.TXT["righe per pagina"] ?? "righe per pagina",
+            override_first_label: `${Locale.TXT["righe per pagina"]} ${owner.data.displaying_data.threshold}`,
             titles: rows, //array of selections
             // next: next, //array of functions that executes when clicking on a selection (titles.length == next.length) next can be null if onSelectionChange != undefined
             onSelectionChange: owner.changeIndexRowsPerPage,
@@ -687,6 +941,7 @@ class Table {
 
         const arrow_left = UiBuilder.createButton({
             onClick: () => {
+                owner.#scrolling_table_status.n_records_overload = 0;
                 // if (paginator_status.page_selected > 1) {
                 //     paginator_status.data.length = 0;
                 //     paginator_status.page_selected = Math.max(paginator_status.page_selected - 1, 1);
@@ -709,14 +964,12 @@ class Table {
                         owner.#onViewdPangeChange();
                     }, 0);
                 }
-                setTimeout(() => {
-                    arrow_left.reset();
-                }, 0);
             },
-            hint: Locale.at.txt_pagina_precedente ?? '', title: '<', style: "min-width:30px;"
+            hint: Locale.TXT.txt_pagina_precedente ?? '', title: '<', style: "min-width:30px;"
         });
         const arrow_right = UiBuilder.createButton({
             onClick: () => {
+                owner.#scrolling_table_status.n_records_overload = 0;
                 if (paginator_status.page_selected < paginator_status.page_count) {
                     paginator_status.page_selected++;
                     const start = (paginator_status.page_selected - 1) * paginator_status.threshold;
@@ -728,11 +981,8 @@ class Table {
                         owner.#onViewdPangeChange();
                     }, 0);
                 }
-                setTimeout(() => {
-                    arrow_right.reset();
-                }, 0);
             },
-            hint: Locale.at.txt_pagina_successiva ?? '', title: '>', style: "min-width:30px;"
+            hint: Locale.TXT.txt_pagina_successiva ?? '', title: '>', style: "min-width:30px;"
         });
         arrow_right.addEventListener("keyup", (event) => {
             if (event.key == "ArrowRight") {
@@ -754,6 +1004,48 @@ class Table {
 
         const page_number = document.createElement("span");
         page_number.classList.add("page-number");
+        page_number.addEventListener("click", async (event) => {
+            const self_aware_i = {
+                instance: undefined
+            }
+            const options = {
+                afterTitleRow: UiBuilder.createSimpleTextInput({
+                    next: (user_input) => {
+                        const regex = /[0-9]+/;
+                        const new_page = (Math.min(Math.ceil(owner.data.raw_data.length / paginator_status.threshold), Math.max(1, Number((regex.exec(user_input.trim()) ?? [])[0] ?? 1))));
+
+                        paginator_status.page_selected = new_page;
+                        const start = (paginator_status.page_selected - 1) * paginator_status.threshold;
+                        const end = start + paginator_status.threshold;
+                        paginator_status.data = owner.data.raw_data.slice(start, end);
+                        page_number.innerText = `${paginator_status.page_selected}/${paginator_status.page_count}`;
+                        owner.updateViewingData();
+                        setTimeout(() => {
+                            owner.#onViewdPangeChange();
+                        }, 0);
+                        if (self_aware_i.instance != undefined) {
+                            self_aware_i.instance.destroy();
+                            self_aware_i.instance = undefined;
+                        }
+                    },
+                    onCancel: () => {
+                        if (self_aware_i.instance != undefined) {
+                            self_aware_i.instance.destroy();
+                            self_aware_i.instance = undefined;
+                        }
+                    },
+                    title: Locale.at("vai alla pagina"),
+                    title_cancel: Locale.TXT.annulla,
+                    title_confirm: Locale.at("ok"),
+                    placeholder: "0"
+                }),
+                iAmAwareThereAreNoSelections: true,
+                event: { clientX: event.clientX - 5, clientY: event.clientY - 5 },
+                onReady: () => { options.afterTitleRow.focus() }
+            }
+            options.afterTitleRow.firstElementChild.style.borderRadius = 0;
+            self_aware_i.instance = await newDynamicModule.MousePopUp(options);
+        });
         page_number.innerText = `${paginator_status.page_selected}/${Math.ceil(owner.data.raw_data.length / paginator_status.threshold)}`;
         /*can you create the elements and add the event listeners? */
 
@@ -806,6 +1098,7 @@ class Table {
         });
     }
     static special_col_names = ["css_style", "css_class"];
+    //#region updateViewingData
     /**
      * Updates the table body with the currently displayed data.
      *
@@ -816,13 +1109,12 @@ class Table {
      * - Applies styles, processes special columns (e.g., images, checkboxes).
      * - Updates footer record counter and executes delayed operations.
      */
-
     updateViewingData() {
         const late_ops = [];
         const owner = this;
         owner.elements.tbody.innerHTML = '';
         if (owner.data.displaying_data.data == undefined || owner.data.displaying_data.data.length == 0) {
-            owner.elements.footer.record_counter.innerText = Locale.at["no data is present"];
+            owner.elements.footer.record_counter.innerText = Locale.TXT["no data is present"];
             if (owner.elements.toolbox.exporting_button != undefined) {
                 owner.elements.toolbox.exporting_button.classList.toggle("display-none-important", true);
             }
@@ -833,161 +1125,14 @@ class Table {
         }
         const columns = Object.keys(owner.data.displaying_data.data[0]);
         owner.data.displaying_data.data.forEach(row_object => {
-            const row = document.createElement('tr');
-            if (owner.options.min_height_rows != undefined) {
-                if (owner.options.to_be_printed == true) {
-                    row.style.height = 24;
-                    row.style.overflow = "hidden";
-                } else {
-                    row.style.height = owner.options.min_height_rows;
-                }
-            }
-            let index_column = -1;
-            columns.forEach(col_name => {
-                index_column++;
-                if (Table.special_col_names.indexOf(col_name) >= 0) {
-                    if (col_name == "css_class") {
-                        row.className = ((`${(row_object[col_name] ?? '')}`.trim()));
-                    }
-                    return;
-                }
-                if (owner.data.columns.hidden[index_column] == true) {
-                    if (col_name == "Barcode") {
-                        //preprocess data that is not displayed but it will be hopefully
-                        setTimeout(async () => {
-                            try {
-                                await UiBuilder.toEanElement(row_object[col_name]);
-                            } catch (error) { }
-                        }, 0);
-                    }
-                    return;
-                }
-                const td = document.createElement('td');
-                const styles = owner.options.styles_each_row;
-                if (styles != undefined) {
-                    const applied_style = styles[index_column];
-                    if (applied_style != undefined) {
-                        td.setAttribute('style', applied_style);
-                    }
-                }
-                const row_data = row_object[col_name];
-                if (owner.options.is_text_checkbox != undefined) {
-                    if (owner.options.is_text_checkbox.indexOf(index_column) >= 0) {
-                        // img.onerror = () => {
-                        //     img.src = "/Images/Icone2024/ui_2024/circle.svg";
-                        // }
-                        td.addEventListener("click", () => {
-                            const img = document.createElement("img");
-                            img.src = circle_check_base64;
-                            img.style.height = "15px";
-                            img.style.width = "15px";
-                            if (row_object[col_name] != "☑") {
-                                row_object[col_name] = "☑";
-                                td.innerHTML = '';
-                                img.src = circle_check_base64;
-                                td.appendChild(img);
-                            } else {
-                                row_object[col_name] = "☐";
-                                td.innerHTML = '';
-                                img.src = circle_base64;
-                                td.appendChild(img);
-                            }
-                        });
-                        td.style.cursor = "pointer";
-                        late_ops.push(() => {
-                            const img = document.createElement("img");
-                            img.src = circle_check_base64;
-                            img.style.height = "15px";
-                            img.style.width = "15px";
-                            if (row_object[col_name] != "☑") {
-                                td.innerHTML = '';
-                                if (owner.options.to_be_pdffed) {
-
-                                    Icons.setSrcIcon(img, "/circle.svg");
-                                } else {
-                                    img.src = circle_base64;
-                                }
-                                td.appendChild(img);
-                            } else {
-                                td.innerHTML = '';
-                                if (owner.options.to_be_pdffed) {
-                                    Icons.setSrcIcon(img, "/circle_check.svg");
-                                } else {
-                                    img.src = circle_check_base64;
-                                }
-                                td.appendChild(img);
-                            }
-                        });
-                    }
-                }
-                let is_a_number = false;
-                if (!isNaN(row_data) && row_data !== '' && row_data != undefined && row_data != null) {
-                    td.classList.add('mftml-number-value');
-                    is_a_number = true;
-                }
-                const data = (row_data !== undefined && row_data !== null) ? row_data : '';
-                if (is_a_number && col_name.indexOf("€") >= 0) {
-                    td.textContent = `${parseFloat(data).toFixed(2)} €`;
-                } else {
-                    let img_p;
-                    if (col_name == "ImgP") {
-                        const img = document.createElement("img");
-                        img.src = `${Lobby.BaseSrcImages}/${data}`;
-                        img.style.maxHeight = "30px";
-                        td.style.display = "flex";
-                        td.style.justifyContent = "center";
-                        img_p = img;
-                        // td.style.height = "inherit";
-                    }
-                    if (owner.options.processRows != undefined) {
-                        if (owner.options.processRows[index_column] != undefined) {
-                            td.textContent = owner.options.processRows[index_column]({ content: data, container: td, row_object: row_object });
-                        } else {
-                            if (col_name == "ImgP") {
-                                td.appendChild(img_p);
-                            } else {
-                                td.textContent = data;
-                            }
-                        }
-                    } else {
-                        if (col_name == "ImgP") {
-                            td.appendChild(img_p);
-                        } else {
-                            td.textContent = data;
-                        }
-                    }
-                    if (col_name == "Barcode") {
-                        setTimeout(async () => {
-                            try {
-                                const ean_img = await UiBuilder.toEanElement(data);
-                                ean_img.classList.add("inline-ean-code");
-                                ean_img.setAttribute("draggable", false);
-                                const wrap = document.createElement("div");
-                                wrap.appendChild(ean_img);
-                                wrap.appendChild(ean_img);
-                                wrap.style.position = "absolute";
-                                wrap.style.left = 0;
-                                wrap.style.right = 0;
-                                wrap.style.bottom = "2px";
-                                wrap.style.top = "2px";
-                                wrap.style.overflow = "hidden";
-                                td.appendChild(wrap);
-                                wrap.style.width = "-webkit-fill-available";
-                                wrap.style.height = "-webkit-fill-available";
-                                td.style.position = "relative";
-                            } catch { }
-                        }, 0);
-                    }
-                }
-                row.appendChild(td);
-            });
+            const row = owner.#createTheMainTableRow(columns, row_object, late_ops);
             owner.elements.tbody.appendChild(row);
         });
         if (owner.options != undefined && owner.options.title != undefined) {
             owner.elements.toolbox.title_table.innerHTML = owner.options.title;
         }
         if (owner.elements.footer.record_counter != null && owner.data.raw_data.length > owner.data.displaying_data.threshold) {
-            owner.elements.footer.record_counter.innerText = `${UiBuilder.capitalize(Locale.at["totale"])}: ${owner.data.raw_data.length}`;
+            owner.elements.footer.record_counter.innerText = `${UiBuilder.capitalize(Locale.TXT["totale"])}: ${owner.data.raw_data.length}`;
         } else {
             owner.elements.footer.record_counter.innerText = ``;
         }
@@ -996,13 +1141,177 @@ class Table {
         }
     }
     /**
+     * @param {Object} columns row_object keys
+     * @param {Object} row_object 
+     * @param {Array<Function>} late_ops to be called on ui refresh
+     * @returns 
+     */
+    #createTheMainTableRow(columns, row_object, late_ops = undefined) {
+        const owner = this;
+        const row = document.createElement('tr');
+        if (owner.options.min_height_rows != undefined) {
+            if (owner.options.to_be_printed == true) {
+                row.style.height = 24;
+                row.style.overflow = "hidden";
+            } else {
+                row.style.height = owner.options.min_height_rows;
+            }
+        }
+        let index_column = -1;
+        columns.forEach(col_name => {
+            index_column++;
+            if (Table.special_col_names.indexOf(col_name) >= 0) {
+                if (col_name == "css_class") {
+                    row.className = ((`${(row_object[col_name] ?? '')}`.trim()));
+                }
+                return;
+            }
+            if (owner.data.columns.hidden[index_column] == true) {
+                if (col_name == "Barcode") {
+                    //preprocess data that is not displayed but it will be hopefully
+                    setTimeout(async () => {
+                        try {
+                            await UiBuilder.toEanElement(row_object[col_name]);
+                        } catch (error) { }
+                    }, 0);
+                }
+                return;
+            }
+            const td = document.createElement('td');
+            const styles = owner.options.styles_each_row;
+            if (styles != undefined) {
+                const applied_style = styles[index_column];
+                if (applied_style != undefined) {
+                    td.setAttribute('style', applied_style);
+                }
+            }
+            const row_data = row_object[col_name];
+            if (owner.options.is_text_checkbox != undefined) {
+                if (owner.options.is_text_checkbox.indexOf(index_column) >= 0) {
+                    // img.onerror = () => {
+                    //     img.src = "/Images/Icone2024/ui_2024/circle.svg";
+                    // }
+                    td.addEventListener("click", () => {
+                        const img = document.createElement("img");
+                        img.src = circle_check_base64;
+                        img.style.height = "15px";
+                        img.style.width = "15px";
+                        if (row_object[col_name] != "☑") {
+                            row_object[col_name] = "☑";
+                            td.innerHTML = '';
+                            img.src = circle_check_base64;
+                            td.appendChild(img);
+                        } else {
+                            row_object[col_name] = "☐";
+                            td.innerHTML = '';
+                            img.src = circle_base64;
+                            td.appendChild(img);
+                        }
+                    });
+                    td.style.cursor = "pointer";
+                    const op_to_be_consumed_in_bulk = () => {
+                        const img = document.createElement("img");
+                        img.src = circle_check_base64;
+                        img.style.height = "15px";
+                        img.style.width = "15px";
+                        if (row_object[col_name] != "☑") {
+                            td.innerHTML = '';
+                            if (owner.options.to_be_pdffed) {
+                                img.src = "/Images/Icone2024/ui_2024/circle.svg"
+                            } else {
+                                img.src = circle_base64;
+                            }
+                            td.appendChild(img);
+                        } else {
+                            td.innerHTML = '';
+                            if (owner.options.to_be_pdffed) {
+                                img.src = "/Images/Icone2024/ui_2024/circle_check.svg"
+                            } else {
+                                img.src = circle_check_base64;
+                            }
+                            td.appendChild(img);
+                        }
+                    };
+                    if (late_ops != undefined) {
+                        late_ops.push(op_to_be_consumed_in_bulk);
+                    } else {
+                        setTimeout(() => {
+                            late_ops.push(op_to_be_consumed_in_bulk);
+                        }, 0);
+                    }
+                }
+            }
+            let is_a_number = false;
+            if (!isNaN(row_data) && row_data !== '' && row_data != undefined && row_data != null) {
+                td.classList.add('mftml-number-value');
+                is_a_number = true;
+            }
+            const data = (row_data !== undefined && row_data !== null) ? row_data : '';
+            if (is_a_number && col_name.indexOf("€") >= 0) {
+                td.textContent = `${parseFloat(data).toFixed(2)} €`;
+            } else {
+                let img_p;
+                if (col_name == "ImgP") {
+                    const img = document.createElement("img");
+                    img.src = `VirtualCovers/${data}`;
+                    img.style.maxHeight = "30px";
+                    td.style.display = "flex";
+                    td.style.justifyContent = "center";
+                    img_p = img;
+                    // td.style.height = "inherit";
+                }
+                if (owner.options.processRows != undefined) {
+                    if (owner.options.processRows[index_column] != undefined) {
+                        td.textContent = owner.options.processRows[index_column]({ content: data, container: td, row_object: row_object });
+                    } else {
+                        if (col_name == "ImgP") {
+                            td.appendChild(img_p);
+                        } else {
+                            td.textContent = data;
+                        }
+                    }
+                } else {
+                    if (col_name == "ImgP") {
+                        td.appendChild(img_p);
+                    } else {
+                        td.textContent = data;
+                    }
+                }
+                if (col_name == "Barcode") {
+                    setTimeout(async () => {
+                        try {
+                            const ean_img = await UiBuilder.toEanElement(data);
+                            ean_img.classList.add("inline-ean-code");
+                            ean_img.setAttribute("draggable", false);
+                            const wrap = document.createElement("div");
+                            wrap.appendChild(ean_img);
+                            wrap.appendChild(ean_img);
+                            wrap.style.position = "absolute";
+                            wrap.style.left = 0;
+                            wrap.style.right = 0;
+                            wrap.style.bottom = "2px";
+                            wrap.style.top = "2px";
+                            wrap.style.overflow = "hidden";
+                            td.appendChild(wrap);
+                            wrap.style.width = "-webkit-fill-available";
+                            wrap.style.height = "-webkit-fill-available";
+                            td.style.position = "relative";
+                        } catch { }
+                    }, 0);
+                }
+            }
+            row.appendChild(td);
+        });
+        return row;
+    }
+    //#endregion updateViewingData
+    /**
      * Adds export buttons to the table for data export functionality.
-     * @deprecated incompatiple with this FW
+     *
      * @private
      * @param {Object} [build_options] - Additional options for export behavior.
      */
     async #addExportingButtons(build_options = undefined) {
-        throw new Error("DatePicker is outdated");
         if (window.idp == undefined) {
             const target = document.getElementById("ctl00_ContentPlaceHolder2_txtStartDate");
             const target_to = document.getElementById("ctl00_ContentPlaceHolder2_txtEndDate");
@@ -1036,8 +1345,7 @@ class Table {
             options.getElementBeforePrint = build_options.getElementBeforePrint;
         }
         options.anchor_speed_dial = owner.elements.toolbox.title_table != undefined ? "right-middle" : undefined;
-        return;
-        const btn_export_data = await (new ExportData(options)).elementReference();
+        const btn_export_data = await (await newDynamicModule.ExportData(options)).elementReference();
         owner.elements.toolbox.exporting_button = btn_export_data;
         //console.error(options);
         btn_export_data.classList.add("export-table-button");
@@ -1053,7 +1361,7 @@ class Table {
                 icon.setAttribute("height", "18px");
                 btn_export_data.appendChild(icon);
                 btn_export_data.style.marginLeft = "auto";
-                UiBuilder.addHint({ hint: `${Locale.at.esporta_dati}\n${owner.elements.toolbox.title_table.innerText}`, target: btn_export_data });
+                UiBuilder.addHint({ hint: `${Locale.TXT.esporta_dati}\n${owner.elements.toolbox.title_table.innerText}`, target: btn_export_data });
                 owner.elements.toolbox.container.insertBefore(btn_export_data, owner.elements.toolbox.container.children[0].nextSibling);
             } else {
                 owner.elements.table.parentElement.insertBefore(btn_export_data, owner.elements.table.nextSibling);
@@ -1193,7 +1501,7 @@ class Table {
             img.style.width = "15px";
             span.innerHTML = '';
             if (options.to_be_pdffed) {
-                Icons.setSrcIcon(img, "/check_circle.svg");
+                img.src = "/Images/Icone2024/ui_2024/check_circle.svg";
             } else {
                 img.src = circle_check_base64;
             }
@@ -1232,12 +1540,13 @@ class Table {
                             self_aware_i.instance.destroy();
                             self_aware_i.instance = undefined;
                         }
-                        if (App.linked_tables == true) {
+                        /*
+                        if (window.App.linked_tables == true) {
                             //todo 
                             //*alter existing tables      
                             //querySelectorAll(`[data-col-id="DateTime"]`);
                             //**alter future tables that are going to be created
-                        }
+                        }*/
                     },
                     onCancel: () => {
                         if (self_aware_i.instance != undefined) {
@@ -1245,9 +1554,9 @@ class Table {
                             self_aware_i.instance = undefined;
                         }
                     },
-                    title: `${Locale.at.rinomina} ${Locale.at.colonna}: ${self_aware.col_name}`,
-                    title_cancel: Locale.at.annulla,
-                    title_confirm: Locale.at.ok,
+                    title: `${Locale.TXT.rinomina} ${Locale.TXT.colonna}: ${self_aware.col_name}`,
+                    title_cancel: Locale.TXT.annulla,
+                    title_confirm: Locale.TXT.ok,
                     placeholder: self_aware.col_name
                 }),
                 iAmAwareThereAreNoSelections: true,
@@ -1255,15 +1564,15 @@ class Table {
                 onReady: () => { options.afterTitleRow.focus() }
             }
             options.afterTitleRow.firstElementChild.style.borderRadius = 0;
-            self_aware_i.instance = new MousePopUp(options);
+            self_aware_i.instance = await newDynamicModule.MousePopUp(options);
         }
         if (owner.options.to_be_printed == true) {
         } else {
             self_aware.dots_btn = UiBuilder.createButton({
                 onClick: (event) => {
-                    new MousePopUp({
-                        action_titles: [/*Locale.at.rinomina, Locale.at["nascondi colonna"],*/ Locale.at["sort descending"], Locale.at["sort ascending"]],
-                        text_svgs: [/*"edit.svg", "hide_eye.svg",*/ "e986", "e984"],
+                    newDynamicModule.MousePopUp({
+                        action_titles: [/*Locale.TXT.rinomina, Locale.TXT["nascondi colonna"],*/ Locale.TXT["sort descending"], Locale.TXT["sort ascending"]],
+                        svgs: [/*"edit.svg", "hide_eye.svg",*/ "arrow_up_from_bottom.svg", "arrow_down_from_top.svg"],
                         next: [/*openRenameDialog, () => {
                         setTimeout(() => {
                             const index = Array.prototype.indexOf.call(span.parentElement.parentElement.children, span.parentElement);
@@ -1284,12 +1593,9 @@ class Table {
                                 owner.sortData(false, self_aware, self_aware);
                             }],
                         event: event,
-                        title: Locale.at.colonna,
-                        style: 0
+                        title: Locale.TXT.colonna,
+                        style: 'alert'
                     });
-                    setTimeout(() => {
-                        self_aware.dots_btn.reset();
-                    }, 0);
                 }, icon: "vertical_dots.svg", class: "f-table-button"
             });
         }
@@ -1459,58 +1765,58 @@ class Table {
         // table.elements = owner.elements;
         return table;
     }
-    startTutorial() {
-        const owner = this;
-        setTimeout(() => {
-            const insight = Insight.getInstance();
-            const insights = [
-                () => {
-                    setTimeout(() => {
-                        const target = owner.elements.header.columns[0];
-                        insight.show({
-                            target: target,
-                            text: `this is the header of the table`,
-                            anchor: "right",
-                            singleShotOnClose: () => {
-                                insights[1]();
-                            }
-                        });
-                    }, 500);
-                },
-                () => {
-                    setTimeout(() => {
-                        const target = owner.elements.toolbox.container;
-                        insight.show({
-                            target: target,
-                            text: `this is the toolbox`,
-                            anchor: "bottom",
-                            singleShotOnClose: () => {
-                                insights[2]();
-                            }
-                        });
-                    }, 500);
-                },
-                () => {
-                    setTimeout(() => {
-                        const target = owner.elements.footer.container;
-                        insight.show({
-                            target: target,
-                            text: `this is the footer`,
-                            anchor: "left"
-                        });
-                    }, 500);
-                },
-            ];
-            const giveInsight = () => {
-                insights[0]();
+    destroy() {
+        const els = this.elements;
+        const removeNode = (node) => {
+            if (node && node.parentNode) {
+                node.parentNode.removeChild(node);
             }
-            if (window.insight_component == undefined) {
-                setTimeout(() => {
-                    giveInsight();
-                }, 1000);
-                return;
+        };
+        removeNode(els.tbody);
+        removeNode(els.table);
+        removeNode(els.toolbox.search_box);
+        removeNode(els.toolbox.exporting_button);
+        removeNode(els.toolbox.graph);
+        removeNode(els.toolbox.title_table);
+        removeNode(els.toolbox.container);
+        removeNode(els.footer.record_counter);
+        removeNode(els.footer.paginator);
+        removeNode(els.footer.next_page);
+        removeNode(els.footer.page_number);
+        removeNode(els.footer.previous_page);
+        removeNode(els.footer.container);
+        els.header.columns.length = 0;
+        this.elements = null;
+        this.changeIndexRowsPerPage = null;
+        this.options = null;
+        if (this.configuration) {
+            this.configuration.group_id_DAndD = null;
+
+            if (this.configuration.hasImgP) {
+                this.configuration.hasImgP.yes = false;
+                this.configuration.hasImgP.index_columns.length = 0;
             }
-            giveInsight();
-        }, 0);
+
+            if (this.configuration.filtered_data) {
+                this.configuration.filtered_data.by_search = '';
+            }
+        }
+        this.configuration = null;
+        if (this.data) {
+            this.data.raw_provided_data = null;
+            this.data.raw_data = null;
+            if (this.data.displaying_data) {
+                this.data.displaying_data.threshold = 0;
+                this.data.displaying_data.page_selected = 0;
+                this.data.displaying_data.page_count = 0;
+                this.data.displaying_data.data.length = 0;
+            }
+            if (this.data.columns) {
+                this.data.columns.raw.length = 0;
+                this.data.columns.hidden.length = 0;
+                this.data.columns.renamed.length = 0;
+            }
+        }
+        this.data = null;
     }
 }

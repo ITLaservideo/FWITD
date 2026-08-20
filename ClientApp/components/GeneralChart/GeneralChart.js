@@ -441,159 +441,159 @@ class GeneralChart extends FrameworkGC(`${injector_html}`) {
     }
 }
 
-//#NOSTART RESERVED AREA FOR UI_BUILDER
-/*mock for the UIBuilder::live-watch-component uncomment to test it  */
-// mock data: 30 days, each day a random number of individual product sales - "products sold"
-// and "revenue" (below) are both *derived* from this same per-day list, so they always agree
-// with one another instead of being two independently-rolled random series
-const PRODUCT_CATALOG = [
-    { name: "Widget", price: 9.99 },
-    { name: "Gadget", price: 24.5 },
-    { name: "Doohickey", price: 14.75 },
-    { name: "Gizmo", price: 39 },
-    { name: "Thingamajig", price: 6.25 },
-];
-const day_labels = Array.from({ length: 60 }, (_, day_index) => `Day ${day_index + 1}`);
-const randomDailySales = () => Array.from({ length: 60 }, () => {
-    const products_sold_that_day = 5 + Math.floor(Math.random() * 20); // n
-    return Array.from({ length: products_sold_that_day }, () => PRODUCT_CATALOG[Math.floor(Math.random() * PRODUCT_CATALOG.length)]); // each x product at its y price
-});
-const mock_container = document.createElement("div");
-mock_container.style.display = "flex";
-mock_container.style.flexDirection = "column";
-mock_container.style.gap = "24px";
-mock_container.style.padding = "20px";
-mock_container.style.maxHeight = "100vh";
-mock_container.style.boxSizing = "border-box";
-mock_container.style.overflowY = "auto";
-document.body.appendChild(mock_container);
-UiBuilder.createScrollToTop({ target: mock_container }); // container grows tall with 3 panels
+//#START RESERVED AREA FOR UI_BUILDER
+///*mock for the UIBuilder::live-watch-component uncomment to test it  */
+//// mock data: 30 days, each day a random number of individual product sales - "products sold"
+//// and "revenue" (below) are both *derived* from this same per-day list, so they always agree
+//// with one another instead of being two independently-rolled random series
+// const PRODUCT_CATALOG = [
+//     { name: "Widget", price: 9.99 },
+//     { name: "Gadget", price: 24.5 },
+//     { name: "Doohickey", price: 14.75 },
+//     { name: "Gizmo", price: 39 },
+//     { name: "Thingamajig", price: 6.25 },
+// ];
+// const day_labels = Array.from({ length: 60 }, (_, day_index) => `Day ${day_index + 1}`);
+// const randomDailySales = () => Array.from({ length: 60 }, () => {
+//     const products_sold_that_day = 5 + Math.floor(Math.random() * 20); // n
+//     return Array.from({ length: products_sold_that_day }, () => PRODUCT_CATALOG[Math.floor(Math.random() * PRODUCT_CATALOG.length)]); // each x product at its y price
+// });
+// const mock_container = document.createElement("div");
+// mock_container.style.display = "flex";
+// mock_container.style.flexDirection = "column";
+// mock_container.style.gap = "24px";
+// mock_container.style.padding = "20px";
+// mock_container.style.maxHeight = "100vh";
+// mock_container.style.boxSizing = "border-box";
+// mock_container.style.overflowY = "auto";
+// document.body.appendChild(mock_container);
+// UiBuilder.createScrollToTop({ target: mock_container }); // container grows tall with 3 panels
 
-// mock data: same per-day product-sales generator used below, just pre-rolled once and
-// summarized into revenue ("linear") / units sold ("volume") per day, with real Date objects
-// for the last 30 days since createChart reads day/month/year off of them directly
-const dotted_chart_sales = randomDailySales();
-const dotted_chart_axys_x = Array.from({ length: 60 }, (_, day_index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (59 - day_index));
-    return date;
-});
-mock_container.appendChild(UiBuilder.createChart({
-    title: Locale.at("Daily sales"),
-    title_volume: Locale.at("quantitties"),
-    title_linear: "€",
-    type: "dotted",
-    data: {
-        linear: dotted_chart_sales.map(day => Math.round(day.reduce((sum, product) => sum + product.price * 0.9, 0) * 100) / 100),
-        volume: dotted_chart_sales.map(day => day.length),
-        axys_x: dotted_chart_axys_x,
-    },
-    id: "some-random"
-}));
-const makePanel = (title) => {
-    const panel = document.createElement("div");
-    panel.style.display = "flex";
-    panel.style.flexDirection = "column";
-    panel.style.gap = "10px";
-    const header = document.createElement("div");
-    header.style.display = "flex";
-    header.style.alignItems = "center";
-    header.style.gap = "8px";
-    const title_el = document.createElement("strong");
-    title_el.innerText = title;
-    header.appendChild(title_el);
-    panel.appendChild(header);
-    mock_container.appendChild(panel);
-    return { panel, header };
-};
+// // mock data: same per-day product-sales generator used below, just pre-rolled once and
+// // summarized into revenue ("linear") / units sold ("volume") per day, with real Date objects
+// // for the last 30 days since createChart reads day/month/year off of them directly
+// const dotted_chart_sales = randomDailySales();
+// const dotted_chart_axys_x = Array.from({ length: 60 }, (_, day_index) => {
+//     const date = new Date();
+//     date.setDate(date.getDate() - (59 - day_index));
+//     return date;
+// });
+// mock_container.appendChild(UiBuilder.createChart({
+//     title: Locale.at("Daily sales"),
+//     title_volume: Locale.at("quantitties"),
+//     title_linear: "€",
+//     type: "dotted",
+//     data: {
+//         linear: dotted_chart_sales.map(day => Math.round(day.reduce((sum, product) => sum + product.price * 0.9, 0) * 100) / 100),
+//         volume: dotted_chart_sales.map(day => day.length),
+//         axys_x: dotted_chart_axys_x,
+//     },
+//     id: "some-random"
+// }));
+// const makePanel = (title) => {
+//     const panel = document.createElement("div");
+//     panel.style.display = "flex";
+//     panel.style.flexDirection = "column";
+//     panel.style.gap = "10px";
+//     const header = document.createElement("div");
+//     header.style.display = "flex";
+//     header.style.alignItems = "center";
+//     header.style.gap = "8px";
+//     const title_el = document.createElement("strong");
+//     title_el.innerText = title;
+//     header.appendChild(title_el);
+//     panel.appendChild(header);
+//     mock_container.appendChild(panel);
+//     return { panel, header };
+// };
 
 
-// controls: a settings row driving whether the line panel below plots smooth or straight segments
-let use_smooth_line = true;
-const smooth_toggle_options = {
-    innerText: { on: "smooth", off: "straight" },
-    isOn: use_smooth_line,
-    onClick: () => {
-        use_smooth_line = !use_smooth_line;
-        smooth_toggle_options.setIsOn(use_smooth_line);
-        rebuildLine();
-    },
-};
+// // controls: a settings row driving whether the line panel below plots smooth or straight segments
+// let use_smooth_line = true;
+// const smooth_toggle_options = {
+//     innerText: { on: "smooth", off: "straight" },
+//     isOn: use_smooth_line,
+//     onClick: () => {
+//         use_smooth_line = !use_smooth_line;
+//         smooth_toggle_options.setIsOn(use_smooth_line);
+//         rebuildLine();
+//     },
+// };
 
-// pie - defaults to GeneralChart.productsOne mock data, just a badge to flag it as demo-only
-const pie_panel = makePanel("Sales share");
-pie_panel.header.appendChild(UiBuilder.createBadge("mock data", { color: "neutral" }));
-const pie = new GeneralChart({ type: "pie" });
-pie_panel.panel.appendChild(pie.elementReference());
+// // pie - defaults to GeneralChart.productsOne mock data, just a badge to flag it as demo-only
+// const pie_panel = makePanel("Sales share");
+// pie_panel.header.appendChild(UiBuilder.createBadge("mock data", { color: "neutral" }));
+// const pie = new GeneralChart({ type: "pie" });
+// pie_panel.panel.appendChild(pie.elementReference());
 
-// bar - createAsyncButton simulates a server round-trip that regenerates the data, occasionally
-// failing on purpose to show off the automatic error toast
-const bar_panel = makePanel("Weekly orders");
-const random_week = () => Array.from({ length: 5 }, () => Math.floor(Math.random() * 25));
-let bar_chart = new GeneralChart({
-    type: "bar",
-    labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    datasets: [
-        { label: "This week", data: [12, 19, 8, 15, 22] },
-        { label: "Last week", data: [9, 14, 11, 10, 18] },
-    ],
-});
-bar_panel.panel.appendChild(bar_chart.elementReference());
-bar_panel.header.appendChild(UiBuilder.createAsyncButton({
-    title: "regenerate",
-    onClick: async () => {
-        await new Promise((resolve, reject) => setTimeout(() => {
-            Math.random() < 0.8 ? resolve() : reject(new Error("mock regenerate failure"));
-        }, 600));
-        bar_chart.destroy();
-        bar_chart = new GeneralChart({
-            type: "bar",
-            labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-            datasets: [
-                { label: "This week", data: random_week() },
-                { label: "Last week", data: random_week() },
-            ],
-        });
-        bar_panel.panel.appendChild(bar_chart.elementReference());
-    },
-}));
+// // bar - createAsyncButton simulates a server round-trip that regenerates the data, occasionally
+// // failing on purpose to show off the automatic error toast
+// const bar_panel = makePanel("Weekly orders");
+// const random_week = () => Array.from({ length: 5 }, () => Math.floor(Math.random() * 25));
+// let bar_chart = new GeneralChart({
+//     type: "bar",
+//     labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+//     datasets: [
+//         { label: "This week", data: [12, 19, 8, 15, 22] },
+//         { label: "Last week", data: [9, 14, 11, 10, 18] },
+//     ],
+// });
+// bar_panel.panel.appendChild(bar_chart.elementReference());
+// bar_panel.header.appendChild(UiBuilder.createAsyncButton({
+//     title: "regenerate",
+//     onClick: async () => {
+//         await new Promise((resolve, reject) => setTimeout(() => {
+//             Math.random() < 0.8 ? resolve() : reject(new Error("mock regenerate failure"));
+//         }, 600));
+//         bar_chart.destroy();
+//         bar_chart = new GeneralChart({
+//             type: "bar",
+//             labels: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+//             datasets: [
+//                 { label: "This week", data: random_week() },
+//                 { label: "Last week", data: random_week() },
+//             ],
+//         });
+//         bar_panel.panel.appendChild(bar_chart.elementReference());
+//     },
+// }));
 
-mock_container.appendChild(UiBuilder.createSettingsGroup({
-    title: "chart controls",
-    rows: [UiBuilder.createSettingsRow({
-        label: "Line chart style",
-        description: "toggles GeneralChart's `smooth` option",
-        control: UiBuilder.createToggle(smooth_toggle_options),
-    })],
-}));
-// line - fetched through UiBuilder.renderAsyncView, so the panel shows a SkeletonLoader while
-// "loading", the chart on success, or a retry-wired EmptyState on (simulated) failure; two
-// series - count of products sold and their total price - both derived from the same 30-day
-// mock sales list (see PRODUCT_CATALOG/randomDailySales above), sharing one canvas as a mixed
-// chart: "Revenue" as a line and "Products sold" as bars, both on the same (left) axis so their
-// heights stay directly comparable; also rebuilt whenever the smooth/straight toggle above changes
-const line_panel = makePanel("Daily sales");
-line_panel.header.appendChild(UiBuilder.createBadge("simulated fetch", { color: "info" }));
-const line_container = document.createElement("div");
-line_container.style.minHeight = "320px";
-line_panel.panel.appendChild(line_container);
-function rebuildLine() {
-    UiBuilder.renderAsyncView(line_container, {
-        promise_factory: () => new Promise((resolve, reject) => setTimeout(() => {
-            Math.random() < 0.85 ? resolve(randomDailySales()) : reject(new Error("mock fetch failure"));
-        }, 700)),
-        render: (daily_sales) => new GeneralChart({
-            type: "line",
-            labels: day_labels,
-            datasets: [
-                { label: "Products sold", type: "bar", data: daily_sales.map((sales) => sales.length) },
-                { label: "Revenue", data: daily_sales.map((sales) => sales.reduce((sum, product) => sum + product.price, 0)) },
-            ],
-            filled: true,
-            smooth: use_smooth_line,
-        }).elementReference(),
-    });
-}
-rebuildLine();
+// mock_container.appendChild(UiBuilder.createSettingsGroup({
+//     title: "chart controls",
+//     rows: [UiBuilder.createSettingsRow({
+//         label: "Line chart style",
+//         description: "toggles GeneralChart's `smooth` option",
+//         control: UiBuilder.createToggle(smooth_toggle_options),
+//     })],
+// }));
+// // line - fetched through UiBuilder.renderAsyncView, so the panel shows a SkeletonLoader while
+// // "loading", the chart on success, or a retry-wired EmptyState on (simulated) failure; two
+// // series - count of products sold and their total price - both derived from the same 30-day
+// // mock sales list (see PRODUCT_CATALOG/randomDailySales above), sharing one canvas as a mixed
+// // chart: "Revenue" as a line and "Products sold" as bars, both on the same (left) axis so their
+// // heights stay directly comparable; also rebuilt whenever the smooth/straight toggle above changes
+// const line_panel = makePanel("Daily sales");
+// line_panel.header.appendChild(UiBuilder.createBadge("simulated fetch", { color: "info" }));
+// const line_container = document.createElement("div");
+// line_container.style.minHeight = "320px";
+// line_panel.panel.appendChild(line_container);
+// function rebuildLine() {
+//     UiBuilder.renderAsyncView(line_container, {
+//         promise_factory: () => new Promise((resolve, reject) => setTimeout(() => {
+//             Math.random() < 0.85 ? resolve(randomDailySales()) : reject(new Error("mock fetch failure"));
+//         }, 700)),
+//         render: (daily_sales) => new GeneralChart({
+//             type: "line",
+//             labels: day_labels,
+//             datasets: [
+//                 { label: "Products sold", type: "bar", data: daily_sales.map((sales) => sales.length) },
+//                 { label: "Revenue", data: daily_sales.map((sales) => sales.reduce((sum, product) => sum + product.price, 0)) },
+//             ],
+//             filled: true,
+//             smooth: use_smooth_line,
+//         }).elementReference(),
+//     });
+// }
+// rebuildLine();
 
 //#END RESERVED AREA FOR UI_BUILDER
