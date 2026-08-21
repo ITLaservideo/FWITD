@@ -423,6 +423,99 @@ html {
     margin-bottom: 1px;
 }
 
+/*#region split view*/
+
+.the-split-view {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    overflow: hidden;
+    flex-direction: row;
+}
+
+.the-split-view.the-split-view-vertical {
+    flex-direction: column;
+}
+
+.the-split-view-pane {
+    overflow: auto;
+    min-width: 0;
+    min-height: 0;
+}
+
+.the-split-view-splitter {
+    flex: 0 0 4px;
+    background: var(--vscode-panel-border);
+    cursor: col-resize;
+    z-index: 1;
+    touch-action: none;
+    user-select: none;
+    border-radius: 3px;
+}
+
+.the-split-view.the-split-view-vertical>.the-split-view-splitter {
+    cursor: row-resize;
+}
+
+.the-split-view-splitter:hover,
+.the-split-view-splitter.is-dragging {
+    background: var(--vscode-focusBorder);
+}
+
+.the-split-view-splitter-invisible,
+.the-split-view-splitter-thin {
+    flex: none;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: transparent;
+}
+
+.the-split-view.the-split-view-vertical>.the-split-view-splitter-invisible,
+.the-split-view.the-split-view-vertical>.the-split-view-splitter-thin {
+    top: auto;
+    bottom: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    height: 4px;
+}
+
+.the-split-view-splitter-invisible:hover,
+.the-split-view-splitter-invisible.is-dragging {
+    background: var(--vscode-focusBorder);
+    opacity: .5;
+}
+
+.the-split-view-splitter-thin::before {
+    content: "";
+    position: absolute;
+    background: var(--vscode-panel-border);
+}
+
+.the-split-view:not(.the-split-view-vertical)>.the-split-view-splitter-thin::before {
+    top: 0;
+    bottom: 0;
+    left: var(--splitter-line-offset, 1.5px);
+    width: var(--splitter-line-thickness, 1px);
+}
+
+.the-split-view.the-split-view-vertical>.the-split-view-splitter-thin::before {
+    left: 0;
+    right: 0;
+    top: var(--splitter-line-offset, 1.5px);
+    height: var(--splitter-line-thickness, 1px);
+}
+
+.the-split-view-splitter-thin:hover::before,
+.the-split-view-splitter-thin.is-dragging::before {
+    background: var(--vscode-focusBorder);
+}
+
+/*#endregion*/
+
 /*#region toggle/switch on/off*/
 
 .whole-switch-container {

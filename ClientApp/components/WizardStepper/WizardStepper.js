@@ -127,53 +127,140 @@ class WizardStepper extends FrameworkGC(`${injector_html}`) {
 }
 
 //#START RESERVED AREA FOR UI_BUILDER
-// /**
-//  * builds a throwaway mock step body: a label plus Back/Next buttons wired to
-//  * the step's own onUndo/onComplete (assigned by WizardStepper once it's shown)
-//  * @param {string} label
-//  * @param {Object} step
-//  * @param {boolean} [is_last]
-//  */
-// function createMockStepContent(label, step, is_last = false) {
-//     const el = document.createElement("div");
-//     el.style.display = "flex";
-//     el.style.flexDirection = "column";
-//     el.style.gap = "12px";
+// setTimeout(() => {
+//     /**
+//      * builds a throwaway mock step body: a label plus Back/Next buttons wired to
+//      * the step's own onUndo/onComplete (assigned by WizardStepper once it's shown)
+//      * @param {string} label
+//      * @param {Object} step
+//      * @param {boolean} [is_last]
+//      */
+//     function createMockStepContent(label, step, is_last = false) {
+//         const el = document.createElement("div");
+//         el.style.display = "flex";
+//         el.style.flexDirection = "column";
+//         el.style.gap = "12px";
 
-//     const p = document.createElement("p");
-//     p.textContent = `${label} step content`;
-//     el.appendChild(p);
+//         const p = document.createElement("p");
+//         p.textContent = `${label} step content`;
+//         el.appendChild(p);
 
-//     const btn_row = document.createElement("div");
-//     btn_row.style.display = "flex";
-//     btn_row.style.gap = "8px";
+//         const btn_row = document.createElement("div");
+//         btn_row.style.display = "flex";
+//         btn_row.style.gap = "8px";
 
-//     const back_btn = UiBuilder.createButton({
-//         title: "Back",
-//         onClick: () => step.onUndo?.(),
+//         const back_btn = UiBuilder.createButton({
+//             title: "Back",
+//             onClick: () => step.onUndo?.(),
+//         });
+//         btn_row.appendChild(back_btn);
+
+//         const next_btn = UiBuilder.createButton({
+//             title: is_last ? "Finish" : "Next",
+//             onClick: () => step.onComplete?.(),
+//         });
+//         btn_row.appendChild(next_btn);
+
+//         el.appendChild(btn_row);
+//         return el;
+//     }
+//     /**
+//      * mock step body for the "Details" step: a `UiBuilder.createSplitView` with a mock pane on
+//      * each side, plus the usual Back/Next buttons wired to the step's own onUndo/onComplete
+//      * @param {Object} step
+//      */
+//     function createSplitViewMockStepContent(step) {
+//         const el = document.createElement("div");
+//         el.style.display = "flex";
+//         el.style.flexDirection = "column";
+//         el.style.gap = "12px";
+//         el.style.height = "300px";
+
+//         const content1 = document.createElement("div");
+//         content1.style.paddingLeft = "1px";
+//         content1.textContent = "Details step content - left pane";
+
+//         const content2 = document.createElement("div");
+//         content2.style.paddingLeft = "1px";
+//         content2.textContent = "Details step content - right pane";
+
+//         const split_view = UiBuilder.createSplitView({ type: "horizontal", content1, content2, theme: "thin" });
+//         split_view.style.flex = "1 1 auto";
+//         el.appendChild(split_view);
+
+//         const btn_row = document.createElement("div");
+//         btn_row.style.display = "flex";
+//         btn_row.style.gap = "8px";
+
+//         const back_btn = UiBuilder.createButton({
+//             title: "Back",
+//             onClick: () => step.onUndo?.(),
+//         });
+//         btn_row.appendChild(back_btn);
+
+//         const next_btn = UiBuilder.createButton({
+//             title: "Next",
+//             onClick: () => step.onComplete?.(),
+//         });
+//         btn_row.appendChild(next_btn);
+
+//         el.appendChild(btn_row);
+//         return el;
+//     }
+//     /**
+//      * mock step body for the "Account" step: a `UiBuilder.createSplitView` with a mock pane
+//      * stacked top/bottom, plus the usual Back/Next buttons wired to the step's own onUndo/onComplete
+//      * @param {Object} step
+//      */
+//     function createSplitViewMockStepContentVertical(step) {
+//         const el = document.createElement("div");
+//         el.style.display = "flex";
+//         el.style.flexDirection = "column";
+//         el.style.gap = "12px";
+//         el.style.height = "300px";
+
+//         const content1 = document.createElement("div");
+//         content1.style.padding = "8px";
+//         content1.textContent = "Account step content - top pane";
+
+//         const content2 = document.createElement("div");
+//         content2.style.padding = "8px";
+//         content2.textContent = "Account step content - bottom pane";
+
+//         const split_view = UiBuilder.createSplitView({ type: "vertical", content1, content2, theme: "thin" });
+//         split_view.style.flex = "1 1 auto";
+//         el.appendChild(split_view);
+
+//         const btn_row = document.createElement("div");
+//         btn_row.style.display = "flex";
+//         btn_row.style.gap = "8px";
+
+//         const back_btn = UiBuilder.createButton({
+//             title: "Back",
+//             onClick: () => step.onUndo?.(),
+//         });
+//         btn_row.appendChild(back_btn);
+
+//         const next_btn = UiBuilder.createButton({
+//             title: "Next",
+//             onClick: () => step.onComplete?.(),
+//         });
+//         btn_row.appendChild(next_btn);
+
+//         el.appendChild(btn_row);
+//         return el;
+//     }
+//     const step_account = { title: "Account", freeUndo: true };
+//     const step_details = { title: "Details", freeRoam: true, freeUndo: true };
+//     const step_confirm = { title: "Confirm" };
+//     step_account.content = createSplitViewMockStepContentVertical(step_account);
+//     step_details.content = createSplitViewMockStepContent(step_details);
+//     step_confirm.content = createMockStepContent("Confirm", step_confirm, true);
+
+//     const wizard = new WizardStepper({
+//         steps: [step_account, step_details, step_confirm],
+//         onFinish: () => console.log("wizard complete"),
 //     });
-//     btn_row.appendChild(back_btn);
-
-//     const next_btn = UiBuilder.createButton({
-//         title: is_last ? "Finish" : "Next",
-//         onClick: () => step.onComplete?.(),
-//     });
-//     btn_row.appendChild(next_btn);
-
-//     el.appendChild(btn_row);
-//     return el;
-// }
-// const step_account = { title: "Account", freeUndo: true };
-// const step_details = { title: "Details", freeRoam: true, freeUndo: true };
-// const step_confirm = { title: "Confirm" };
-// step_account.content = createMockStepContent("Account", step_account);
-// step_details.content = createMockStepContent("Details", step_details);
-// step_confirm.content = createMockStepContent("Confirm", step_confirm, true);
-
-// const wizard = new WizardStepper({
-//     steps: [step_account, step_details, step_confirm],
-//     onFinish: () => console.log("wizard complete"),
-// });
-// document.body.appendChild(wizard.elementReference());
-
+//     document.body.appendChild(wizard.elementReference());
+// }, 0);
 //#END RESERVED AREA FOR UI_BUILDER

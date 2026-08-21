@@ -2976,4 +2976,112 @@ class UiBuilder {
             return '';
         }
     }
+    /**
+     * creates 2 sections with a splitter inside, by moving the splitter adjusts each section width/height
+     * @param {Object} options
+     * @param {'vertical'|'horizontal'} [options.type='horizontal'] 'horizontal' places the sections
+     *   side by side and drags the splitter left/right; 'vertical' stacks them top/bottom and drags
+     *   the splitter up/down
+     * @param {'invisible'|'thin'} [options.theme] the grabbing area is always
+     *   `thickness_splitter_grab` thick, by default visible (fully painted). 'invisible' makes it
+     *   position=absolute and transparent (see above); 'thin' keeps its full-thickness hit box but
+     *   only paints a `thickness_splitter`-wide line centered inside it
+     * @param {number} [options.thickness_splitter_grab=4] thickness, in px, of the splitter's own
+     *   hit box - the area that reacts to hover/drag. For the default (visible) theme this is also
+     *   how much layout space it reserves between the two panes; for 'invisible'/'thin' it's just
+     *   the (out-of-flow) hit box size, and `pane_a`+`pane_b` still fill 100% between them
+     * @param {number} [options.thickness_splitter] theme 'thin' only: thickness, in px, of the
+     *   painted line centered inside the grab box (default 1px); ignored for other themes
+     * @param {HTMLElement} [options.content1] appended into the first section
+     * @param {HTMLElement} [options.content2] appended into the second section
+     * @returns {HTMLElement} container with two `.the-split-view-pane` children (in DOM order) to
+     *   append content into, and a `.the-split-view-splitter` between/over them
+     */
+    static createSplitView(options = {}) {
+        const { type = "horizontal", theme, content1, content2, thickness_splitter_grab = 8 } = options;
+        const is_vertical = type === "vertical";
+        const is_invisible = theme === "invisible";
+        const is_thin = theme === "thin";
+        const thickness_splitter = options.thickness_splitter ?? (is_thin ? 1 : thickness_splitter_grab);
+        const min_percent = 10;
+
+        const container = document.createElement("div");
+        container.className = "the-split-view" + (is_vertical ? " the-split-view-vertical" : "");
+
+        const pane_a = document.createElement("div");
+        pane_a.className = "the-split-view-pane";
+        pane_a.style.flex = "0 0 50%";
+        if (content1) pane_a.appendChild(content1);
+
+        const pane_b = document.createElement("div");
+        pane_b.className = "the-split-view-pane";
+        pane_b.style.flex = "1 1 auto";
+        if (content2) pane_b.appendChild(content2);
+
+        const is_overlay = is_invisible || is_thin;
+        const splitter = document.createElement("div");
+        splitter.className = "the-split-view-splitter"
+            + (is_invisible ? " the-split-view-splitter-invisible" : "")
+            + (is_thin ? " the-split-view-splitter-thin" : "");
+        splitter.style.setProperty("--splitter-line-thickness", `${thickness_splitter}px`);
+        splitter.style.setProperty("--splitter-line-offset", `${(thickness_splitter_grab - thickness_splitter) / 2}px`);
+        if (is_overlay) {
+            splitter.style[is_vertical ? "height" : "width"] = `${thickness_splitter_grab}px`;
+            splitter.style[is_vertical ? "top" : "left"] = `calc(50% - ${thickness_splitter_grab / 2}px)`;
+        } else {
+            splitter.style.flex = `0 0 ${thickness_splitter_grab}px`;
+        }
+
+        container.append(pane_a, splitter, pane_b);
+
+        let percent = 50;
+        const applyPercent = () => {
+            pane_a.style.flex = `0 0 ${percent}%`;
+            if (is_overlay) {
+                splitter.style[is_vertical ? "top" : "left"] = `calc(${percent}% - ${thickness_splitter_grab / 2}px)`;
+            }
+        };
+
+        let drag_start_client_pos = 0;
+        let drag_start_percent = 50;
+        let drag_axis_px = 0;
+
+        const onMove = (client_pos) => {
+            const delta_percent = ((client_pos - drag_start_client_pos) / drag_axis_px) * 100;
+            percent = Math.min(Math.max(drag_start_percent + delta_percent, min_percent), 100 - min_percent);
+            applyPercent();
+        };
+        const onMouseMove = (e) => onMove(is_vertical ? e.clientY : e.clientX);
+        const onTouchMove = (e) => {
+            onMove(is_vertical ? e.touches[0].clientY : e.touches[0].clientX);
+            e.preventDefault();
+        };
+        const stopDragging = () => {
+            splitter.classList.remove("is-dragging");
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", stopDragging);
+            document.removeEventListener("touchmove", onTouchMove);
+            document.removeEventListener("touchend", stopDragging);
+        };
+        const startDragging = (client_pos) => {
+            const rect = container.getBoundingClientRect();
+            drag_start_client_pos = client_pos;
+            drag_start_percent = percent;
+            drag_axis_px = is_vertical ? rect.height : rect.width;
+            splitter.classList.add("is-dragging");
+        };
+        splitter.addEventListener("mousedown", (e) => {
+            startDragging(is_vertical ? e.clientY : e.clientX);
+            document.addEventListener("mousemove", onMouseMove);
+            document.addEventListener("mouseup", stopDragging);
+            e.preventDefault();
+        });
+        splitter.addEventListener("touchstart", (e) => {
+            startDragging(is_vertical ? e.touches[0].clientY : e.touches[0].clientX);
+            document.addEventListener("touchmove", onTouchMove, { passive: false });
+            document.addEventListener("touchend", stopDragging);
+        }, { passive: false });
+
+        return container;
+    }
 }
