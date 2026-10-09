@@ -1,0 +1,156 @@
+.dcsvac {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    width: 100%;
+    padding: 8px 4px;
+    box-sizing: border-box;
+    user-select: none;
+    font-family: var(--vscode-font-family);
+    max-width: 95vw;
+    margin: auto;
+    color: var(--vscode-button-foreground);
+
+    /* one slider (day / week) */
+    .dcsvac-bar {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+
+        /* slider row: track + icon */
+        > :first-child {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* text row, under the slider */
+        > :last-child {
+            text-align: center;
+        }
+    }
+
+    .dcsvac-track {
+        position: relative;
+        flex: 1;
+        height: 6px;
+        border-radius: 3px;
+        background-color: var(--vscode-widget-border);
+    }
+
+    .dcsvac-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 0%;
+        border-radius: 3px;
+        background-color: var(--vscode-button-background);
+        transition: width .5s ease;
+    }
+
+    .dcsvac-thumb {
+        position: absolute;
+        top: 50%;
+        left: 0%;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background-color: var(--vscode-button-background);
+        border: 2px solid var(--vscode-editor-background);
+        box-shadow: 0 0 3px var(--vscode-widget-shadow);
+        transition: left .5s ease;
+    }
+
+    .dcsvac-explained {
+        font-size: 13px;
+        opacity: .8;
+        white-space: nowrap;
+    }
+
+    /* encouragement text, above the sliders (changes at every whole percent of the day) */
+    .dcsvac-encouragement {
+        justify-content: center;
+        text-align: center;
+        font-size: 14px;
+        font-style: italic;
+    }
+
+    .dcsvac-encouragement-fade {
+        animation: dcsvac-fade-in .6s ease;
+    }
+
+    .dcsvac-home {
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    .dcsvac-bar.dcsvac-done {
+
+        .dcsvac-fill,
+        .dcsvac-thumb {
+            background-color: var(--vscode-charts-green);
+        }
+    }
+}
+
+@keyframes dcsvac-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* end-of-day modal (lives inside a BottomSheet, outside .dcsvac) */
+.dcsvac-ask {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    font-family: var(--vscode-font-family);
+    margin-right: 24px;
+
+    .dcsvac-ask-title {
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .dcsvac-ask-ok {
+        min-width: 120px;
+        justify-content: center;
+    }
+}
+
+/* short viewports: compact everything, put picker and OK side by side */
+@media (height < 300px) {
+
+    .dcsvac-ask {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px 12px;
+        padding: 0;
+
+    }
+
+    .date-picker-container {
+        flex-direction: row;
+    }
+
+    .time-selections {
+        display: none !important;
+    }
+
+    .dp-fields {
+        margin: 0px !important;
+    }
+}

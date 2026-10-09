@@ -13,6 +13,38 @@
         }
     }
 
+    .dp-fields {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px 16px;
+        margin-bottom: 8px;
+        margin-right: 23px;
+        margin-left: 23px;
+
+        .dp-fields-date,
+        .dp-fields-time {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .dp-field {
+            width: 3em;
+            text-align: center;
+            /* no double-tap zoom on touch: double tap clears the field */
+            touch-action: manipulation;
+
+            &.dp-field-year {
+                width: 4.5em;
+            }
+
+            &.dp-field-invalid {
+                border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-charts-red));
+            }
+        }
+    }
+
     .date-picker-header {
         display: flex;
         justify-content: space-around;
@@ -135,6 +167,21 @@
         outline: 1px solid var(--vscode-focusBorder);
     }
 
+    /* options.time_only: only hour and minutes */
+    &.dp-time-only {
+        min-width: auto;
+
+        .dp-seconds-separator,
+        .dp-seconds,
+        .dp-time-shortcuts,
+        .dp-fields-date,
+        .divisorio,
+        .date-picker-header,
+        .body-selections {
+            display: none;
+        }
+    }
+
 }
 
 .dp-triggerer-wrap {
@@ -156,10 +203,39 @@
     color: var(--vscode-descriptionForeground, #858585);
 }
 
-.dp-month-splitter {
-    .template-operations-container {
-        display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
+/* month selector (inside a MousePopUp): one row per season, icon + its 3 months */
+.dp-month-selector {
+    display: grid;
+    grid-template-columns: auto repeat(3, 1fr);
+    gap: 2px 4px;
+    padding: 4px;
+    user-select: none;
+
+    >.f-icon-i {
+        margin: auto;
+        font-size: 22px;
+    }
+
+    .dp-month-cell {
+        text-align: center;
+        padding: 10px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-align: left;
+
+        &:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        &.today {
+            outline: 1px solid var(--vscode-focusBorder);
+        }
+
+        &.selected-month {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            font-weight: bold;
+        }
     }
 }
 
@@ -167,6 +243,75 @@
     .template-operations-container {
         display: grid !important;
         grid-template-columns: repeat(10, 1fr) !important;
+    }
+}
+
+/* narrow screens (down to 300px, less isn't supported): horizontal space only, first the margins/gaps... */
+@media (max-width: 399px) {
+    .date-picker-container {
+        min-width: 0;
+
+        .dp-fields {
+            column-gap: 8px;
+        }
+
+        .time-selections>div:last-of-type {
+            padding-left: 4px;
+        }
+    }
+}
+
+/* ...then the paddings */
+@media (max-width: 359px) {
+    .date-picker-container {
+        padding-left: 2px;
+        padding-right: 2px;
+
+        .date-picker-header {
+            >div {
+                padding-left: 2px;
+                padding-right: 2px;
+
+                &:first-of-type {
+                    padding-left: 8px;
+                    padding-right: 4px;
+                }
+
+                &:last-of-type {
+                    padding-left: 4px;
+                    padding-right: 8px;
+                }
+            }
+
+            .month-text {
+                min-width: 80px;
+            }
+
+            .year-text {
+                min-width: 50px;
+            }
+        }
+
+        .time-selections>div>.f-icon-i {
+            /* rotated 90deg, but the layout uses the unrotated box: these are its horizontal paddings */
+            padding-left: 2px;
+            padding-right: 2px;
+        }
+
+        .calendar-header {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .calendar-date {
+            padding-left: 0;
+            padding-right: 0;
+        }
+    }
+
+    .dp-month-selector .dp-month-cell {
+        padding-left: 6px;
+        padding-right: 6px;
     }
 }
 

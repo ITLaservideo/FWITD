@@ -97,7 +97,8 @@ namespace FWITD.Controllers.FM32_25 {
         public async Task<object> SendRawCommand(JsonNode req) {
             string command = (req["command"]?.GetValue<string>() ?? "");
             bool permanent_setting = (req["permanent_setting"]?.GetValue<bool>() ?? false);//aka prefix @ by default or #
-            var ss = await FM3281.SendCommandAsync(command, permanent_setting: permanent_setting);
+            bool has_terminal_response = (req["has_terminal_response"]?.GetValue<bool>() ?? true);//false for SCNENA*/ALLENA*/NFCENA*/NFCDOE*, otherwise it waits for the timeout
+            var ss = await FM3281.SendCommandAsync(command, has_terminal_response: has_terminal_response, permanent_setting: permanent_setting);
             Ui.log($"`{ss.the_response}`", Ui.TypeLog.info);
             return new { ok = true };
         }

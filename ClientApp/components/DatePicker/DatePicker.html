@@ -1,4 +1,16 @@
 <div class="date-picker-container">
+    <div class="dp-fields">
+        <div class="dp-fields-date">
+            <input type="text" inputmode="numeric" autocomplete="off" class="dp-field" fw-id="input-day" maxlength="2" placeholder="gg" />/
+            <input type="text" autocomplete="off" class="dp-field" fw-id="input-month" maxlength="2" placeholder="mm" />/
+            <input type="text" inputmode="numeric" autocomplete="off" class="dp-field dp-field-year" fw-id="input-year" maxlength="4" placeholder="aaaa" />
+        </div>
+        <div class="dp-fields-time" fw-id="fields-time">
+            <input type="text" inputmode="numeric" autocomplete="off" class="dp-field" fw-id="input-hour" maxlength="2" placeholder="hh" />:
+            <input type="text" inputmode="numeric" autocomplete="off" class="dp-field" fw-id="input-minutes" maxlength="2" placeholder="mm" /><span class="dp-seconds-separator">:</span>
+            <input type="text" inputmode="numeric" autocomplete="off" class="dp-field dp-seconds" fw-id="input-seconds" maxlength="2" placeholder="ss" />
+        </div>
+    </div>
     <div class="time-selections" fw-id="time-selections">
         <div fw-id="time-container-hour">
             <div (click)="onClickTimer1Previous" class="f-icon-i">&#xe5cb;</div>
@@ -9,13 +21,13 @@
             <div (click)="onClickTimer2Previous" class="f-icon-i">&#xe5cb;</div>
             <span fw-id="timer2-text">5</span>
             <div (click)="onClickTimer2Next" class="f-icon-i">&#xe5cc;</div>
-        </div>:
-        <div fw-id="time-container-seconds">
+        </div><span class="dp-seconds-separator">:</span>
+        <div class="dp-seconds" fw-id="time-container-seconds">
             <div (click)="onClickTimer3Previous" class="f-icon-i">&#xe5cb;</div>
             <span fw-id="timer3-text">5</span>
             <div (click)="onClickTimer3Next" class="f-icon-i">&#xe5cc;</div>
         </div>
-        <div>
+        <div class="dp-time-shortcuts">
             <div class="ez-button" (click)="onClickFineGiornata">
                 <div class="f-icon-i">&#xe01f;</div>fine giornata
             </div>
