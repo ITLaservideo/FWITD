@@ -13,6 +13,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      * @param {string} [options.height] - CSS height applied directly to `self_ref.style.height` (e.g. `"400px"`) - same caveat as `options.width`.
      * @param {number} [options.offset_years] - How many years ahead of the current year the year-picker starts (then counts down 100 years). Defaults to whatever offset lands on the closest multiple of 10 (e.g. in 2026, defaults to 4, landing on 2030).
      * @param {boolean} [options.ignore_seconds] - If true, removes the entire hour/minute/second row (despite the name, not just seconds - this also removes the "fine giornata"/"inizio giornata"/"ora attuale" shortcuts).
+     * @param {boolean} [options.time_only] - If true, shows only the hour and minutes selectors (hides seconds, the day shortcuts and the whole calendar). Read the result from `status.selected_hour` / `status.selected_minutes`.
      * @param {boolean} [options.floating=true] - If not `false`, `elementReference()` returns a read-only trigger input that opens the full picker in a centered `BottomSheet` on click, instead of rendering the picker inline.
      * @param {string} [options.placeholder] - Placeholder text for the floating trigger input; only used when `options.floating` isn't `false`.
      * @param {string} [options.label] - Label rendered above the floating trigger input; only used when `options.floating` isn't `false`.
@@ -106,11 +107,29 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
          * @type HTMLElement
          */
         "timer1-text": null,
+
+        /** @type HTMLInputElement */
+        "input-day": null,
+        /** @type HTMLInputElement */
+        "input-month": null,
+        /** @type HTMLInputElement */
+        "input-year": null,
+        /** @type HTMLInputElement */
+        "input-hour": null,
+        /** @type HTMLInputElement */
+        "input-minutes": null,
+        /** @type HTMLInputElement */
+        "input-seconds": null,
+        /** @type HTMLElement */
+        "fields-time": null,
     }
     async #initialize() {
         const owner = this;
         if (owner.options.ignore_seconds == true) {
             owner.elements["time-selections"].remove();
+        }
+        if (owner.options.time_only == true) {
+            owner.self_ref.classList.add("dp-time-only");
         }
         owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(this.status.selected_month);
         owner.elements["year-text"].innerText = (this.status.selected_year);
@@ -121,7 +140,185 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.#makeItScorribile(owner.elements["time-container-minutes"], "selected_minutes", "timer2-text", 59);
         owner.#makeItScorribile(owner.elements["time-container-seconds"], "selected_seconds", "timer3-text", 59);
         owner.#reGenerateDates();
+        owner.#wireFieldInputs();
         return;
+    }
+    /**
+     * one entry per text field: which `status` key it edits, its valid range (as typed) and, for the time ones, the timer label to keep in sync
+     */
+    #fields = [
+        { input: "input-day", key: "selected_day", min: 1, max: () => new Date(this.status.selected_year, this.status.selected_month + 1, 0).getDate(), date: true },
+        { input: "input-month", key: "selected_month", min: 1, max: () => 12, offset: 1, date: true },
+        { input: "input-year", key: "selected_year", min: 1, max: () => 9999, date: true },
+        { input: "input-hour", key: "selected_hour", min: 0, max: () => 23, text: "timer1-text" },
+        { input: "input-minutes", key: "selected_minutes", min: 0, max: () => 59, text: "timer2-text" },
+        { input: "input-seconds", key: "selected_seconds", min: 0, max: () => 59, text: "timer3-text" },
+    ];
+    /**
+     * each text field applies what's typed on change, Enter, blur and 1s after the last keyup;
+     * while typing, an out-of-range value is marked with `dp-field-invalid`.
+     * On focus the caret goes to the start: from there typing replaces the whole value and backspace clears it
+     */
+    #wireFieldInputs() {
+        const owner = this;
+        if (owner.options.ignore_seconds == true) {
+            owner.elements["fields-time"].remove();
+        }
+        owner.#refreshFields();
+        for (const field of owner.#fields) {
+            const input = owner.elements[field.input];
+            let debounce_timer_id = null;
+            const apply = () => {
+                clearTimeout(debounce_timer_id);
+                debounce_timer_id = null;
+                owner.#applyField(field);
+            };
+            input.addEventListener("change", apply);
+            input.addEventListener("blur", apply);
+            const clear = () => {
+                clearTimeout(debounce_timer_id);
+                input.value = "";
+                input.classList.add("dp-field-invalid");
+            };
+            // caret at the start (no selection): backspace clears the field, typing replaces it
+            const clearIfCaretAtStart = () => {
+                if (input.selectionStart == 0 && input.selectionEnd == 0 && input.value != "") {
+                    clear();
+                }
+            };
+            input.addEventListener("focus", () => {
+                // deferred: a click places the caret after the focus event
+                setTimeout(() => input.setSelectionRange(0, 0), 0);
+            });
+            input.addEventListener("dblclick", () => {// double click/tap: clear to retype, applied on the next key, change or blur
+                clear();
+                input.focus();
+            });
+            input.addEventListener("keydown", (event) => {
+                if (event.key == "Enter") {
+                    event.preventDefault();
+                    apply();
+                } else if (event.key == "Backspace" || (event.key.length == 1 && !event.ctrlKey && !event.metaKey && !event.altKey)) {
+                    // on keydown, before maxlength can block the typed character
+                    clearIfCaretAtStart();
+                }
+            });
+            input.addEventListener("beforeinput", (event) => {// virtual keyboards (key "Unidentified") and paste
+                if (event.inputType.startsWith("insert") || event.inputType == "deleteContentBackward") {
+                    clearIfCaretAtStart();
+                }
+            });
+            input.addEventListener("input", (event) => {
+                // field filled up by the user: move to the next visible one (the blur applies this one)
+                if (event.inputType.startsWith("insert") && input.maxLength > 0 && input.value.length >= input.maxLength) {
+                    owner.#focusNextField(field);
+                }
+            });
+            input.addEventListener("keyup", () => {
+                clearTimeout(debounce_timer_id);
+                // live feedback only: applying always lands on a valid value
+                input.classList.toggle("dp-field-invalid", !owner.#isInRange(field, owner.#parseField(field, input.value.trim())));
+                if (input.value.trim() == "") {// cleared to retype: wait for the next key, change or blur
+                    return;
+                }
+                debounce_timer_id = setTimeout(apply, DatePicker.FIELD_DEBOUNCE_MS);
+            });
+        }
+    }
+    static FIELD_DEBOUNCE_MS = 1000;
+    /**
+     * focuses the first field after `field` that's still shown (`ignore_seconds` removes the time ones, `time_only` hides the date ones and the seconds)
+     */
+    #focusNextField(field) {
+        const owner = this;
+        const next = owner.#fields.slice(owner.#fields.indexOf(field) + 1)
+            .map(next_field => owner.elements[next_field.input])
+            .find(next_input => next_input.isConnected && next_input.offsetParent != null);
+        next?.focus();
+    }
+    #formatField(field) {
+        const value = this.status[field.key] + (field.offset ?? 0);
+        return field.key == "selected_year" ? `${value}` : DatePicker.pad(value);
+    }
+    /**
+     * after the month or year changes: clamps the day to the new month's length (e.g. 31 → February) and syncs the text fields
+     */
+    #onMonthOrYearChanged() {
+        const owner = this;
+        const days_in_month = new Date(owner.status.selected_year, owner.status.selected_month + 1, 0).getDate();
+        owner.status.selected_day = Math.min(owner.status.selected_day, days_in_month);
+        owner.#refreshFields();
+    }
+    #refreshFields() {
+        const owner = this;
+        for (const field of owner.#fields) {
+            const input = owner.elements[field.input];
+            input.value = owner.#formatField(field);
+            input.classList.remove("dp-field-invalid");
+        }
+    }
+    /**
+     * @returns {number} the number made by the typed digits, ignoring anything else (as typed, e.g. month 1..12), `NaN` if there are no digits.
+     * The month also accepts (part of) its name, see `parseMonthName`
+     */
+    #parseField(field, text) {
+        const digits = text.replace(/\D/g, "");
+        if (digits == "" && field.key == "selected_month") {
+            return DatePicker.parseMonthName(text);
+        }
+        let value = digits == "" ? NaN : Number(digits);
+        if (field.key == "selected_year" && digits.length <= 2) {
+            value += 2000;
+        }
+        return value;
+    }
+    /**
+     * matches the typed letters (anything else is ignored) against `Locale.getShortMonths()`, case-insensitive:
+     * the first month that starts with them, otherwise the first one that contains them
+     * @example "j" → 1 (Jan), "ju" → 6 (Jun), "jul" → 7, ";j" → 1
+     * @param {string} text
+     * @returns {number} the month as typed (1..12), `NaN` if there are no letters or no month matches
+     */
+    static parseMonthName(text) {
+        const letters = text.replace(/[^\p{L}]/gu, "").toLocaleLowerCase();
+        if (letters == "") {
+            return NaN;
+        }
+        const months = Locale.getShortMonths().map(month => month.toLocaleLowerCase());
+        let index = months.findIndex(month => month.startsWith(letters));
+        if (index < 0) {
+            index = months.findIndex(month => month.includes(letters));
+        }
+        return index < 0 ? NaN : index + 1;
+    }
+    #isInRange(field, value) {
+        return !isNaN(value) && value >= field.min && value <= field.max();
+    }
+    /**
+     * applies the typed number to the picker, forced into the field's range: not a number → min, too small → min, too big → max
+     */
+    #applyField(field) {
+        const owner = this;
+        const input = owner.elements[field.input];
+        const text = input.value.trim();
+        if (text == owner.#formatField(field)) {// change/Enter/blur fire together: handle it once
+            input.classList.remove("dp-field-invalid");
+            return;
+        }
+        const value = owner.#parseField(field, text);
+        owner.status[field.key] = (isNaN(value) ? field.min : Math.min(Math.max(value, field.min), field.max())) - (field.offset ?? 0);
+        if (field.date == true) {
+            // e.g. 31 → February: clamp the day to the new month's length
+            const days_in_month = new Date(owner.status.selected_year, owner.status.selected_month + 1, 0).getDate();
+            owner.status.selected_day = Math.min(owner.status.selected_day, days_in_month);
+            owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
+            owner.elements["year-text"].innerText = (owner.status.selected_year);
+            const calendar = owner.#reGenerateDates();
+            calendar.querySelectorAll(".calendar-date:not(.empty)")[owner.status.selected_day - 1]?.classList.add("selected-date");
+        } else {
+            owner.elements[field.text].innerText = DatePicker.pad(owner.status[field.key]);
+        }
+        owner.#refreshFields();
     }
     /**
      * @param {Element} element_to_grab
@@ -131,7 +328,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      */
     #makeItScorribile(element_to_grab, change_status_variable, change_element_innertext, max) {
         const owner = this;
-        if (MovableUtil) {
+        if (typeof MovableUtil !== "undefined") {
             MovableUtil.trackMouse(element_to_grab, ({ x, y }) => {
                 if (y > 0) {
                     owner.status[change_status_variable] = Math.min(Math.max((owner.status[change_status_variable]) + 1, 0), max);
@@ -139,6 +336,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                     owner.status[change_status_variable] = Math.min(Math.max((owner.status[change_status_variable]) - 1, 0), max);
                 }
                 owner.elements[change_element_innertext].innerText = DatePicker.pad(owner.status[change_status_variable]);
+                owner.#refreshFields();
                 // if (x > 0) {
                 //     element_to_grab.value = Math.max(Number(element_to_grab.value) - 10, 0);
                 // } else if (x < 0) {
@@ -222,6 +420,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
 
             div_date.addEventListener("click", () => {
                 owner.status.selected_day = day;
+                owner.#refreshFields();
                 if (owner.elements.instanceBottomSheet != undefined) {
                     owner.elements.instanceBottomSheet.destroy();
                     return;
@@ -245,36 +444,42 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         const owner = this.fwInstanceReference;
         owner.status.selected_hour = (owner.status.selected_hour + 1) % 24;   // wrap 23 → 0
         owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
+        owner.#refreshFields();
     }
 
     async onClickTimer1Next(event) {
         const owner = this.fwInstanceReference;
         owner.status.selected_hour = (owner.status.selected_hour - 1 + 24) % 24; // wrap 0 → 23
         owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
+        owner.#refreshFields();
     }
 
     async onClickTimer2Previous(event) {
         const owner = this.fwInstanceReference;
         owner.status.selected_minutes = (owner.status.selected_minutes + 1) % 60;   // wrap 59 → 0
         owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
+        owner.#refreshFields();
     }
 
     async onClickTimer2Next(event) {
         const owner = this.fwInstanceReference;
         owner.status.selected_minutes = (owner.status.selected_minutes - 1 + 60) % 60; // wrap 0 → 59
         owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
+        owner.#refreshFields();
     }
 
     async onClickTimer3Previous(event) {
         const owner = this.fwInstanceReference;
         owner.status.selected_seconds = (owner.status.selected_seconds + 1 + 60) % 60;
         owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#refreshFields();
     }
 
     async onClickTimer3Next(event) {
         const owner = this.fwInstanceReference;
         owner.status.selected_seconds = (owner.status.selected_seconds - 1 + 60) % 60;
         owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#refreshFields();
     }
     async onClickNextMonth(event) {
         /**
@@ -290,6 +495,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
         owner.elements["body-selections"].innerText = "";
         owner.#reGenerateDates();
+        owner.#onMonthOrYearChanged();
     }
     async onClickPreviousMonth(event) {
         const owner = this.fwInstanceReference;
@@ -301,34 +507,55 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         }
         owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
         owner.#reGenerateDates();
+        owner.#onMonthOrYearChanged();
     }
-    #month_labels = undefined;
+    /**
+     * rows of the month selector: season icon + its 3 months (0 = January), starting from December
+     */
+    static SEASONS = [
+        { icon: "f166", name: "inverno", months: [11, 0, 1] },
+        { icon: "eb4c", name: "primavera", months: [2, 3, 4] },
+        { icon: "eb3e", name: "estate", months: [5, 6, 7] },
+        { icon: "f8ca", name: "autunno", months: [8, 9, 10] },
+    ];
     async onClickMonthText(event) {
         /**
          * @type DatePicker
          */
         const owner = this.fwInstanceReference;
-        if (owner.#month_labels == undefined) {
-            owner.#month_labels = [];
-            const months = Locale.getShortMonths();
-            for (let i = 0; i < months.length; i++) {
-                owner.#month_labels.push(`${i + 1} - ${months[i]}`);
+        const months = Locale.getShortMonths();
+        const today = new Date();
+        /** @type MousePopUp */
+        let popup = null;
+
+        const grid = document.createElement("div");
+        grid.className = "dp-month-selector";
+        for (const season of DatePicker.SEASONS) {
+            const icon = Icons.create(season.icon);
+            grid.appendChild(icon);
+            for (const month of season.months) {
+                const cell = document.createElement("div");
+                cell.className = "dp-month-cell";
+                cell.innerText = `${month + 1} - ${months[month]}`;
+                cell.classList.toggle("selected-month", month == owner.status.selected_month);
+                cell.classList.toggle("today", month == today.getMonth() && owner.status.selected_year == today.getFullYear());
+                cell.addEventListener("click", () => {
+                    owner.status.selected_month = month;
+                    owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
+                    owner.#reGenerateDates();
+                    owner.#onMonthOrYearChanged();
+                    popup.destroy();
+                });
+                grid.appendChild(cell);
             }
         }
-        const next = [];
-        for (let i = 0; i < owner.#month_labels.length; i++) {
-            next.push(() => {
-                owner.status.selected_month = i;
-                owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
-                owner.#reGenerateDates();
-            });
-        }
-        new MousePopUp({
-            action_titles: owner.#month_labels,
-            next: next,
+        popup = new MousePopUp({
+            action_titles: [],
+            next: [],
+            iAmAwareThereAreNoSelections: true,
+            beforeSelectionsRow: grid,
             event: event,
             style: 'multi-select',
-            class: "dp-month-splitter"
         });
     }
     async onClickYearText(event) {
@@ -338,25 +565,42 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         const owner = this.fwInstanceReference;
         const next = [];
         const action_titles = [];
+        const backgrounds = [];
         const coo = owner.elements["month-text"].getBoundingClientRect();
         const current_year = owner.current_time.getFullYear();
         // default: offset to whichever multiple of 10 is closest to the current year (e.g. 2026 -> 2030, offset 4)
         const offset_years = owner.options.offset_years ?? (Math.round(current_year / 10) * 10 - current_year);
         const start_year = current_year + offset_years;
+        // wide screens: 10 years per row, each row in ascending order (rows still descend, e.g. 2021..2030 / 2011..2020)
+        const is_grid = window.innerWidth > 600;
+        const years = [];
         for (let i = start_year; i > start_year - 100; i--) {
+            years.push(i);
+        }
+        if (is_grid) {
+            for (let row = 0; row < years.length; row += 10) {
+                years.splice(row, 10, ...years.slice(row, row + 10).reverse());
+            }
+        }
+        for (const i of years) {
             next.push(() => {
                 owner.status.selected_year = i;
                 owner.elements["year-text"].innerText = (owner.status.selected_year);
                 owner.#reGenerateDates();
+                owner.#onMonthOrYearChanged();
             });
             action_titles.push(i);
+            // highlights the start of each decade
+            backgrounds.push(i % 10 == 0 ? "var(--vscode-list-inactiveSelectionBackground)" : undefined);
         }
         new MousePopUp({
             action_titles: action_titles,
             next: next,
+            override_backgrounds_color: backgrounds,
             event: { clientX: coo.x, clientY: coo.y },
             style: 'multi-select',
-            class: "dp-year-splitter"
+            // 10 years per row only on wide screens, otherwise the default list
+            class: is_grid ? "dp-year-splitter" : undefined
         });
     }
 
@@ -368,6 +612,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
         owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
         owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#refreshFields();
     }
     async onClickInizioGiornata(event) {
         const owner = this.fwInstanceReference;
@@ -377,6 +622,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
         owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
         owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#refreshFields();
     }
     async onClickOraCorrente(event) {
         const owner = this.fwInstanceReference;
@@ -387,6 +633,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
         owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
         owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#refreshFields();
     }
     //#endregion
     //#region OverwrittenFunctions
@@ -495,6 +742,12 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
 //             options: { placeholder: "Seleziona una data", label: "Data di consegna" },
 //             test: "Osserva il componente appena creato, senza cliccare nulla.",
 //             expect: "Sopra il campo di sola lettura compare l'etichetta \"Data di consegna\"; il resto del comportamento (click -> BottomSheet) è identico alla variante 2."
+//         },
+//         {
+//             title: "8) time only",
+//             options: { floating: false, time_only: true, value: new Date() },
+//             test: "Time picker",
+//             expect: ""
 //         }
 //     ];
 

@@ -12,6 +12,13 @@ class App {
     }
     #init() {
         AppStatus.displayVersion();
+        const btn_exit = UiBuilder.createButton({
+            onClick: () => Lobby.closeApp(true),
+            icon_code: "f508",
+            hint: Locale.at("close app"),
+            anchor: 'bottom'
+        });
+        this.elements.app_main_content.appendChild(btn_exit);
         //TODO constructor
     }
     async #asyncInit() {

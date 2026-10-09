@@ -48,6 +48,7 @@ class Tooltip {
             try {
                 this.#self_ref.style['opacity'] = '';
                 this.#self_ref.style['top'] = '0px';
+                this.#self_ref.style['left'] = '0px';
             } catch (error) { }
         });
     }
@@ -58,10 +59,12 @@ class Tooltip {
      * @param {Function<Element>} [options.live_element] 
      * @param {Event} [options.event]
      * @param {string} [options.anchor] left|top|right|bottom 
-     */
+    */
     show(options) {
+        const owner = this;
+        let tmp_top = 0;
+        let tmp_left = 0;
         try {
-            const owner = this;
             if (options.text != undefined && options.text.trim() != '') {
                 if (options.text.length > 500) {
                     owner.#main_text_element.innerHTML = UiBuilder.parseHTMLToDisplay(`${options.text.substring(0, 500)}...`);
@@ -90,7 +93,6 @@ class Tooltip {
                 const target_pos = options.event.target.getBoundingClientRect();
                 /*owner.#self_ref.style.left = options.event.clientX + window.scrollX;
                 owner.#self_ref.style.top = options.event.clientY + window.scrollY;*/
-                let tmp_top, tmp_left;
                 switch (owner.#anchor) {
                     case "left":
                         tmp_top = Math.min(Math.max(target_pos.top + options.event.target.clientHeight / 2 - owner.#self_ref.clientHeight / 2 + window.scrollY, 5), window.innerHeight + window.scrollY - owner.#self_ref.clientHeight);
@@ -111,12 +113,18 @@ class Tooltip {
                         tmp_left = Math.max(target_pos.left + options.event.target.clientWidth / 2 - owner.#self_ref.clientWidth / 2 + window.scrollX, 5);
                         break;
                 }
-                owner.#self_ref.style.top = `${tmp_top}px`;
-                owner.#self_ref.style.left = `${tmp_left}px`;
             }
-            owner.#self_ref.style['opacity'] = '1';
-            document.body.appendChild(owner.#self_ref);
-        } catch (error) { }
+        } catch (error) {
+        } finally {
+            requestAnimationFrame(() => {
+                if (options.event != undefined) {
+                    owner.#self_ref.style.top = `${Math.floor(tmp_top)}px`;
+                    owner.#self_ref.style.left = `${Math.floor(tmp_left)}px`;
+                }
+                owner.#self_ref.style['opacity'] = '1';
+                document.body.appendChild(owner.#self_ref);
+            });
+        }
     }
     #anchor = 'top';
     #offset = 10;
