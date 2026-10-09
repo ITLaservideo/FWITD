@@ -68,6 +68,16 @@ class App {
             anchor: 'bottom'
         });
         contianer.appendChild(btn);
+        document.body.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key == "r") {
+                e.stopPropagation();
+                e.preventDefault();
+                Lobby.post("AppRouter/Navigate", { where: "ServerStatus" }, (rsp) => {
+                    resolve();
+                    //owner.elements.button_login.classList.toggle("clicked", false);
+                });
+            }
+        })
         const btn2 = UiBuilder.createButton({
             onClick: () => Lobby.closeApp(true),
             icon_code: "f508",

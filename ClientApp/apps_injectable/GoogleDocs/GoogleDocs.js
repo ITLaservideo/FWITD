@@ -145,7 +145,7 @@ class App {
             document.body.appendChild(owner.elements.floating_container);
             setTimeout(() => {
                 const kix_editor = owner.elements.docs_editor_container.getElementsByClassName("kix-appview-editor")[0];
-                kix_editor.scrollBy(0, kix_editor.scrollHeight - 440);
+                kix_editor.scrollBy(150, kix_editor.scrollHeight - 440);
             }, 0);
         }, 1000);
         // owner.elements.docs_editor_container.getElementsByClassName("kix-rotatingtilemanager")[0].style.left=0;

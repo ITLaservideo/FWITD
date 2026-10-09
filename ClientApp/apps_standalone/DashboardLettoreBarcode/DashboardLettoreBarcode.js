@@ -12,6 +12,7 @@ const COMMANDS = [
     { title: "get system info", desc: "query firmware / hardware / serial number", route: "FM32_25/GetSystemInfo", section: "general" },
     //{ title: "dump DR log", desc: "print the internal data-response log", route: "FM32_25/LogDRLog", section: "general" }, @deprecated
     { title: "send raw command", desc: "hover to type a raw command string to send to the reader", route: "FM32_25/SendRawCommand", section: "general" },
+    { title: "IDCard", desc: "hover to send the raw commands of the IDCard flow (reset/find card, PACE, BAC)", route: "FM32_25/SendRawCommand", form: "idcard_raw_commands", section: "general" },
 
     { title: "listen mifare 1k", desc: "wait for a Mifare Classic 1K card", route: "FM32_25/ListenForMifare1kCard", section: "read" },
     { title: "listen identity cards", desc: "wait for an MRZ + NFC identity document", route: "FM32_25/ListenIdentityCards", section: "read" },
@@ -22,6 +23,76 @@ const COMMANDS = [
 
     { title: "test input mrz", desc: "provide an mrz\n verify wether is accepted", route: "FM32_25/TestMRZInput", section: "test_bypass" },
     { title: "(quick test) read CIE / passport", desc: "hover to pick which MRZ to use", route: "FM32_25/ReadCardMrz", section: "test_bypass", disabled: false },
+];
+/**
+ * prefixes of the commands the reader doesn't answer with a terminal response (sent with `has_terminal_response: false`,
+ * otherwise FM3281.SendCommandAsync waits for its timeout)
+ */
+const NO_TERMINAL_RESPONSE_PREFIXES = ["SCNENA", "ALLENA", "NFCENA", "NFCDOE"];
+/**
+ * @param {string} command
+ * @returns {boolean}
+ */
+function hasTerminalResponse(command) {
+    const upper = command.toUpperCase();
+    return !NO_TERMINAL_RESPONSE_PREFIXES.some((prefix) => upper.startsWith(prefix));
+}
+/**
+ * wraps an ISO 7816 APDU (hex) into the FM3281 passthrough command, mirrors `Utils.adaptISO7818ToFM3281` (LIBS/FM32_25):
+ * `NFCCMD0019000000` + APDU length (1 byte hex) + APDU
+ * @param {string} apdu_hex
+ * @returns {string}
+ */
+function adaptISO7818ToFM3281(apdu_hex) {
+    const hex = apdu_hex.replaceAll(" ", "").toUpperCase();
+    return `NFCCMD0019000000${(hex.length / 2).toString(16).toUpperCase().padStart(2, "0")}${hex}`;
+}
+/**
+ * raw commands of the IDCard flow (LIBS/FM32_25: FM3281.ReadCardMrz, eMRTD.DoPace, eMRTD.DoBac), sent via FM32_25/SendRawCommand.
+ * Only the static steps are here: MSE:Set AT, General Authenticate 2-4, LDF selection, BAC mutual authentication
+ * and the secure-messaging DG reads are computed from EF.CardAccess / the MRZ, so they can't be sent as fixed commands.
+ * `sequence: true` groups get a button sending all their steps in order, skipping those marked `skip_in_sequence`.
+ * @type {Array<{group: string, desc: string, sequence?: boolean, commands: Array<{title: string, command: string, desc: string, skip_in_sequence?: boolean}>}>}
+ */
+const IDCARD_RAW_COMMANDS = [
+    {
+        group: "setup", desc: "reader setup sent before listening for a card (no terminal response)",
+        commands: [
+            { title: "barcode off", command: "SCNENA0", desc: "disable barcode scanning" },
+            { title: "symbologies off", command: "ALLENA0", desc: "disable all barcode symbologies" },
+            { title: "NFC on", command: "NFCENA1", desc: "enable the NFC reader" },
+            { title: "NFC off", command: "NFCENA0", desc: "disable the NFC reader (ReadCardMrz toggles off/on to recover from NAKs)" },
+            { title: "UID output on", command: "NFCDOE1", desc: "re-enable the UID output" },
+        ],
+    },
+    {
+        group: "card", desc: "card presence / reset",
+        commands: [
+            { title: "NFC active?", command: "NFCCMD00EF0010", desc: "check the NFC module is active (also used as re-find card by DoBac)" },
+            { title: "find card", command: "NFCCMD0011", desc: "find card: the reader answers with the UID once a card is placed" },
+            { title: "re-find card", command: "NFCCMD00E1", desc: "alternative re-find card (commented out in DoBac)" },
+            { title: "reset card", command: "NFCCMD0018", desc: "reset card, must end with 9000 (DoPace/DoBac retry it up to 5 times, 250ms apart; skipped for passports)" },
+            { title: "stop card", command: "NFCCMD001A", desc: "stop card, sent at the end of the read" },
+        ],
+    },
+    {
+        group: "PACE", desc: "eMRTD.DoPace: static steps up to the first General Authenticate", sequence: true,
+        commands: [
+            { title: "reset card", command: "NFCCMD0018", desc: "reset card (skipped for passports)" },
+            { title: "select EF.CardAccess", command: adaptISO7818ToFM3281("00 A4 02 0C 02 01 1C"), desc: "SELECT EF.CardAccess (00 A4 02 0C 02 01 1C)" },
+            { title: "read CardAccess length", command: adaptISO7818ToFM3281("00 B0 00 00 06"), desc: "READ BINARY offset 0, 6 bytes (00 B0 00 00 06): ASN.1 header with the total length, then read in chunks of max 200 bytes" },
+            { title: "General Auth 1", command: adaptISO7818ToFM3281("10 86 00 00 02 7C 00 00"), desc: "General Authenticate 1 (10 86 00 00 02 7C 00 00): asks for the encrypted nonce, needs a previous MSE:Set AT (computed from CardAccess)", skip_in_sequence: true },
+        ],
+    },
+    {
+        group: "BAC", desc: "eMRTD.DoBac: static steps up to the challenge", sequence: true,
+        commands: [
+            { title: "re-find card", command: "NFCCMD00EF0010", desc: "re-find card" },
+            { title: "reset card", command: "NFCCMD0018", desc: "reset card (skipped for passports)" },
+            { title: "select application", command: adaptISO7818ToFM3281("01 A4 04 0C 07 A0 00 00 02 47 10 01"), desc: "SELECT eMRTD application, AID A0000002471001 (01 A4 04 0C 07 A0 00 00 02 47 10 01)" },
+            { title: "get challenge", command: adaptISO7818ToFM3281("00 84 00 00 08"), desc: "GET CHALLENGE, 8 bytes RND.ICC (00 84 00 00 08): next step is the mutual authentication (computed from the MRZ)" },
+        ],
+    },
 ];
 //#endregion
 /**
@@ -122,6 +193,9 @@ class App {
             } else if (cmd.route === "FM32_25/WriteMifare1kCards") {
                 // hover-driven tag/range form instead of a plain click-to-run command
                 owner.#wireWriteMifareCard(card);
+            } else if (cmd.form === "idcard_raw_commands") {
+                // hover-driven buttons sending the IDCard flow raw commands
+                owner.#wireIDCardRawCommandsCard(card);
             } else if (cmd.route === "FM32_25/SendRawCommand") {
                 // hover-driven command/permanent_setting form instead of a plain click-to-run command
                 owner.#wireSendRawCommandCard(card);
@@ -373,20 +447,86 @@ class App {
     /**
      * `permanent_setting` mirrors FM32_25Controller.SendRawCommand's flag: true prefixes the
      * command with `@` (persisted setting) instead of the default `#` (transient command).
+     * `has_terminal_response` is derived from the command, see `hasTerminalResponse`.
      */
     async #runSendRawCommand(command, permanent_setting, event) {
         const owner = this;
         if (!owner.#portIsOpen || !command) {
             return;
         }
+        command = `${command}`.trim();
         LiveLogger.log(`⚡ ${Locale.at("send raw command")}: ${command}`);
         const rsp = await Lobby.postAsync("FM32_25/SendRawCommand", {
             command: String(command),
             permanent_setting: Boolean(permanent_setting),
+            has_terminal_response: hasTerminalResponse(command),
         });
         if (rsp.error != undefined) {
             LiveLogger.log(`${Locale.at("error")}: ${rsp.error}`);
             UiBuilder.Notify(`${Locale.at("error")}: ${rsp.error}`, event);
+        }
+    }
+    //#endregion
+    //#region IDCardRawCommands
+    //@note one button per IDCARD_RAW_COMMANDS step, sent through #runSendRawCommand (transient `#` setting);
+    //the reader's answer is logged by the C# side (FM32_25Controller.SendRawCommand -> Ui.log)
+    #wireIDCardRawCommandsCard(card) {
+        const owner = this;
+        const container = document.createElement("div");
+        container.className = "dlb-write-form dlb-idcard-form";
+
+        for (const group of IDCARD_RAW_COMMANDS) {
+            const label = document.createElement("div");
+            label.className = "dlb-idcard-group-label";
+            label.innerText = Locale.at(group.group);
+            UiBuilder.addHint({ target: label, hint: Locale.at(group.desc), anchor: "left" });
+
+            const buttons = document.createElement("div");
+            buttons.className = "dlb-idcard-buttons";
+            group.commands.forEach((step, i) => {
+                buttons.appendChild(UiBuilder.createButton({
+                    title: `${group.sequence ? `${i + 1}. ` : ""}${Locale.at(step.title)}`,
+                    hint: `${step.command}\n\n${Locale.at(step.desc)}`,
+                    anchor: "bottom",
+                    class: "dlb-action-btn",
+                    onClick: (event) => owner.#runSendRawCommand(step.command, false, event),
+                }));
+            });
+            if (group.sequence) {
+                buttons.appendChild(UiBuilder.createButton({
+                    title: `▶ ${Locale.at("sequence")}`,
+                    hint: Locale.at("sends the steps in order (the reader's answers are only logged, a failing step doesn't stop the next ones)"),
+                    anchor: "bottom",
+                    class: "dlb-action-btn",
+                    onClick: (event) => owner.#runIDCardSequence(group, event),
+                }));
+            }
+            container.appendChild(label);
+            container.appendChild(buttons);
+        }
+
+        const note = document.createElement("div");
+        note.className = "dlb-idcard-note";
+        note.innerText = Locale.at("MSE:Set AT, General Authenticate 2-4, mutual authentication and DG reads are computed: use \"listen identity cards\"");
+        container.appendChild(note);
+
+        new SpeedActions({
+            target: card,
+            label: Locale.at("IDCard raw commands"),
+            element: container,
+            side: "bottom",
+        });
+    }
+    async #runIDCardSequence(group, event) {
+        const owner = this;
+        if (!owner.#portIsOpen) {
+            return;
+        }
+        LiveLogger.log(`▶ ${Locale.at(group.group)}`);
+        for (const step of group.commands) {
+            if (!step.skip_in_sequence) {
+                await owner.#runSendRawCommand(step.command, false, event);
+            }
         }
     }
     //#endregion
