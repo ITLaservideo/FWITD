@@ -1,6 +1,6 @@
 /**
  * Encouragement texts shown by `DCSVAC` above the sliders, one at a time, changing at every whole percent of the day.
- * `morning` is used before the start of the afternoon slot, `afternoon` from then on; `jokes` are mixed into both.
+ * `morning` is used before the start of the afternoon slot, `afternoon` from then on; `jokes`, `challenges` and `flexes` are mixed into both.
  *
  * Lives in `DCSVAC/lib/` (not next to `DCSVAC.js`) because the component loader only prepends extra
  * JS files found in subfolders of the component folder.
@@ -580,5 +580,107 @@ class DCSVACEncouragements {
         "Qual è il colmo per un ladro? Fare il colpo della strega 🦹",
         "Come russa un dinosauro? Dino-ronf 🦖",
         "Il colmo per un giardiniere? Piantare tutto in asso 🌷",
+    ];
+    /**
+     * "too hard… I'll do it" one-liners, not tied to the time of day: mixed into both `morning` and `afternoon`
+     */
+    static challenges = [
+        "Troppo difficile... Lo faccio 💪",
+        "Impossibile? Dammi cinque minuti ⏱️",
+        "Nessuno ci è mai riuscito. Appunto 😏",
+        "Dicono che non si può fare. Lo faccio lo stesso 🔨",
+        "Il bug più brutto della storia? Lo prendo io 🐛",
+        "Sembra un muro. Io sono un ariete 🐏",
+        "Ho paura. Lo faccio comunque 🫣",
+        "Non so come si fa. Ancora 📚",
+        "Troppo grande? Lo divido in pezzi e lo faccio 🧩",
+        "Codice legacy senza documentazione? Sfida accettata 🏺",
+        "Nessuno vuole quel ticket. Dammelo 🎫",
+        "Ci vorrebbero tre giorni. Ho una giornata ⚡",
+        "Più è difficile, più è bello quando funziona 🏆",
+        "È complicato. Bene, mi stavo annoiando 😎",
+        "Non è impossibile, è solo non ancora fatto 🚧",
+        "Le probabilità sono contro di me. Peggio per loro 🎲",
+        "Mi hanno detto \"lascia stare\". Non ho lasciato stare 🙅",
+        "Hai detto difficile? Ho sentito divertente 🎢",
+        "Ho fallito tre volte. Quarto tentativo, via 🔁",
+        "Non ce la faccio... Ok, ce la faccio 🫡",
+        "Questo problema non sa con chi ha a che fare 🦁",
+        "Il compito più duro della giornata? Per primo 🥇",
+        "Stack trace di 200 righe. Lo leggo tutto 📜",
+        "Non so da dove cominciare. Comincio da qui 📍",
+        "Fa paura. Quindi va fatto 👹",
+        "Troppo lavoro per oggi... Vediamo chi vince 🥊",
+        "Nessun piano? Improvviso 🎷",
+        "Mi tremano le mani. Scrivo lo stesso ⌨️",
+        "Regex da 80 caratteri? Oggi la capisco 🔣",
+        "Merge conflict su 40 file? Caffè e si parte ⚔️",
+        "La scadenza è domani. Lo finisco oggi 📆",
+        "Non è andata. Riprovo, meglio 🔄",
+        "Il capo ha detto \"vedi tu\". Vedo io 👀",
+        "Tutti hanno rinunciato. Io no 🚩",
+        "È in produzione e non funziona. Respiro… lo sistemo 🧯",
+        "Troppo stanco... Ancora uno 🏋️",
+        "Lo dicono tutti che è impossibile. Lo faccio 🚀",
+        "Sembrava facile. Non lo era. Lo faccio lo stesso 🤡",
+        "Nessuna risposta su Stack Overflow? Scrivo io la risposta ✍️",
+        "Troppo tardi per mollare, troppo presto per arrendersi 🧗",
+    ];
+    /**
+     * "too hard? hold my beer" brags, not tied to the time of day: mixed into both `morning` and `afternoon`
+     */
+    static flexes = [
+        "Troppo difficile? Hold my beer 🍺",
+        "Impossibile? Reggimi il caffè ☕",
+        "Bug in produzione? Tienimi la birra 🍻",
+        "Nessuno ci riesce? Guarda e impara 😎",
+        "Difficile per chi? 🤨",
+        "Facile. Il difficile è far finta che sia difficile 💅",
+        "Sfida? Io la chiamo riscaldamento 🔥",
+        "Ah, era questo il problema? Pensavo peggio 🥱",
+        "Scansatevi, ci penso io 🦸",
+        "Lo risolvo con una mano sola. L'altra regge il caffè ☕",
+        "Il compilatore ha paura di me 🫡",
+        "Io non debuggo. Il bug confessa 🕵️",
+        "Deploy di venerdì? Tranquilli, ci sono io 😏",
+        "Senza test? Senza rete. Senza paura 🎪",
+        "Regex? Le scrivo a memoria, ad occhi chiusi 🙈",
+        "Stack Overflow chiede a me 🧠",
+        "Mi hanno dato due settimane. Ci metto un pomeriggio ⏱️",
+        "Dov'è il boss finale? Questo era il tutorial 🎮",
+        "Troppo complesso? Tenetemi il microfono 🎤",
+        "Non è un bug, è una sfida personale. E ho vinto 🏆",
+    ];
+    /**
+     * office catchphrases, kept verbatim, not tied to the time of day: mixed into both `morning` and `afternoon`
+     */
+    static comandamenti = [
+        "ciao matteo",
+        "fatto. Fatto e' lapo elkan",
+        "dove dove",
+        "devi solo",
+        "è solo un bit",
+        "basta fare un copia e incolla",
+        "il programmino",
+        "sei solo un impiegato tecnico",
+        "matteo ah ah ah ah",
+        "laservideo buongiorno... tu tu tu",
+        "porta pazienza",
+        "spegni, lascia spento per 5 minuti e poi riaccendi",
+        "tanto ci penserà qualcun altro",
+        "...",
+        "deve richiamare quando che c'è francesca",
+        "marge conflict",
+        "c'è un cliente... hai la matricola?... no!",
+        "sul mio pc va",
+        "ma è in vettoriale? no è un svg",
+        "e lo cecchiamo",
+        "se compila va",
+        "lo faRemo",
+        "lasciamo tutto così e vediamo come va",
+        "non divagare",
+        "c'è del dolo",
+        "troppo difficile non lo faccio",
+        "hai fatto uno sleep 3000?",
     ];
 }

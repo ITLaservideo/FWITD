@@ -55,6 +55,10 @@
         flex-direction: column;
         align-items: center;
         gap: 14px;
+
+        .ie-toolbox-top.ie-labels-compact {
+            margin-right: auto;
+        }
     }
 
     .ie-crop-wrapper {
@@ -215,7 +219,6 @@
     .ie-labels-compact {
         width: fit-content;
         margin-left: 0;
-        margin-right: auto;
 
         >.ie-tool-button>span:last-child {
             display: none;

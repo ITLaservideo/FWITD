@@ -18,7 +18,13 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      * @param {string} [options.placeholder] - Placeholder text for the floating trigger input; only used when `options.floating` isn't `false`.
      * @param {string} [options.label] - Label rendered above the floating trigger input; only used when `options.floating` isn't `false`.
      * @param {Date|string} [options.value] - Initial date/time; defaults to now. Also pre-fills the floating trigger input's displayed text.
+     * @param {boolean} [options.is_time_intervall] - If true, selects an interval: two tabs on top ("inizio" / "fine", each showing its value) pick which end the rest of the picker edits,
+     * the calendar highlights the range, the first day clicked sets the start and moves on to the end. The end never goes before the start: the end being edited pushes the other one.
+     * The end is stored in `status` with the `_end` suffix (`selected_day_end`, ..., `selected_seconds_end`); read it with `getDate(format, true)`.
+     * @param {Date|string} [options.value_end] - Initial end of the interval (only with `is_time_intervall`); defaults to `options.value`.
      * @param {Function} [options.onChange] - callback(iso_date_string, datepicker_instance), invoked whenever the floating picker's `BottomSheet` closes after a selection.
+     * @param {Function} [options.onLastInputEnter] - callback(iso_date_string, datepicker_instance), invoked when Enter is pressed in the last visible text field (e.g. minutes with `time_only`), after its value has been applied.
+     * With `is_time_intervall`, Enter there on the start moves on to the end instead, so it's invoked only from the end.
      */
     constructor(options) {
         super(options);
@@ -41,14 +47,37 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             const initial = options.value instanceof Date ? options.value : new Date(options.value);
             if (!isNaN(initial.getTime())) {
                 this.current_time = initial;
-                this.status.selected_day = initial.getDate();
-                this.status.selected_month = initial.getMonth();
-                this.status.selected_year = initial.getFullYear();
-                this.status.selected_hour = initial.getHours();
-                this.status.selected_minutes = initial.getMinutes();
-                this.status.selected_seconds = initial.getSeconds();
+                this.#setStatus(initial, "");
+                this.#setStatus(initial, "_end");
             }
         }
+        if (options.value_end != undefined) {
+            const initial_end = options.value_end instanceof Date ? options.value_end : new Date(options.value_end);
+            if (!isNaN(initial_end.getTime())) {
+                this.#setStatus(initial_end, "_end");
+            }
+        }
+    }
+    /**
+     * @param {Date} date
+     * @param {""|"_end"} suffix - start or end of the interval
+     */
+    #setStatus(date, suffix) {
+        this.status[`selected_day${suffix}`] = date.getDate();
+        this.status[`selected_month${suffix}`] = date.getMonth();
+        this.status[`selected_year${suffix}`] = date.getFullYear();
+        this.status[`selected_hour${suffix}`] = date.getHours();
+        this.status[`selected_minutes${suffix}`] = date.getMinutes();
+        this.status[`selected_seconds${suffix}`] = date.getSeconds();
+    }
+    /**
+     * @param {""|"_end"} suffix - start or end of the interval
+     * @returns {Date}
+     */
+    #statusDate(suffix) {
+        const status = this.status;
+        return new Date(status[`selected_year${suffix}`], status[`selected_month${suffix}`], status[`selected_day${suffix}`],
+            status[`selected_hour${suffix}`], status[`selected_minutes${suffix}`], status[`selected_seconds${suffix}`]);
     }
     current_time = new Date();
     status = {
@@ -76,7 +105,38 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
          * @type number
          */
         selected_seconds: this.current_time.getSeconds(),
-        selected_ms: 999
+        selected_ms: 999,
+        // end of the interval (options.is_time_intervall), same meaning as the ones above
+        /** @type number */
+        selected_day_end: this.current_time.getDate(),
+        /** @type number */
+        selected_month_end: this.current_time.getMonth(),
+        /** @type number */
+        selected_year_end: this.current_time.getFullYear(),
+        /** @type number */
+        selected_hour_end: this.current_time.getHours(),
+        /** @type number */
+        selected_minutes_end: this.current_time.getMinutes(),
+        /** @type number */
+        selected_seconds_end: this.current_time.getSeconds(),
+    }
+    /**
+     * with `is_time_intervall`, true while the end of the interval is being edited
+     */
+    #editing_end = false;
+    /**
+     * `status` as seen by the editing UI (fields, timers, calendar, shortcuts): while editing the end,
+     * every `selected_*` key is redirected to its `_end` twin
+     */
+    #edited = new Proxy(this.status, {
+        get: (status, key) => status[this.#editedKey(key)],
+        set: (status, key, value) => {
+            status[this.#editedKey(key)] = value;
+            return true;
+        },
+    });
+    #editedKey(key) {
+        return this.#editing_end && `${String(key)}_end` in this.status ? `${String(key)}_end` : key;
     }
     /**
      * store here the elements references of the html  
@@ -122,6 +182,16 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         "input-seconds": null,
         /** @type HTMLElement */
         "fields-time": null,
+        /** @type HTMLElement */
+        "interval-edges": null,
+        /** @type HTMLElement */
+        "edge-start": null,
+        /** @type HTMLElement */
+        "edge-end": null,
+        /** @type HTMLElement */
+        "edge-start-text": null,
+        /** @type HTMLElement */
+        "edge-end-text": null,
     }
     async #initialize() {
         const owner = this;
@@ -131,23 +201,99 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         if (owner.options.time_only == true) {
             owner.self_ref.classList.add("dp-time-only");
         }
-        owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(this.status.selected_month);
-        owner.elements["year-text"].innerText = (this.status.selected_year);
-        owner.elements["timer1-text"].innerText = DatePicker.pad(this.status.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(this.status.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(this.status.selected_seconds);
+        if (owner.options.is_time_intervall != true) {
+            owner.elements["interval-edges"].remove();
+        }
         owner.#makeItScorribile(owner.elements["time-container-hour"], "selected_hour", "timer1-text", 23);
         owner.#makeItScorribile(owner.elements["time-container-minutes"], "selected_minutes", "timer2-text", 59);
         owner.#makeItScorribile(owner.elements["time-container-seconds"], "selected_seconds", "timer3-text", 59);
-        owner.#reGenerateDates();
+        owner.#refreshEdited();
         owner.#wireFieldInputs();
         return;
     }
     /**
+     * syncs everything showing the edited value: month/year header, timers, calendar and text fields
+     */
+    #refreshEdited() {
+        const owner = this;
+        owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.#edited.selected_month);
+        owner.elements["year-text"].innerText = (owner.#edited.selected_year);
+        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
+        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
+        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
+        owner.#reGenerateDates();
+        owner.#refreshFields();
+    }
+    //#region Interval
+    /**
+     * switches which end of the interval the picker edits
+     * @param {boolean} editing_end
+     */
+    #setEditingEnd(editing_end) {
+        const owner = this;
+        owner.#editing_end = editing_end;
+        owner.elements["edge-start"].classList.toggle("dp-interval-edge-active", !editing_end);
+        owner.elements["edge-end"].classList.toggle("dp-interval-edge-active", editing_end);
+        owner.#refreshEdited();
+    }
+    /**
+     * from the start to the end of the interval, focusing the end's first text field (to keep typing)
+     */
+    #goToEnd() {
+        const owner = this;
+        owner.#setEditingEnd(true);
+        owner.#fields.map(field => owner.elements[field.input]).find(DatePicker.#isShown)?.focus();
+    }
+    /**
+     * the end of the interval never goes before the start: the end being edited pushes the other one
+     */
+    #keepIntervalOrder() {
+        const owner = this;
+        if (owner.#statusDate("_end") >= owner.#statusDate("")) {
+            return;
+        }
+        owner.#setStatus(owner.#statusDate(owner.#editing_end ? "_end" : ""), owner.#editing_end ? "" : "_end");
+    }
+    /**
+     * tabs text and calendar range (start, days in between, end) of the shown month
+     */
+    #refreshInterval() {
+        const owner = this;
+        const format = owner.#displayFormat();
+        owner.elements["edge-start-text"].innerText = owner.getDate(format);
+        owner.elements["edge-end-text"].innerText = owner.getDate(format, true);
+
+        const day_start = DatePicker.#dayStamp(owner.#statusDate(""));
+        const day_end = DatePicker.#dayStamp(owner.#statusDate("_end"));
+        const cells = owner.elements["body-selections"].querySelectorAll(".calendar-date:not(.empty)");
+        cells.forEach((cell, i) => {
+            const day = DatePicker.#dayStamp(new Date(owner.#edited.selected_year, owner.#edited.selected_month, i + 1));
+            cell.classList.toggle("selected-date", day == day_start || day == day_end);
+            cell.classList.toggle("range-start", day == day_start);
+            cell.classList.toggle("range-end", day == day_end);
+            cell.classList.toggle("in-range", day > day_start && day < day_end);
+        });
+    }
+    static #dayStamp(date) {
+        return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    }
+    static #isShown(element) {
+        return element.isConnected && element.offsetParent != null;
+    }
+    async onClickEdgeStart(event) {
+        const owner = this.fwInstanceReference;
+        owner.#setEditingEnd(false);
+    }
+    async onClickEdgeEnd(event) {
+        const owner = this.fwInstanceReference;
+        owner.#setEditingEnd(true);
+    }
+    //#endregion
+    /**
      * one entry per text field: which `status` key it edits, its valid range (as typed) and, for the time ones, the timer label to keep in sync
      */
     #fields = [
-        { input: "input-day", key: "selected_day", min: 1, max: () => new Date(this.status.selected_year, this.status.selected_month + 1, 0).getDate(), date: true },
+        { input: "input-day", key: "selected_day", min: 1, max: () => new Date(this.#edited.selected_year, this.#edited.selected_month + 1, 0).getDate(), date: true },
         { input: "input-month", key: "selected_month", min: 1, max: () => 12, offset: 1, date: true },
         { input: "input-year", key: "selected_year", min: 1, max: () => 9999, date: true },
         { input: "input-hour", key: "selected_hour", min: 0, max: () => 23, text: "timer1-text" },
@@ -156,7 +302,8 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
     ];
     /**
      * each text field applies what's typed on change, Enter, blur and 1s after the last keyup;
-     * while typing, an out-of-range value is marked with `dp-field-invalid`.
+     * Enter on the last visible field also calls `options.onLastInputEnter`.
+     * While typing, an out-of-range value is marked with `dp-field-invalid`.
      * On focus the caret goes to the start: from there typing replaces the whole value and backspace clears it
      */
     #wireFieldInputs() {
@@ -198,6 +345,14 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                 if (event.key == "Enter") {
                     event.preventDefault();
                     apply();
+                    if (owner.#nextVisibleInput(field) != null) {
+                        return;
+                    }
+                    if (owner.options.is_time_intervall == true && !owner.#editing_end) {
+                        owner.#goToEnd();
+                    } else {
+                        owner.options.onLastInputEnter?.(owner.getDate('iso'), owner);
+                    }
                 } else if (event.key == "Backspace" || (event.key.length == 1 && !event.ctrlKey && !event.metaKey && !event.altKey)) {
                     // on keydown, before maxlength can block the typed character
                     clearIfCaretAtStart();
@@ -209,9 +364,15 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                 }
             });
             input.addEventListener("input", (event) => {
-                // field filled up by the user: move to the next visible one (the blur applies this one)
+                // field filled up by the user: move to the next visible one (the blur applies this one);
+                // the last one of the interval's start moves on to the end (applied first, the end's values replace the text)
                 if (event.inputType.startsWith("insert") && input.maxLength > 0 && input.value.length >= input.maxLength) {
-                    owner.#focusNextField(field);
+                    if (owner.#nextVisibleInput(field) == null && owner.options.is_time_intervall == true && !owner.#editing_end) {
+                        apply();
+                        owner.#goToEnd();
+                    } else {
+                        owner.#focusNextField(field);
+                    }
                 }
             });
             input.addEventListener("keyup", () => {
@@ -227,17 +388,19 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
     }
     static FIELD_DEBOUNCE_MS = 1000;
     /**
-     * focuses the first field after `field` that's still shown (`ignore_seconds` removes the time ones, `time_only` hides the date ones and the seconds)
+     * @returns {HTMLInputElement|undefined} the first field after `field` that's still shown (`ignore_seconds` removes the time ones, `time_only` hides the date ones and the seconds), undefined if `field` is the last one
      */
-    #focusNextField(field) {
+    #nextVisibleInput(field) {
         const owner = this;
-        const next = owner.#fields.slice(owner.#fields.indexOf(field) + 1)
+        return owner.#fields.slice(owner.#fields.indexOf(field) + 1)
             .map(next_field => owner.elements[next_field.input])
-            .find(next_input => next_input.isConnected && next_input.offsetParent != null);
-        next?.focus();
+            .find(DatePicker.#isShown);
+    }
+    #focusNextField(field) {
+        this.#nextVisibleInput(field)?.focus();
     }
     #formatField(field) {
-        const value = this.status[field.key] + (field.offset ?? 0);
+        const value = this.#edited[field.key] + (field.offset ?? 0);
         return field.key == "selected_year" ? `${value}` : DatePicker.pad(value);
     }
     /**
@@ -245,16 +408,27 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      */
     #onMonthOrYearChanged() {
         const owner = this;
-        const days_in_month = new Date(owner.status.selected_year, owner.status.selected_month + 1, 0).getDate();
-        owner.status.selected_day = Math.min(owner.status.selected_day, days_in_month);
+        const days_in_month = new Date(owner.#edited.selected_year, owner.#edited.selected_month + 1, 0).getDate();
+        owner.#edited.selected_day = Math.min(owner.#edited.selected_day, days_in_month);
         owner.#refreshFields();
     }
+    /**
+     * syncs the text fields after any change of the edited value;
+     * with `is_time_intervall` first keeps the end after the start, then also syncs the tabs and the calendar range
+     */
     #refreshFields() {
         const owner = this;
+        const is_interval = owner.options.is_time_intervall == true;
+        if (is_interval) {
+            owner.#keepIntervalOrder();
+        }
         for (const field of owner.#fields) {
             const input = owner.elements[field.input];
             input.value = owner.#formatField(field);
             input.classList.remove("dp-field-invalid");
+        }
+        if (is_interval) {
+            owner.#refreshInterval();
         }
     }
     /**
@@ -306,17 +480,17 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             return;
         }
         const value = owner.#parseField(field, text);
-        owner.status[field.key] = (isNaN(value) ? field.min : Math.min(Math.max(value, field.min), field.max())) - (field.offset ?? 0);
+        owner.#edited[field.key] = (isNaN(value) ? field.min : Math.min(Math.max(value, field.min), field.max())) - (field.offset ?? 0);
         if (field.date == true) {
             // e.g. 31 → February: clamp the day to the new month's length
-            const days_in_month = new Date(owner.status.selected_year, owner.status.selected_month + 1, 0).getDate();
-            owner.status.selected_day = Math.min(owner.status.selected_day, days_in_month);
-            owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
-            owner.elements["year-text"].innerText = (owner.status.selected_year);
+            const days_in_month = new Date(owner.#edited.selected_year, owner.#edited.selected_month + 1, 0).getDate();
+            owner.#edited.selected_day = Math.min(owner.#edited.selected_day, days_in_month);
+            owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.#edited.selected_month);
+            owner.elements["year-text"].innerText = (owner.#edited.selected_year);
             const calendar = owner.#reGenerateDates();
-            calendar.querySelectorAll(".calendar-date:not(.empty)")[owner.status.selected_day - 1]?.classList.add("selected-date");
+            calendar.querySelectorAll(".calendar-date:not(.empty)")[owner.#edited.selected_day - 1]?.classList.add("selected-date");
         } else {
-            owner.elements[field.text].innerText = DatePicker.pad(owner.status[field.key]);
+            owner.elements[field.text].innerText = DatePicker.pad(owner.#edited[field.key]);
         }
         owner.#refreshFields();
     }
@@ -324,18 +498,18 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      * @param {Element} element_to_grab
      * @param {string} change_status_variable
      * @param {string} change_element_innertext
-     * @param {number} max - upper clamp (inclusive) for `owner.status[change_status_variable]`; the lower clamp is always 0.
+     * @param {number} max - upper clamp (inclusive) for `owner.#edited[change_status_variable]`; the lower clamp is always 0.
      */
     #makeItScorribile(element_to_grab, change_status_variable, change_element_innertext, max) {
         const owner = this;
         if (typeof MovableUtil !== "undefined") {
             MovableUtil.trackMouse(element_to_grab, ({ x, y }) => {
                 if (y > 0) {
-                    owner.status[change_status_variable] = Math.min(Math.max((owner.status[change_status_variable]) + 1, 0), max);
+                    owner.#edited[change_status_variable] = Math.min(Math.max((owner.#edited[change_status_variable]) + 1, 0), max);
                 } else if (y < 0) {
-                    owner.status[change_status_variable] = Math.min(Math.max((owner.status[change_status_variable]) - 1, 0), max);
+                    owner.#edited[change_status_variable] = Math.min(Math.max((owner.#edited[change_status_variable]) - 1, 0), max);
                 }
-                owner.elements[change_element_innertext].innerText = DatePicker.pad(owner.status[change_status_variable]);
+                owner.elements[change_element_innertext].innerText = DatePicker.pad(owner.#edited[change_status_variable]);
                 owner.#refreshFields();
                 // if (x > 0) {
                 //     element_to_grab.value = Math.max(Number(element_to_grab.value) - 10, 0);
@@ -349,18 +523,23 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         return String(n).padStart(2, "0");
     }
     /**
-     * @param {'iso'|'ddMMyyyy'|'ddMMyyyy_HHmmss'|'HHmmss_ddMMyyy'} [date_format='iso'] - `iso`: "yyyy-MM-ddTHH:mm:ss" | `ddMMyyyy`: "dd-MM-yyyy" | `ddMMyyyy_HHmmss`: "dd-MM-yyyy HH:mm:ss" | `HHmmss_ddMMyyy`: "HH:mm:ss dd-MM-yyyy"
+     * @param {'iso'|'ddMMyyyy'|'ddMMyyyy_HHmmss'|'HHmmss_ddMMyyy'|'HHmm'} [date_format='iso'] - `iso`: "yyyy-MM-ddTHH:mm:ss" | `ddMMyyyy`: "dd-MM-yyyy" | `ddMMyyyy_HHmmss`: "dd-MM-yyyy HH:mm:ss" | `HHmmss_ddMMyyy`: "HH:mm:ss dd-MM-yyyy" | `HHmm`: "HH:mm"
+     * @param {boolean} [end=false] - with `is_time_intervall`, the end of the interval instead of the start
      * @returns {string}
      */
-    getDate(date_format = 'iso') {
-        const yyyy = this.status.selected_year;
-        const MM = DatePicker.pad(this.status.selected_month + 1);
-        const dd = DatePicker.pad(this.status.selected_day);
-        const HH = DatePicker.pad(this.status.selected_hour);
-        const mm = DatePicker.pad(this.status.selected_minutes);
-        const ss = DatePicker.pad(this.status.selected_seconds);
+    getDate(date_format = 'iso', end = false) {
+        const suffix = end ? "_end" : "";
+        const yyyy = this.status[`selected_year${suffix}`];
+        const MM = DatePicker.pad(this.status[`selected_month${suffix}`] + 1);
+        const dd = DatePicker.pad(this.status[`selected_day${suffix}`]);
+        const HH = DatePicker.pad(this.status[`selected_hour${suffix}`]);
+        const mm = DatePicker.pad(this.status[`selected_minutes${suffix}`]);
+        const ss = DatePicker.pad(this.status[`selected_seconds${suffix}`]);
 
         switch (date_format) {
+            case 'HHmm':
+                // HH:mm
+                return `${HH}:${mm}`;
             case 'ddMMyyyy':
                 // dd-MM-yyyy
                 return `${dd}-${MM}-${yyyy}`;
@@ -376,6 +555,20 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                 return `${yyyy}-${MM}-${dd}T${HH}:${mm}:${ss}`;
         }
     }
+    /**
+     * @returns {'HHmm'|'ddMMyyyy'|'HHmmss_ddMMyyy'} the `getDate` format matching what the picker shows (floating input, interval tabs)
+     */
+    #displayFormat() {
+        const options = this.options;
+        return options.time_only == true ? 'HHmm' : options.ignore_seconds == true ? 'ddMMyyyy' : 'HHmmss_ddMMyyy';
+    }
+    /**
+     * @returns {string} text of the floating trigger input: the date, or "start → end" with `is_time_intervall`
+     */
+    #displayText() {
+        const format = this.#displayFormat();
+        return this.options.is_time_intervall == true ? `${this.getDate(format)} → ${this.getDate(format, true)}` : this.getDate(format);
+    }
 
     //#region UiBuilder
     #reGenerateDates() {
@@ -384,8 +577,8 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         const container = document.createElement("div");
         container.classList.add("calendar-container");
 
-        const year = owner.status.selected_year;
-        const month = owner.status.selected_month;
+        const year = owner.#edited.selected_year;
+        const month = owner.#edited.selected_month;
         // Weekday labels (Mon–Sun)
         const weekdays = Locale.getShortWeekDays();
         for (const day of weekdays) {
@@ -419,10 +612,21 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             }
 
             div_date.addEventListener("click", () => {
-                owner.status.selected_day = day;
+                owner.#edited.selected_day = day;
                 owner.#refreshFields();
+                if (owner.options.is_time_intervall == true && !owner.#editing_end) {
+                    // first click: a new range from this day, the end restarts from it too (keeping its time) and is picked by the next click
+                    owner.status.selected_day_end = owner.status.selected_day;
+                    owner.status.selected_month_end = owner.status.selected_month;
+                    owner.status.selected_year_end = owner.status.selected_year;
+                    owner.#setEditingEnd(true);
+                    return;
+                }
                 if (owner.elements.instanceBottomSheet != undefined) {
                     owner.elements.instanceBottomSheet.destroy();
+                    return;
+                }
+                if (owner.options.is_time_intervall == true) {// range already marked by #refreshFields
                     return;
                 }
                 const whole_container = owner.self_ref;
@@ -442,43 +646,43 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
     //#region FrameworkEventListeners
     async onClickTimer1Previous(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_hour = (owner.status.selected_hour + 1) % 24;   // wrap 23 → 0
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
+        owner.#edited.selected_hour = (owner.#edited.selected_hour + 1) % 24;   // wrap 23 → 0
+        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
         owner.#refreshFields();
     }
 
     async onClickTimer1Next(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_hour = (owner.status.selected_hour - 1 + 24) % 24; // wrap 0 → 23
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
+        owner.#edited.selected_hour = (owner.#edited.selected_hour - 1 + 24) % 24; // wrap 0 → 23
+        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
         owner.#refreshFields();
     }
 
     async onClickTimer2Previous(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_minutes = (owner.status.selected_minutes + 1) % 60;   // wrap 59 → 0
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
+        owner.#edited.selected_minutes = (owner.#edited.selected_minutes + 1) % 60;   // wrap 59 → 0
+        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
         owner.#refreshFields();
     }
 
     async onClickTimer2Next(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_minutes = (owner.status.selected_minutes - 1 + 60) % 60; // wrap 0 → 59
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
+        owner.#edited.selected_minutes = (owner.#edited.selected_minutes - 1 + 60) % 60; // wrap 0 → 59
+        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
         owner.#refreshFields();
     }
 
     async onClickTimer3Previous(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_seconds = (owner.status.selected_seconds + 1 + 60) % 60;
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#edited.selected_seconds = (owner.#edited.selected_seconds + 1 + 60) % 60;
+        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
 
     async onClickTimer3Next(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_seconds = (owner.status.selected_seconds - 1 + 60) % 60;
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#edited.selected_seconds = (owner.#edited.selected_seconds - 1 + 60) % 60;
+        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     async onClickNextMonth(event) {
@@ -486,26 +690,26 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
          * @type DatePicker
          */
         const owner = this.fwInstanceReference;
-        owner.status.selected_month++;
-        if (owner.status.selected_month > 11) {
-            owner.status.selected_month = 0;
-            owner.status.selected_year++;
-            owner.elements["year-text"].innerText = (owner.status.selected_year);
+        owner.#edited.selected_month++;
+        if (owner.#edited.selected_month > 11) {
+            owner.#edited.selected_month = 0;
+            owner.#edited.selected_year++;
+            owner.elements["year-text"].innerText = (owner.#edited.selected_year);
         }
-        owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
+        owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.#edited.selected_month);
         owner.elements["body-selections"].innerText = "";
         owner.#reGenerateDates();
         owner.#onMonthOrYearChanged();
     }
     async onClickPreviousMonth(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_month--;
-        if (owner.status.selected_month < 0) {
-            owner.status.selected_month = 11;
-            owner.status.selected_year--;
-            owner.elements["year-text"].innerText = (owner.status.selected_year);
+        owner.#edited.selected_month--;
+        if (owner.#edited.selected_month < 0) {
+            owner.#edited.selected_month = 11;
+            owner.#edited.selected_year--;
+            owner.elements["year-text"].innerText = (owner.#edited.selected_year);
         }
-        owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
+        owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.#edited.selected_month);
         owner.#reGenerateDates();
         owner.#onMonthOrYearChanged();
     }
@@ -537,11 +741,11 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                 const cell = document.createElement("div");
                 cell.className = "dp-month-cell";
                 cell.innerText = `${month + 1} - ${months[month]}`;
-                cell.classList.toggle("selected-month", month == owner.status.selected_month);
-                cell.classList.toggle("today", month == today.getMonth() && owner.status.selected_year == today.getFullYear());
+                cell.classList.toggle("selected-month", month == owner.#edited.selected_month);
+                cell.classList.toggle("today", month == today.getMonth() && owner.#edited.selected_year == today.getFullYear());
                 cell.addEventListener("click", () => {
-                    owner.status.selected_month = month;
-                    owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.status.selected_month);
+                    owner.#edited.selected_month = month;
+                    owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.#edited.selected_month);
                     owner.#reGenerateDates();
                     owner.#onMonthOrYearChanged();
                     popup.destroy();
@@ -584,8 +788,8 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         }
         for (const i of years) {
             next.push(() => {
-                owner.status.selected_year = i;
-                owner.elements["year-text"].innerText = (owner.status.selected_year);
+                owner.#edited.selected_year = i;
+                owner.elements["year-text"].innerText = (owner.#edited.selected_year);
                 owner.#reGenerateDates();
                 owner.#onMonthOrYearChanged();
             });
@@ -606,33 +810,33 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
 
     async onClickFineGiornata(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_hour = 23;
-        owner.status.selected_minutes = 59;
-        owner.status.selected_seconds = 59;
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#edited.selected_hour = 23;
+        owner.#edited.selected_minutes = 59;
+        owner.#edited.selected_seconds = 59;
+        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
+        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
+        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     async onClickInizioGiornata(event) {
         const owner = this.fwInstanceReference;
-        owner.status.selected_hour = 0;
-        owner.status.selected_minutes = 0;
-        owner.status.selected_seconds = 0;
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#edited.selected_hour = 0;
+        owner.#edited.selected_minutes = 0;
+        owner.#edited.selected_seconds = 0;
+        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
+        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
+        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     async onClickOraCorrente(event) {
         const owner = this.fwInstanceReference;
         const now = new Date();
-        owner.status.selected_hour = now.getHours();
-        owner.status.selected_minutes = now.getMinutes();
-        owner.status.selected_seconds = now.getSeconds();
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.status.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.status.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.status.selected_seconds);
+        owner.#edited.selected_hour = now.getHours();
+        owner.#edited.selected_minutes = now.getMinutes();
+        owner.#edited.selected_seconds = now.getSeconds();
+        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
+        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
+        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     //#endregion
@@ -657,17 +861,16 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             the_input.placeholder = owner.options.placeholder ?? 'select date';
             the_input.style = "width: -webkit-fill-available;";
             if (owner.options.value != undefined) {
-                the_input.value = owner.options.ignore_seconds == true ? owner.getDate('ddMMyyyy') : owner.getDate('HHmmss_ddMMyyy');
+                the_input.value = owner.#displayText();
             }
             wrap.addEventListener("click", (eve) => {
+                if (owner.options.is_time_intervall == true) {// every opening starts from the start of the interval
+                    owner.#setEditingEnd(false);
+                }
                 owner.elements.instanceBottomSheet = new BottomSheet({
                     element: owner.self_ref,
                     onClose: () => {
-                        if (owner.options.ignore_seconds == true) {
-                            the_input.value = owner.getDate('ddMMyyyy');
-                        } else {
-                            the_input.value = owner.getDate('HHmmss_ddMMyyy');
-                        }
+                        the_input.value = owner.#displayText();
                         owner.options.onChange?.(owner.getDate('iso'), owner);
                     },
                     centered: true
@@ -748,6 +951,18 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
 //             options: { floating: false, time_only: true, value: new Date() },
 //             test: "Time picker",
 //             expect: ""
+//         },
+//         {
+//             title: "9) is_time_intervall",
+//             options: { floating: false, is_time_intervall: true, value_end: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) },
+//             test: "Clicca un giorno, poi un altro giorno dopo; passa tra le schede \"inizio\"/\"fine\" e cambia l'ora; prova a mettere la fine prima dell'inizio.",
+//             expect: "Il primo click fissa l'inizio e passa a \"fine\", il secondo la fine; i giorni in mezzo sono evidenziati. Le schede mostrano entrambi i valori; la fine non va mai prima dell'inizio (quello modificato spinge l'altro)."
+//         },
+//         {
+//             title: "10) is_time_intervall + time_only",
+//             options: { floating: false, is_time_intervall: true, time_only: true, value: new Date(new Date().setHours(8, 30, 0, 0)), value_end: new Date(new Date().setHours(17, 30, 0, 0)) },
+//             test: "Scrivi l'ora e i minuti di inizio (o premi Invio sui minuti), poi quelli di fine; passa tra le schede \"inizio\"/\"fine\" e trascina ore/minuti; prova a mettere la fine prima dell'inizio (es. inizio 18:00).",
+//             expect: "Si vedono solo le schede (\"inizio 08:30\" → \"fine 17:30\") e ore/minuti, niente calendario. Riempiti i minuti di inizio (o con Invio) il fuoco passa alle ore di fine; le schede si aggiornano mentre modifichi. La fine non va mai prima dell'inizio: inizio 18:00 porta anche la fine a 18:00."
 //         }
 //     ];
 

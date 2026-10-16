@@ -32,6 +32,30 @@
         }
     }
 
+    /* split slider: one track per working slot (day: morning / afternoon) or per working day (week), each as wide as its minutes (flex set from js) */
+    .dcsvac-segments {
+        display: flex;
+        align-items: center;
+        flex: 1;
+    }
+
+    /* transparent space between two tracks; the day's ones are the lunch break, as wide as it (flex-grow set from js) and clickable to change it */
+    .dcsvac-gap {
+        flex: 0 0 8px;
+        align-self: stretch;
+        min-height: 18px;
+        border-radius: 3px;
+
+        &.dcsvac-gap-clickable {
+            flex-basis: 12px;
+            cursor: pointer;
+
+            &:hover {
+                background-color: var(--vscode-list-hoverBackground);
+            }
+        }
+    }
+
     .dcsvac-track {
         position: relative;
         flex: 1;
