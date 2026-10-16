@@ -1,4 +1,15 @@
 <div class="date-picker-container">
+    <div class="dp-interval-edges" fw-id="interval-edges">
+        <div class="dp-interval-edge dp-interval-edge-active" fw-id="edge-start" (click)="onClickEdgeStart">
+            <div class="dp-interval-edge-label">inizio</div>
+            <div fw-id="edge-start-text"></div>
+        </div>
+        <div class="f-icon-i">&#xe5c8;</div>
+        <div class="dp-interval-edge" fw-id="edge-end" (click)="onClickEdgeEnd">
+            <div class="dp-interval-edge-label">fine</div>
+            <div fw-id="edge-end-text"></div>
+        </div>
+    </div>
     <div class="dp-fields">
         <div class="dp-fields-date">
             <input type="text" inputmode="numeric" autocomplete="off" class="dp-field" fw-id="input-day" maxlength="2" placeholder="gg" />/
