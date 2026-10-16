@@ -12,6 +12,13 @@ class App {
     }
     #init() {
         AppStatus.displayVersion();
+        document.body.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key == "r") {
+                e.stopPropagation();
+                e.preventDefault();
+                Lobby.post("AppRouter/Navigate", { where: "DCVAC" });
+            }
+        });
         const btn_exit = UiBuilder.createButton({
             onClick: () => Lobby.closeApp(true),
             style: `right: -4px;top: -6px;position: absolute;background: transparent;box-shadow: unset;opacity: 0.3;padding:4px;`,
