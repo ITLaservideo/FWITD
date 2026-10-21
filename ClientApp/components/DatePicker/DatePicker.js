@@ -304,7 +304,8 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      * each text field applies what's typed on change, Enter, blur and 1s after the last keyup;
      * Enter on the last visible field also calls `options.onLastInputEnter`.
      * While typing, an out-of-range value is marked with `dp-field-invalid`.
-     * On focus the caret goes to the start: from there typing replaces the whole value and backspace clears it
+     * On focus the caret goes to the start: from there typing replaces the whole value and backspace clears it.
+     * The mouse wheel over a field steps its value by 1 (up = +1), forced into the field's range like a typed value
      */
     #wireFieldInputs() {
         const owner = this;
@@ -375,6 +376,16 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                     }
                 }
             });
+            input.addEventListener("wheel", (event) => {// wheel up/down: +1/-1 on what's shown (or typed), applied right away
+                if (event.deltaY == 0) {
+                    return;
+                }
+                event.preventDefault();
+                const typed = owner.#parseField(field, input.value.trim());
+                const current = isNaN(typed) ? owner.#edited[field.key] + (field.offset ?? 0) : typed;
+                input.value = `${current + (event.deltaY < 0 ? 1 : -1)}`;
+                apply();
+            }, { passive: false });
             input.addEventListener("keyup", () => {
                 clearTimeout(debounce_timer_id);
                 // live feedback only: applying always lands on a valid value
