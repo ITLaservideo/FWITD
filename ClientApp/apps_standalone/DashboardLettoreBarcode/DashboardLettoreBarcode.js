@@ -12,7 +12,7 @@ const COMMANDS = [
     { title: "get system info", desc: "query firmware / hardware / serial number", route: "FM32_25/GetSystemInfo", section: "general" },
     //{ title: "dump DR log", desc: "print the internal data-response log", route: "FM32_25/LogDRLog", section: "general" }, @deprecated
     { title: "send raw command", desc: "hover to type a raw command string to send to the reader", route: "FM32_25/SendRawCommand", section: "general" },
-    { title: "IDCard", desc: "hover to send the raw commands of the IDCard flow (reset/find card, PACE, BAC)", route: "FM32_25/SendRawCommand", form: "idcard_raw_commands", section: "general" },
+    { title: "IDCard", desc: "hover to send the raw commands of the IDCard flow (reset/find card, Emirates ID, PACE, BAC)", route: "FM32_25/SendRawCommand", form: "idcard_raw_commands", section: "general" },
 
     { title: "listen mifare 1k", desc: "wait for a Mifare Classic 1K card", route: "FM32_25/ListenForMifare1kCard", section: "read" },
     { title: "listen identity cards", desc: "wait for an MRZ + NFC identity document", route: "FM32_25/ListenIdentityCards", section: "read" },
@@ -48,7 +48,7 @@ function adaptISO7818ToFM3281(apdu_hex) {
     return `NFCCMD0019000000${(hex.length / 2).toString(16).toUpperCase().padStart(2, "0")}${hex}`;
 }
 /**
- * raw commands of the IDCard flow (LIBS/FM32_25: FM3281.ReadCardMrz, eMRTD.DoPace, eMRTD.DoBac), sent via FM32_25/SendRawCommand.
+ * raw commands of the IDCard flow (LIBS/FM32_25: FM3281.ReadCardMrz, eMRTD.ReadEmiratesIdPublicData, eMRTD.DoPace, eMRTD.DoBac), sent via FM32_25/SendRawCommand.
  * Only the static steps are here: MSE:Set AT, General Authenticate 2-4, LDF selection, BAC mutual authentication
  * and the secure-messaging DG reads are computed from EF.CardAccess / the MRZ, so they can't be sent as fixed commands.
  * `sequence: true` groups get a button sending all their steps in order, skipping those marked `skip_in_sequence`.
@@ -71,15 +71,30 @@ const IDCARD_RAW_COMMANDS = [
             { title: "NFC active?", command: "NFCCMD00EF0010", desc: "check the NFC module is active (also used as re-find card by DoBac)" },
             { title: "find card", command: "NFCCMD0011", desc: "find card: the reader answers with the UID once a card is placed" },
             { title: "re-find card", command: "NFCCMD00E1", desc: "alternative re-find card (commented out in DoBac)" },
-            { title: "reset card", command: "NFCCMD0018", desc: "reset card, must end with 9000 (DoPace/DoBac retry it up to 5 times, 250ms apart; skipped for passports)" },
+            { title: "reset card", command: "NFCCMD0018", desc: "reset card (RATS): ok when the reader status is 00, or the ATS ends with 9000 (only the CIE's does; the Emirates ID's ends with 0000). DoPace/DoBac retry it up to 5 times, 250ms apart; skipped for passports" },
             { title: "stop card", command: "NFCCMD001A", desc: "stop card, sent at the end of the read" },
+        ],
+    },
+    {
+        group: "Emirates ID", desc: "eMRTD.ReadEmiratesIdPublicData (MRZ issuing state ARE, tried before PACE): public data in the clear, no PACE/BAC/secure messaging", sequence: true,
+        commands: [
+            { title: "reset card", command: "NFCCMD0018", desc: "reset card (skipped for passports)" },
+            { title: "select eMRTD applet", command: adaptISO7818ToFM3281("00 A4 04 00 07 A0 00 00 02 47 10 01 00"), desc: "SELECT AID A0000002471001 (00 A4 04 00 07 A0 00 00 02 47 10 01 00): Le=00 is required, the card answers 6700 without it" },
+            { title: "select UAE applet", command: adaptISO7818ToFM3281("00 A4 04 00 0C A0 00 00 02 43 00 13 00 00 00 01 01 00"), desc: "SELECT AID A00000024300130000000101 (00 A4 04 00 0C A0 00 00 02 43 00 13 00 00 00 01 01 00)" },
+            { title: "select DF 0200", command: adaptISO7818ToFM3281("00 A4 00 00 02 02 00 00"), desc: "SELECT DF 0200 (00 A4 00 00 02 02 00 00): parent of EF 0201/0203, selecting them from the applet root answers 6A82" },
+            { title: "select EF 0203", command: adaptISO7818ToFM3281("00 A4 00 00 02 02 03 00"), desc: "SELECT EF 0203, name/dates/nationality/gender (00 A4 00 00 02 02 03 00): the FCI 80 02 object holds the file size" },
+            { title: "select EF 0201", command: adaptISO7818ToFM3281("00 A4 00 00 02 02 01 00"), desc: "SELECT EF 0201, ID number + card number (00 A4 00 00 02 02 01 00): ReadEmiratesEf re-selects eMRTD applet -> UAE applet -> DF 0200 before each EF", skip_in_sequence: true },
+            { title: "read binary", command: adaptISO7818ToFM3281("00 B0 00 00 E0"), desc: "READ BINARY offset 0, 224 bytes (00 B0 00 00 E0): the EF is read in chunks of max 0xE0 bytes up to the FCI size", skip_in_sequence: true },
         ],
     },
     {
         group: "PACE", desc: "eMRTD.DoPace: static steps up to the first General Authenticate", sequence: true,
         commands: [
             { title: "reset card", command: "NFCCMD0018", desc: "reset card (skipped for passports)" },
-            { title: "select EF.CardAccess", command: adaptISO7818ToFM3281("00 A4 02 0C 02 01 1C"), desc: "SELECT EF.CardAccess (00 A4 02 0C 02 01 1C)" },
+            { title: "select EF.CardAccess", command: adaptISO7818ToFM3281("00 A4 02 0C 02 01 1C"), desc: "SELECT EF.CardAccess under the current DF (00 A4 02 0C 02 01 1C): the CIE accepts it with 9000, don't pre-select the MF on the CIE" },
+            { title: "select MF", command: adaptISO7818ToFM3281("00 A4 00 0C 02 3F 00"), desc: "fallback on a non-9000 SW (Emirates ID answers 6A82): SELECT MF (00 A4 00 0C 02 3F 00), then SELECT EF.CardAccess again", skip_in_sequence: true },
+            { title: "select CardAccess by path", command: adaptISO7818ToFM3281("00 A4 08 0C 04 3F 00 01 1C"), desc: "fallback: SELECT by path 3F00/011C (00 A4 08 0C 04 3F 00 01 1C)", skip_in_sequence: true },
+            { title: "read CardAccess by SFI", command: adaptISO7818ToFM3281("00 B0 9C 00 00"), desc: "last fallback: READ BINARY by SFI 0x1C, implicit select (00 B0 9C 00 00)", skip_in_sequence: true },
             { title: "read CardAccess length", command: adaptISO7818ToFM3281("00 B0 00 00 06"), desc: "READ BINARY offset 0, 6 bytes (00 B0 00 00 06): ASN.1 header with the total length, then read in chunks of max 200 bytes" },
             { title: "General Auth 1", command: adaptISO7818ToFM3281("10 86 00 00 02 7C 00 00"), desc: "General Authenticate 1 (10 86 00 00 02 7C 00 00): asks for the encrypted nonce, needs a previous MSE:Set AT (computed from CardAccess)", skip_in_sequence: true },
         ],
@@ -89,8 +104,11 @@ const IDCARD_RAW_COMMANDS = [
         commands: [
             { title: "re-find card", command: "NFCCMD00EF0010", desc: "re-find card" },
             { title: "reset card", command: "NFCCMD0018", desc: "reset card (skipped for passports)" },
-            { title: "select application", command: adaptISO7818ToFM3281("01 A4 04 0C 07 A0 00 00 02 47 10 01"), desc: "SELECT eMRTD application, AID A0000002471001 (01 A4 04 0C 07 A0 00 00 02 47 10 01)" },
+            { title: "select application", command: adaptISO7818ToFM3281("00 A4 04 0C 07 A0 00 00 02 47 10 01"), desc: "SELECT eMRTD application, AID A0000002471001 (00 A4 04 0C 07 A0 00 00 02 47 10 01): ICAO 9303 CLA 00" },
+            { title: "select application (CLA 01)", command: adaptISO7818ToFM3281("01 A4 04 0C 07 A0 00 00 02 47 10 01"), desc: "fallback on a non-9000 SW: the original CLA 01 form (01 A4 04 0C 07 A0 00 00 02 47 10 01), the Emirates ID rejects it with 6985", skip_in_sequence: true },
             { title: "get challenge", command: adaptISO7818ToFM3281("00 84 00 00 08"), desc: "GET CHALLENGE, 8 bytes RND.ICC (00 84 00 00 08): next step is the mutual authentication (computed from the MRZ)" },
+            { title: "MSE:Set AT key ref 02", command: adaptISO7818ToFM3281("00 22 C1 A4 06 80 01 01 83 01 02"), desc: "on 6A88 from the mutual authentication (not for the Emirates ID): MSE:Set AT key reference 02 (00 22 C1 A4 06 80 01 01 83 01 02), then a new GET CHALLENGE", skip_in_sequence: true },
+            { title: "MSE:Set AT key ref 01", command: adaptISO7818ToFM3281("00 22 C1 A4 06 80 01 01 83 01 01"), desc: "next retry: MSE:Set AT key reference 01 (00 22 C1 A4 06 80 01 01 83 01 01), then a new GET CHALLENGE", skip_in_sequence: true },
         ],
     },
 ];
@@ -494,7 +512,7 @@ class App {
             });
             if (group.sequence) {
                 buttons.appendChild(UiBuilder.createButton({
-                    title: `▶ ${Locale.at("sequence")}`,
+                    title: `:: ${Locale.at("sequence")}`,
                     hint: Locale.at("sends the steps in order (the reader's answers are only logged, a failing step doesn't stop the next ones)"),
                     anchor: "bottom",
                     class: "dlb-action-btn",
@@ -522,7 +540,7 @@ class App {
         if (!owner.#portIsOpen) {
             return;
         }
-        LiveLogger.log(`▶ ${Locale.at(group.group)}`);
+        LiveLogger.log(`:: ${Locale.at(group.group)}`);
         for (const step of group.commands) {
             if (!step.skip_in_sequence) {
                 await owner.#runSendRawCommand(step.command, false, event);

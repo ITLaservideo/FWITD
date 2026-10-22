@@ -23,12 +23,12 @@ class DataCruncher extends FrameworkGC(`${injector_html}`) {
     /** horizontal space per day of the `UiBuilder.createChart` daily chart */
     static #DAILY_CHART_PX_PER_DAY = 6;
     /** heatmap scale, low -> high: neutral grey warming into dark blue */
-    static heatmap_ramp = ["#e3e3e0", "#cfd2d6", "#b8c1cd", "#9db0c6", "#7f9cbe", "#5f86b4", "#4270a6", "#2a5a96", "#184680", "#0d366b"];
+    static heatmap_ramp = ["#e3e3e0", "#cfd2d6", "#b8c1cd", "#9db0c6", "#7f9cbe", "#5f86b4", "#4270a6", "#2a5a96", "#184680", "#0d366b"]; // theme-aware: light ramp, picked by #isDarkTheme
     /**
      * same grey -> blue scale stepped for a dark theme: the grey is dimmed toward the surface, and the
      * top stops at a mid-dark blue, since navy would sink back into a dark background
      */
-    static heatmap_ramp_dark = ["#3a3a38", "#373d46", "#344254", "#304763", "#2c4c73", "#285184", "#245895", "#2160aa", "#256abf"];
+    static heatmap_ramp_dark = ["#3a3a38", "#373d46", "#344254", "#304763", "#2c4c73", "#285184", "#245895", "#2160aa", "#256abf"]; // theme-aware: dark ramp, picked by #isDarkTheme
     /**
      * Exclusion rule operators. `text` ones compare the cell as shown in Excel (formatted, trimmed,
      * case-insensitive), `number` ones the cell parsed with `#parseNumber` - a cell that isn't a

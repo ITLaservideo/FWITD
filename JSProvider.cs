@@ -58,7 +58,8 @@ namespace FWITD {
         /// </summary>
         public static readonly string path_pdfjs_wasm = path_App + "utils/external_libs/pdfjs_wasm/";
         public static readonly string path_script_default_app = path_script_apps_injectable + $"default{minimized_folder_extension}js";
-        internal static CSSThemes current_css_theme = CSSThemes.vscode_dark;
+        internal const string css_theme_setting = "GlobalPreferences.Theme";
+        internal static CSSThemes current_css_theme = Enum.TryParse<CSSThemes>(AppSettings.Get(css_theme_setting, nameof(CSSThemes.vscode_dark)), out var saved_theme) ? saved_theme : CSSThemes.vscode_dark;
         private static readonly Dictionary<string, string> cache_scripts = [];
 #if DEBUG
         private static readonly string app_constructor_initialization = $"setTimeout(() => {{ try {{ window.the_main_app = new App(); }} catch (the_mfkng_e) {{ alert(the_mfkng_e?.message ?? the_mfkng_e); console.error(the_mfkng_e); }} }}, 0);";
@@ -170,7 +171,7 @@ namespace FWITD {
         }
         public async static Task<string> getScriptApp(JS.injectable_apps the_app, int id_webview = 1) {
             string file_name = the_app.ToString();
-            var cache_id = Utils.HashToID(file_name);
+            var cache_id = Utils.HashToID($"{file_name}|{id_webview}|{current_css_theme}");
 #if DEBUG && WINDOWS
             JS.clearCache(true);
 #endif
@@ -212,7 +213,7 @@ namespace FWITD {
             return the_js;
         }
         internal enum CSSThemes {
-            dark, light, vscode_dark
+            vscode_dark, vscode_light
         }
         internal static class JS {
             /// <summary>
@@ -246,7 +247,7 @@ namespace FWITD {
             /// <summary>
             /// third-party libraries in `utils/external_libs/`; declaration order = load order
             /// </summary>
-            internal enum external_libs { XLSX, html2canvas, jsPDF, pdf_lib, pdf }
+            internal enum external_libs { XLSX, html2canvas, jsPDF, pdf_lib, pdf, JsBarcode }
             /// <summary>
             /// a library is bundled when the app's assembled script (page/injectable + its components)
             /// contains any of its <c>triggers</c> - the globals it exposes, so plain usage (`XLSX.read(...)`)
@@ -258,6 +259,8 @@ namespace FWITD {
                 { external_libs.jsPDF, ("jsPDF", ["jsPDF", "jspdf"], []) },
                 { external_libs.pdf_lib, ("pdf-lib", ["exportsPDFLIB", "PDFLib"], []) },
                 { external_libs.pdf, ("pdf", ["pdfjsLib"], []) },
+                // UiBuilder (always bundled) wraps it, so its own global can't be the trigger: only its callers' `UiBuilder.toEanElement` (Table2, ...) is
+                { external_libs.JsBarcode, ("JsBarcode", ["UiBuilder.toEanElement", "//keep JsBarcode"], []) },
             };
             /// <summary>
             /// files in `utils/external_libs/` that are not loaded as a script of their own, but inlined

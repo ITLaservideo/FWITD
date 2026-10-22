@@ -2,7 +2,7 @@
     /* position: fixed; */
     top: 0;
     left: 0;
-    background-color: #ff030325;
+    background-color: color-mix(in srgb, var(--vscode-charts-red) 15%, transparent);
     right: 0;
     bottom: 0;
     z-index: 1;
@@ -12,12 +12,12 @@
     .sdt-glass-like {
         display: flex;
         flex-wrap: nowrap;
-        background: rgba(255, 255, 255, 0.2);
+        background: color-mix(in srgb, var(--vscode-foreground) 20%, transparent);
         border-radius: 16px;
         box-shadow: 0 4px 30px var(--vscode-widget-shadow);
         backdrop-filter: blur(3.3px);
         -webkit-backdrop-filter: blur(3.3px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        border: 1px solid color-mix(in srgb, var(--vscode-foreground) 30%, transparent);
     }
 
     .sdt-selection-template {
@@ -54,9 +54,9 @@
             filter: drop-shadow(0 0 33px var(--vscode-widget-shadow));
 
             &:hover {
-                -webkit-filter: drop-shadow(0 2px 15px var(--default-button-color-hover));
-                background: var(--default-button-color-hover);
-                filter: drop-shadow(0 0 3px var(--default-button-color-hover));
+                -webkit-filter: drop-shadow(0 2px 15px var(--vscode-button-hoverBackground));
+                background: var(--vscode-button-hoverBackground);
+                filter: drop-shadow(0 0 3px var(--vscode-button-hoverBackground));
             }
 
             .sdt-icon {

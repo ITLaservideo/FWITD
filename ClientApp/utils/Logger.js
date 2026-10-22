@@ -516,6 +516,7 @@ class Logger {
         }
 
         if (open_in_new_window) {
+            // theme-independent: printable report in its own window, black on white paper
             const printWindow = window.open("", "_blank");
             printWindow.document.write(`
             <html>
@@ -548,6 +549,7 @@ class Logger {
 
             const doc = iframe.contentDocument || iframe.contentWindow.document;
 
+            // theme-independent: printed report in a hidden iframe, black on white paper
             const htmlContent = `
             <html>
             <head>

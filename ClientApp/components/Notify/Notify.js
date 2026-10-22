@@ -86,7 +86,7 @@ class Notify extends FrameworkGC(`${injector_html}`) {
         }
         owner.id_timeout_auto_destroy = window.setTimeout(() => {
             owner.destroy(0);
-        }, options.ms_timeout ?? 1500);
+        }, options.ms_timeout ?? 1800);
         if (options.event != null || (window.consumables != undefined && window.consumables.event != undefined)) {
             let x = 0;
             let y = 0;
@@ -200,13 +200,13 @@ class Notify extends FrameworkGC(`${injector_html}`) {
     static switchColor(type) {
         switch (type) {
             case "ok":
-                return "#2bde3f";
+                return "var(--vscode-charts-green)";
             case "warning":
-                return "#ffc007";
+                return "var(--vscode-charts-yellow)";
             case "error":
-                return "#e42636";
+                return "var(--vscode-charts-red)";
             default:
-                return "#1d72f3";
+                return "var(--vscode-charts-blue)";
         }
     }
     static switchIcon(type) {

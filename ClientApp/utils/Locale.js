@@ -140,6 +140,35 @@ class Locale {
     static toIsoDate(now) {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
     }
+    /**
+     * Elapsed time between two dates as text: `hh:mm:ss`, prefixed by days/years only when there are
+     * any (e.g. `03:04:05`, `2d 03:04:05`, `1y 2d 03:04:05`); a negative span counts as 0.
+     * The `y`/`d` suffixes go through `Locale.at`. (`Utils.logTimespan` in the legacy UiBuilder)
+     * @param {Date|number} start_date
+     * @param {Date|number} end_date
+     * @returns {string}
+     */
+    static formatTimespan(start_date, end_date) {
+        let diff = Math.max(0, end_date - start_date);
+        const ms_second = 1000;
+        const ms_minute = 60 * ms_second;
+        const ms_hour = 60 * ms_minute;
+        const ms_day = 24 * ms_hour;
+        const ms_year = 365 * ms_day;
+        const take = (unit) => {
+            const amount = Math.floor(diff / unit);
+            diff -= amount * unit;
+            return amount;
+        };
+        const years = take(ms_year);
+        const days = take(ms_day);
+        const pad = (n) => `${n}`.padStart(2, '0');
+        const parts = [];
+        if (years > 0) parts.push(`${years}${Locale.at('y')}`);
+        if (days > 0) parts.push(`${days}${Locale.at('d')}`);
+        parts.push(`${pad(take(ms_hour))}:${pad(take(ms_minute))}:${pad(take(ms_second))}`);
+        return parts.join(' ');
+    }
     static getShortWeekDays() {
         if (this.weekdays == undefined) {
             this.weekdays = [Locale.at("Mon"), Locale.at("Tue"), Locale.at("Wed"), Locale.at("Thu"), Locale.at("Fri"), Locale.at("Sat"), Locale.at("Sun")];

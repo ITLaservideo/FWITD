@@ -1,0 +1,110 @@
+commit fe2100441b1892f0add74e0145998fe140c88946
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Thu Jul 23 15:28:36 2026 +0200
+
+    dashboard fm32-25
+
+commit 0e0002bdbc301a4795b633053273b019b5bd0fa4
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jul 22 13:46:35 2026 +0200
+
+    ++ style
+
+commit 5666e98171111e75b06fceba20d9ace82ba0de2f
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Mon Jul 20 15:34:15 2026 +0200
+
+    feat: dashboard LettoreNFC/Barcode FM32/25
+
+commit 3d42e633d662cd8ba938449ff70d9073f308c449
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Mon Jul 20 15:33:26 2026 +0200
+
+    ++ ico
+
+commit a388adc308f00a0baa223e6b68a8a18978437ee4
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Mon Jul 20 15:23:35 2026 +0200
+
+    ++ style propagation
+
+commit 1e21bffc8fec74f065563db1122f257f24cb5172
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Mon Jul 20 12:05:10 2026 +0200
+
+    toUint
+
+commit eaa05be6fce123be6c9a77e31a230e77435e90ef
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Mon Jul 20 12:04:52 2026 +0200
+
+    ++ side: left|right|top|bottom
+
+commit a8108a4d441d755a348d95a490897c80ead1817e
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Fri Jul 17 14:59:28 2026 +0200
+
+    Add clear button to ListBox and app-wide scrollbar styling
+    
+    - ListBox: add clear button with hint, derive item font size from minItemHeight when fontSize isn't set, preserve whitespace in items
+    - MousePopUp: theme colors via vscode CSS vars instead of hardcoded colors, tighten spacing/padding, restore hover states
+    - styles.css: add default scrollbar styling (thin, vscode-themed) for scrollable elements without their own scrollbar rules
+
+commit 2032ca6eae983545a0383b3680d6634ee4a861c0
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Fri Jul 17 11:00:44 2026 +0200
+
+    fix: no-throw if Size isn't passed
+
+commit a1b07c053231c17084c023dc21f74d229058e5d1
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Fri Jul 17 10:15:15 2026 +0200
+
+    fix: redundant `onReady()` invocation
+
+commit b8a38114261c8660f81ea10399e235e674059b19
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Mon Jul 13 15:24:31 2026 +0200
+
+    create table Auth_ConsumedSsoTokens
+
+commit a7cd5936ee1841867c50fedbda56067bf3a1c973
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Thu Jul 9 17:29:59 2026 +0200
+
+    ++
+
+commit ab90623fc3411436487f6f3eb42d9fbc5bb747c5
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Thu Jul 9 17:23:29 2026 +0200
+
+    ignore *.min.min.* build artifacts
+    - markup/styling updates
+    - Minor tweaks to KeyBoard, DockWindow, Notify, SpeedActions, WizardStepper,
+      SkeletonLoader, OTPComponent, DataAnalizis1, GestionaleDistributore
+
+commit b36c04531f7a396402b9b428ebe1cdfbb01c0a43
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Tue Jul 7 17:27:29 2026 +0200
+
+    ++ ui components
+
+commit 08483a0ee1c49d5dafb5e394831c9503eedb4da1
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jun 24 15:39:14 2026 +0200
+
+    define: compile time WPF constant
+    - add AppRouter/Navigate controller to switch webview app on demand
+    - add ServerStatus app and fix stale WebView navigation handlers
+    - Add Cloudflare-aware client IP resolution
+    - Add AppSettings.GetForTemplate to render arrays/objects as raw JSON
+      in {{@AppSettings.*}} template placeholders, used by AppStatus
+    - Add LoadingMessagesProvider to load culture-specific loading
+      messages bundled as app assets, falling back to "en"
+    - define Lobby.closeApp and controller
+
+commit 61d4c6e54662815a946e7b3648ef8ba3fadc20a3
+Author: Ilie Tabureanu <ilie.tabureanu@laservideo.it>
+Date:   Wed Jun 24 15:12:36 2026 +0200
+
+    init

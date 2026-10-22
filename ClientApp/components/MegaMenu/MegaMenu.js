@@ -27,7 +27,7 @@
  * Panels are `SpeedActions` popups anchored to their entry: they open on hover and close on leave or
  * after a link is activated. In horizontal orientation the bar stays on one line: the trailing entries that
  * don't fit are packed into a "more" entry (recomputed on window/container resize).
- * @version 1.2
+ * @version 1.3
  */
 class MegaMenu extends FrameworkGC(`${injector_html}`) {
     /**
@@ -35,6 +35,7 @@ class MegaMenu extends FrameworkGC(`${injector_html}`) {
      * @param {MegaMenuItem[]} options.items - root entries, in display order
      * @param {"horizontal"|"vertical"} [options.orientation] - "horizontal" by default; horizontal panels
      *   open below their entry, vertical ones to its right (each falls back to the opposite side if needed)
+     * @param {string} [options.style] - inline css text assigned to the menu's root element
      * @param {Function|Array<Function>} [options.onClose] - callback(s) to be called on destroy
      * @param {Function} [options.onReady] - callback to be called when component is ready
      */
@@ -76,6 +77,9 @@ class MegaMenu extends FrameworkGC(`${injector_html}`) {
         const owner = this;
         owner.#orientation = owner.options.orientation === "vertical" ? "vertical" : "horizontal";
         owner.self_ref.classList.add(`mm-${owner.#orientation}`);
+        if (owner.options.style != undefined) {
+            owner.self_ref.style = owner.options.style;
+        }
         owner.elements.root_list.setAttribute("aria-orientation", owner.#orientation);
         if (owner.#orientation === "horizontal") {
             owner.#overflow = owner.#buildOverflowItem();

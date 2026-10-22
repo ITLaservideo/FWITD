@@ -25,9 +25,10 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
     #pendingData = null;
     #dateRange = { start: null, end: null };
 
+    /** series colors, resolved with UiBuilder.themeColor when the datasets are built */
     static #COLORS = [
-        '#4e9af1', '#f1964e', '#4ef179', '#f14e4e',
-        '#9a4ef1', '#f1d84e', '#4ef1e2', '#f14ea0',
+        '--vscode-charts-blue', '--vscode-charts-orange', '--vscode-charts-green', '--vscode-charts-red',
+        '--vscode-charts-purple', '--vscode-charts-yellow', '--vscode-terminal-ansiCyan', '--vscode-terminal-ansiMagenta',
     ];
 
     async #initialize() {
@@ -157,9 +158,8 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
     #createCharts() {
         const owner = this;
         const root = owner.self_ref;
-        const style = getComputedStyle(document.documentElement);
-        const textColor = style.getPropertyValue('--vscode-editor-foreground').trim() || '#cccccc';
-        const gridColor = style.getPropertyValue('--vscode-panel-border').trim() || '#3c3c3c';
+        const textColor = UiBuilder.themeColor('--vscode-editor-foreground');
+        const gridColor = UiBuilder.themeColor('--vscode-panel-border');
 
         Chart.defaults.color = textColor;
         Chart.defaults.borderColor = gridColor;
@@ -240,7 +240,7 @@ class DataAnalizis1 extends FrameworkGC(`${injector_html}`) {
         }
 
         const labels = [...labelSet];
-        const COLORS = DataAnalizis1.#COLORS;
+        const COLORS = DataAnalizis1.#COLORS.map(UiBuilder.themeColor);
 
         chart.data.labels = labels;
         chart.data.datasets = Object.entries(byCategory).map(([cat, data], i) => ({

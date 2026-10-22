@@ -182,7 +182,7 @@ class MousePopUp {
             main_container.style.bottom = `${Math.min(options.event.clientY, 50)}px`;
             main_container.style.margin = 'auto';
             main_container.style['justifyContent'] = 'center';
-            button_close.setAttribute("style", "width: 50px;height: 50px;background: black; color: white;display:flex;");
+            button_close.setAttribute("style", "width: 50px;height: 50px;background: var(--vscode-button-secondaryBackground); color: var(--vscode-button-secondaryForeground);display:flex;");
 
             owner.#self_ref.getElementsByClassName("template-operations-container")[0].style['paddingLeft'] = '55px';
             owner.#self_ref.getElementsByClassName("template-operations-container")[0].style['paddingRight'] = '55px';

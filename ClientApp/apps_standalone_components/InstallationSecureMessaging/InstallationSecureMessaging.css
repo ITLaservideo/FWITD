@@ -93,11 +93,11 @@
 }
 
 .ism-status-line.err {
-    color: #ef5350;
+    color: var(--vscode-errorForeground);
 }
 
 .ism-status-line.warn {
-    color: #d7ba7d;
+    color: var(--vscode-editorWarning-foreground);
 }
 
 .ism-nav-row {

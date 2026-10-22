@@ -1,7 +1,8 @@
 
+/** mirrors JSProvider.CSSThemes (C#) */
 const enumThemes = Object.freeze({
-    dark: 0,
-    light: 1,
+    vscode_dark: 0,
+    vscode_light: 1,
 });
 /**
  * @version 1.0
@@ -27,9 +28,9 @@ class ThemeSelector extends FrameworkGC(`${injector_html}`) {
                 action_titles: [`set dark theme`, "set light theme"],
                 text_svgs: ["e51c", "e518"],
                 next: [() => {
-                    ThemeSelector.askChangeTheme(enumThemes.dark);
+                    ThemeSelector.askChangeTheme(enumThemes.vscode_dark);
                 }, () => {
-                    ThemeSelector.askChangeTheme(enumThemes.light)
+                    ThemeSelector.askChangeTheme(enumThemes.vscode_light)
                 }],
                 event: event
             });
@@ -50,10 +51,9 @@ class ThemeSelector extends FrameworkGC(`${injector_html}`) {
     }
     static async askChangeTheme(id_theme) {
         console.warn("askChangeTheme");
-        Lobby.post({
-            prompt: 15/*change theme*/,
+        Lobby.post("Settings/ChangeTheme", {
             a_number: id_theme,
-        }, (rsp) => { });
+        }, (rsp) => {/*none, the app automatically reloads the current app of every webview */ });
     }
     async #addEventListeners() {
         const owner = this;
