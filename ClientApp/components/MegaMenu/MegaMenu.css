@@ -9,6 +9,10 @@
     -moz-user-select: none;
     -webkit-user-select: none;
 
+    .mm-overflow-item {
+        margin-left: auto;
+    }
+
     .mm-root-list {
         display: flex;
         gap: 2px;

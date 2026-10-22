@@ -286,7 +286,8 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             }
         });
         owner.status.undo_redo_key_handler = (event) => {
-            if (!event.ctrlKey) {
+            // the listener is on `document`: skip while this editor isn't shown (e.g. detached in an inactive tab)
+            if (!event.ctrlKey || !owner.self_ref.isConnected) {
                 return;
             }
             const key = event.key.toLowerCase();
@@ -1651,7 +1652,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
      * ink color swatches offered in the draw tool's mode-instructions panel (see `#startDrawing`);
      * the first one is the default until the user picks another
      */
-    static #DRAW_COLORS = ["#000", "#fff", "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#0a84ff", "#fbe7eb"];
+    static #DRAW_COLORS = ["#000", "#fff", "#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#0a84ff", "#fbe7eb"]; // theme-independent: ink baked into the image
     /**
      * paints a solid circle, in source-image px, at (x, y) with the given radius, using the
      * currently selected draw ink color
@@ -2286,7 +2287,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = `${text_style.fontStyle} ${text_style.fontWeight} ${font_size}px ${text_style.fontFamily}`;
-        ctx.fillStyle = "#ffffff";
+        ctx.fillStyle = "#ffffff"; // theme-independent: text baked into the image
         ctx.fillText(text, 0, 0);
         ctx.restore();
 

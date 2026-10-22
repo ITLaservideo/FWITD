@@ -1,4 +1,14 @@
 class UiBuilder {
+    /**
+     * Resolves a theme custom property from vars_vscode_*.css (e.g. "--vscode-charts-red") to its color
+     * string, for consumers that can't take `var(...)`: canvas fillStyle/strokeStyle, Chart.js options.
+     * Resolving at draw time is enough, the page is reloaded whenever the theme changes.
+     * @param {string} name - custom property name, including the leading "--"
+     * @returns {string}
+     */
+    static themeColor(name) {
+        return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    }
     static createDivisorio() {
         const div = document.createElement("div");
         div.className = "divisorio";
@@ -272,6 +282,78 @@ class UiBuilder {
         } catch {
             return to_string ? "0" : 0;
         }
+    }
+    /** `toEanElement` results, by barcode value: data URL of the rendered barcode */
+    static ean_results = {};
+    /**
+     * Renders a barcode as an `<img>` (cached per value): EAN-13/EAN-8/UPC-A by digit count,
+     * CODE128 for anything else. Needs the JsBarcode external lib, which `JSProvider` bundles only
+     * for pages whose script calls this method as `UiBuilder` + `.toEanElement` (e.g. Table2's Barcode
+     * column) or carries a `//keep JsBarcode` comment.
+     * @param {string|number} data
+     * @returns {Promise<HTMLImageElement>}
+     */
+    static async toEanElement(data) {
+        const value = `${data ?? ""}`.trim();// as text: a number would drop an EAN's leading zeros
+        let barcode_src = UiBuilder.ean_results[value];
+        if (barcode_src == undefined) {
+            if (typeof window.JsBarcode !== "function") {
+                throw new Error("JsBarcode is not bundled in this page, see JSProvider external_libs");
+            }
+            const formats = { 13: "EAN13", 8: "EAN8", 12: "UPC" };
+            const canvas = document.createElement("canvas");
+            window.JsBarcode(canvas, value, {
+                format: /^[0-9]+$/.test(value) ? (formats[value.length] ?? "CODE128") : "CODE128",
+                displayValue: true,
+                fontSize: 16,
+                height: 100,
+                width: 2,
+            });
+            barcode_src = canvas.toDataURL("image/png");
+            UiBuilder.ean_results[value] = barcode_src;
+        }
+        const img_element = document.createElement("img");
+        img_element.src = barcode_src;
+        return img_element;
+    }
+    /**
+     * Opens the on-screen `KeyBoard` when any of `inputs` gets focus - only on vertical (kiosk) layouts
+     * (`App.viewportverticale`) unless `always` is set; if a keyboard is already open it's retargeted in
+     * place instead of rebuilt. Per-input options are arrays indexed like `inputs`.
+     * @param {Object} args
+     * @param {HTMLInputElement[]} args.inputs
+     * @param {boolean} [args.always] - open it on any layout
+     * @param {boolean[]} [args.only_numbers] - per input: show the compact numeric pad
+     * @param {string[]} [args.labels] - per input: keyboard caption; falls back to the input's placeholder, then its `alt` attribute
+     * @param {Function[]} [args.onConfirmClicks] - per input: called with the event when "Conferma" is pressed
+     * @param {string} [args.confirm_label] - replaces the localized "Conferma" text of the confirm key (shared by all inputs)
+     * @param {string} [args.confirm_f_icon] - code point of an icon appended to the confirm key (shared by all inputs)
+     */
+    static attachKeyboard(args) {
+        const on_confirm_clicks = args.onConfirmClicks ?? [];
+        args.inputs.forEach((input, i) => {
+            input.addEventListener("focus", () => {
+                if (args.always != true && !window.App?.viewportverticale) {
+                    return;
+                }
+                const label = args.labels?.at(i) ?? (input.placeholder || input.getAttribute("alt") || undefined);
+                if (document.getElementById("tkb-component") != undefined) {
+                    KeyBoard.updateInputTarget({ input_target: input, label });
+                    return;
+                }
+                const keyboard = new KeyBoard({
+                    input_target: input,
+                    only_numbers: args.only_numbers?.at(i) ?? false,
+                    label,
+                    confirm_label: args.confirm_label,
+                    confirm_f_icon: args.confirm_f_icon,
+                    onConfirmClick: (event) => {
+                        on_confirm_clicks[i]?.(event);
+                        setTimeout(() => keyboard.destroy(), 0);
+                    },
+                });
+            });
+        });
     }
     static used_set_array_ids_seeds = [];
     static newSetArrayOfIds(size, salt = 'ui-builder-ids') {
@@ -602,32 +684,71 @@ class UiBuilder {
         return tmp;
     }
     /**
-     * Builds a modal text-input dialog: full-viewport overlay, title, single text field (Enter
-     * triggers the confirm button), and a cancel/confirm button pair. Appends itself to
-     * `document.body` and removes itself on either button click.
+     * Builds a modal text-input dialog: title, single text field (Enter triggers the confirm button),
+     * and a cancel/confirm button pair.
+     * - default: a full-viewport overlay appended to `document.body` (callers may also move it into
+     *   their own popup), removed on either button click
+     * - `floating: true`: the same dialog inside a centered `BottomSheet`, closed on either button click;
+     *   dismissing the sheet itself (click outside, its ✕, back navigation) counts as cancel
      *
      * @param {Object} options
      * @param {string} [options.title] - Text shown above the input.
      * @param {string} [options.placeholder] - Input placeholder text.
      * @param {Function} [options.next] - Called with the input's value when confirm is clicked.
-     * @param {Function} [options.onCancel] - Called when cancel is clicked.
+     * @param {Function} [options.onCancel] - Called once when cancel is clicked (or, floating, when the sheet is dismissed).
      * @param {string} [options.title_cancel] - Cancel button label.
      * @param {string} [options.title_confirm] - Confirm button label.
-     * @returns {HTMLElement} The overlay container; has a `.focus()` method that focuses the input on the next tick.
+     * @param {boolean} [options.floating=false] - Open in a centered `BottomSheet` instead of the overlay.
+     * @param {string} [options.description] - Smaller text shown under the title.
+     * @param {string|number} [options.value] - Initial value of the field.
+     * @param {'text'|'number'} [options.input_type='text'] - 'number' uses `createInput`'s number field (themed arrows), with `min`/`max`/`step`.
+     * @param {number} [options.min]
+     * @param {number} [options.max]
+     * @param {number} [options.step]
+     * @param {(value: string) => (true|string|false)} [options.validate] - Checked on confirm: `true` accepts, an error text (or `false`) is shown under the field and the dialog stays open.
+     * @returns {HTMLElement} The overlay container (floating: the dialog inside the sheet); has a `.focus()` method that focuses the input on the next tick.
      */
     static createSimpleTextInput(options) {
+        const floating = options.floating == true;
+        /** @type {BottomSheet|null} */
+        let sheet = null;
+        let settled = false;// a button already answered: the sheet closing afterwards isn't a cancel
         const container = document.createElement('div');
-        container.classList.add('simple-text-input-overlay');
+        if (!floating) {
+            container.classList.add('simple-text-input-overlay');
+        }
+        const close = () => floating ? sheet?.destroy() : container.remove();
         const modalContainer = document.createElement('div');
         modalContainer.classList.add('simple-text-input-modal');
         const title = document.createElement("div");
         title.innerText = options.title;
         title.classList.add('simple-text-input-title');
         modalContainer.appendChild(title);
-        const input = document.createElement('input');
-        input.type = 'text';
+        if (options.description != undefined) {
+            const description = document.createElement("div");
+            description.innerText = options.description;
+            description.classList.add('simple-text-input-description');
+            modalContainer.appendChild(description);
+        }
+        // numbers get createInput's themed arrows (a wrapper around the real <input>), text stays a plain field
+        const field = options.input_type === 'number'
+            ? UiBuilder.createInput({ type: 'number', min: options.min, max: options.max, step: options.step, class: 'simple-text-input-field' })
+            : document.createElement('input');
+        const input = field.input ?? field;
+        if (field === input) {
+            input.type = 'text';
+            input.classList.add('simple-text-input-field');
+        }
         input.placeholder = options.placeholder ?? '';
-        input.classList.add('simple-text-input-field');
+        if (options.value != undefined) {
+            input.value = `${options.value}`;
+        }
+        const error = document.createElement("div");
+        error.classList.add('simple-text-input-error');
+        input.addEventListener("input", () => {
+            error.textContent = '';
+            input.classList.remove('simple-text-input-invalid');
+        });
         input.addEventListener("keyup", (event) => {
             if (event.key == "Enter") {
                 setTimeout(() => {
@@ -644,31 +765,55 @@ class UiBuilder {
         buttonsContainer.classList.add('simple-text-input-buttons');
         const cancelButton = UiBuilder.createButton({
             onClick: () => {
-                container.remove();
+                settled = true;
+                close();
                 if (typeof options.onCancel === 'function') {
                     options.onCancel();
                 }
             },
-            title: options.title_cancel,
+            title: options.title_cancel ?? Locale.at("annulla"),
         });
         cancelButton.classList.add('simple-text-input-btn');
         const confirmButton = UiBuilder.createButton({
             onClick: () => {
                 const value = input.value;
-                container.remove();
+                // `validate` returns true to accept, anything else (an error text, or false) keeps the dialog open
+                const verdict = typeof options.validate === 'function' ? options.validate(value) : true;
+                if (verdict !== true) {
+                    error.textContent = typeof verdict === 'string' ? verdict : Locale.at("Invalid value");
+                    input.classList.add('simple-text-input-invalid');
+                    input.focus();
+                    return;
+                }
+                settled = true;
+                close();
                 if (typeof options.next === 'function') {
                     options.next(value);
                 }
             },
-            title: options.title_confirm
+            title: options.title_confirm ?? Locale.at("ok")
         });
         confirmButton.classList.add('simple-text-input-btn');
-        buttonsContainer.appendChild(cancelButton);
         buttonsContainer.appendChild(confirmButton);
-        modalContainer.appendChild(input);
+        buttonsContainer.appendChild(cancelButton);
+        modalContainer.appendChild(field);
+        modalContainer.appendChild(error);
         modalContainer.appendChild(buttonsContainer);
         container.appendChild(modalContainer);
-        document.body.appendChild(container);
+        if (floating) {
+            sheet = new BottomSheet({
+                element: container,
+                centered: true,
+                onClose: () => {
+                    if (!settled && typeof options.onCancel === 'function') {
+                        settled = true;
+                        options.onCancel();
+                    }
+                },
+            });
+        } else {
+            document.body.appendChild(container);
+        }
         container.focus = () => {
             setTimeout(() => {
                 input.focus();
@@ -1341,7 +1486,7 @@ class UiBuilder {
                 opacity: "1",
                 transition: "transform 4s ease-out, opacity 4s ease-out",
                 transform: "translateY(0px)",
-                color: "#555",
+                color: "var(--vscode-descriptionForeground)",
                 fontSize: "1.2rem",
                 fontFamily: "'Segoe UI', sans-serif",
                 zIndex: "9999"
@@ -1567,10 +1712,11 @@ class UiBuilder {
     * @param {Function} [param0.override_selected_tab_index] ignore sync
     * @param {Function} [param0.onViewChange] callback
     * @param {bool} [param0.collapsed] don't select the tab
-    * 
+    * @param {string} [param0.style] inline css text for the container, appended after its defaults (so it can override them)
+    *
     * @returns {HTMLDivElement} container with interactive tabs
     */
-    static createTabs({ titles, content, id_sync = '', onViewChange = undefined, override_selected_tab_index = null, collapsed = false, img_src, icons = [] }) {
+    static createTabs({ titles, content, id_sync = '', onViewChange = undefined, override_selected_tab_index = null, collapsed = false, img_src, icons = [], style }) {
         if (titles.length !== content.length || titles.length == 0) {
             console.assert(false, "Missing tab content or tab titles");
             return;
@@ -1581,6 +1727,9 @@ class UiBuilder {
         // container.style.width = "90%";
         container.style.fontFamily = "sans-serif";
         container.style.borderRadius = "2px";
+        if (style != undefined) {
+            container.style.cssText += style;
+        }
 
         const state = {
             index_selected_tab: 0
@@ -1590,7 +1739,7 @@ class UiBuilder {
         const tabsHeader = document.createElement("div");
         tabsHeader.className = 'tabs-header';
         tabsHeader.style.display = "flex";
-        tabsHeader.style.borderBottom = "1px solid #aaa";
+        tabsHeader.style.borderBottom = "1px solid var(--vscode-panel-border)";
 
         // Create content container
         const contentContainer = document.createElement("div");
@@ -1902,7 +2051,7 @@ class UiBuilder {
             option.style.cursor = 'pointer';
 
             option.addEventListener('mouseenter', () => {
-                option.style.background = '#313131';
+                option.style.background = 'var(--vscode-list-hoverBackground)';
             });
             option.addEventListener('mouseleave', () => {
                 option.style.background = '';
@@ -2008,6 +2157,62 @@ class UiBuilder {
                 popup.remove();
             });
         }, 0);
+    }
+    /**
+     * Like `ask`, but asks for a text: a centered BottomSheet with a single field, focused right away
+     * (Enter confirms). Dismissing the sheet counts as cancel.
+     * @param {Object} options
+     * @param {string} options.title
+     * @param {string} [options.description]
+     * @param {string} [options.value] - initial text
+     * @param {string} [options.placeholder]
+     * @param {(value: string) => void} options.onConfirm
+     * @param {Function} [options.onCancel]
+     * @param {(value: string) => (true|string|false)} [options.validate] - see `createSimpleTextInput`
+     * @returns {HTMLElement} the dialog
+     */
+    static askTextInput({ title, description, value, placeholder, onConfirm, onCancel, validate }) {
+        const dialog = UiBuilder.createSimpleTextInput({ title, description, value, placeholder, next: onConfirm, onCancel, validate, floating: true });
+        dialog.focus();
+        return dialog;
+    }
+    /**
+     * Like `ask`, but asks for a number: a centered BottomSheet with a number field (themed arrows),
+     * focused right away (Enter confirms). Anything that isn't a number within `min`/`max` is rejected
+     * in place; dismissing the sheet counts as cancel.
+     * @param {Object} options
+     * @param {string} options.title
+     * @param {string} [options.description]
+     * @param {number} [options.value] - initial number
+     * @param {number} [options.min]
+     * @param {number} [options.max]
+     * @param {number} [options.step=1]
+     * @param {(value: number) => void} options.onConfirm
+     * @param {Function} [options.onCancel]
+     * @returns {HTMLElement} the dialog
+     */
+    static askNumberInput({ title, description, value, min, max, step = 1, onConfirm, onCancel }) {
+        const dialog = UiBuilder.createSimpleTextInput({
+            title, description, value, min, max, step, onCancel,
+            input_type: 'number',
+            floating: true,
+            validate: (text) => {
+                const number = Number(`${text}`.replace(',', '.'));
+                if (`${text}`.trim() === '' || !Number.isFinite(number)) {
+                    return Locale.at("Enter a number");
+                }
+                if (min != undefined && number < min) {
+                    return `${Locale.at("Minimum")}: ${min}`;
+                }
+                if (max != undefined && number > max) {
+                    return `${Locale.at("Maximum")}: ${max}`;
+                }
+                return true;
+            },
+            next: (text) => onConfirm?.(Number(`${text}`.replace(',', '.'))),
+        });
+        dialog.focus();
+        return dialog;
     }
     /**
      * Singleton state of the floating "scroll to top" button created by `createScrollToTop()`.
@@ -2335,17 +2540,15 @@ class UiBuilder {
         // Validate input
         const { volume, linear, axys_x } = options.data;
 
-        // Theme colors: canvas drawing can't inherit CSS, so pull the vars_vscode_dark.css
+        // Theme colors: canvas drawing can't inherit CSS, so pull the vars_vscode_*.css
         // custom properties directly - fillStyle/strokeStyle accept any CSS color string
-        const root_style = getComputedStyle(document.documentElement);
-        const theme_var = (name, fallback) => root_style.getPropertyValue(name)?.trim() || fallback;
-        const color_line = theme_var("--vscode-chart-line", "#0077cc");
-        const color_axis = theme_var("--vscode-chart-axis", "#000");
-        const color_guide = theme_var("--vscode-chart-guide", "rgba(0, 0, 0, 0.2)");
-        const color_text = theme_var("--vscode-charts-foreground", "#000");
-        const color_volume = theme_var("--vscode-charts-green", "#66cc66");
-        const color_trend = theme_var("--vscode-charts-purple", "#b180d7");
-        const font_family = theme_var("--vscode-font-family", "Arial, sans-serif");
+        const color_line = UiBuilder.themeColor("--vscode-chart-line");
+        const color_axis = UiBuilder.themeColor("--vscode-chart-axis");
+        const color_guide = UiBuilder.themeColor("--vscode-chart-guide");
+        const color_text = UiBuilder.themeColor("--vscode-charts-foreground");
+        const color_volume = UiBuilder.themeColor("--vscode-charts-green");
+        const color_trend = UiBuilder.themeColor("--vscode-charts-purple");
+        const font_family = UiBuilder.themeColor("--vscode-font-family") || "Arial, sans-serif";
 
         if (axys_x !== undefined) {
             const refLength = volume.length ?? linear.length;
@@ -3219,4 +3422,24 @@ class UiBuilder {
 
         return container;
     }
+}
+
+/**
+ * types/erases text in an element one character at a time - used by `UiBuilder.createLoader`'s rotating `titles`
+ */
+class Typewriter {
+    /** @param {HTMLElement} el @param {number} [speed=40] ms per removed character */
+    static deleteText = async (el, speed = 40) => {
+        while (el.innerText.length > 0) {
+            el.innerText = el.innerText.slice(0, -1);
+            await new Promise(res => setTimeout(res, speed));
+        }
+    };
+    /** @param {HTMLElement} el @param {string} text @param {number} [speed=100] ms per typed character */
+    static typeText = async (el, text, speed = 100) => {
+        for (let i = 0; i <= text.length; i++) {
+            el.innerText = text.slice(0, i);
+            await new Promise(res => setTimeout(res, speed));
+        }
+    };
 }

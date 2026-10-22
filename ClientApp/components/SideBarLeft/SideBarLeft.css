@@ -34,7 +34,15 @@
         height: 100vh;
         width: 100vw;
         display: none;
-        background: #00000063;
+        background: var(--vscode-widget-shadow);
+    }
+
+    /* above the absolutely positioned overlay, so clicks on the bar's own content don't close it */
+    .sbl-header,
+    .top-container,
+    .bot-container,
+    .sbl-footer {
+        z-index: 1;
     }
 
     .mid-container {

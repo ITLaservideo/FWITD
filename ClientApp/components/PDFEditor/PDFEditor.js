@@ -150,7 +150,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
         /** @type {Map<number, {deleted: boolean, strokes: Array, texts: Array, redactions: Array}>} */
         edit_page_edits: new Map(),
         edit_active_tool: null,
-        edit_draw_color: "#ff3b30",
+        edit_draw_color: "#ff3b30", // theme-independent: default ink, baked into the PDF
         /** @type {number} fraction of the page width used as the draw tool's stroke radius - adjustable via `edit_stroke_width_slider` */
         edit_draw_stroke_radius_fraction: PDFEditor.#DRAW_STROKE_RADIUS_FRACTION,
         edit_undo_stack: [],
@@ -162,6 +162,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
         edit_placing_redaction_overlay: undefined,
         resize_handler: undefined,
         escape_handler: undefined,
+        undo_key_handler: undefined,
         /** @type {StickyBar} the tabs + "Scegli file" button + PDF drop target, anchored top - see `#createTabsBar` */
         tabs_bar: null,
         /** @type {StickyBar} the edit tools (draw/add text/signature/redact/delete page), anchored left - created on the first loaded file */
@@ -178,6 +179,8 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
     static #REDACT_DEFAULT_HEIGHT_FRACTION = 0.12;
     /** floor (canvas px) `#startPlacingRedaction`'s corner knobs can shrink the rectangle to */
     static #REDACT_MIN_SIZE_PX = 24;
+    /** how far (screen px) the `#startPlacingRedaction` rectangle can be dragged before releasing it no longer counts as a tap that confirms it */
+    static #REDACT_TAP_SLOP_PX = 6;
     static #ADD_TEXT_FONT_SIZE_FRACTION = 0.028;
     /** Helvetica's ascender (em fraction) - what pdf-lib's `heightAtSize(size, { descender: false })` returns */
     static #HELVETICA_ASCENT_FRACTION = 0.718;
@@ -309,6 +312,22 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
             }
         };
         document.body.addEventListener("keyup", owner.status.escape_handler);
+        owner.status.undo_key_handler = (event) => {
+            if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "z") {
+                return;
+            }
+            // leave text fields (e.g. the add-text prompt) their own native undo, and only act while
+            // this editor is actually shown on the edit tab with a file loaded
+            if (event.target.closest?.("input, textarea, [contenteditable]")
+                || !owner.self_ref.isConnected
+                || owner.status.active_tab !== "edit"
+                || owner.status.edit_file == undefined) {
+                return;
+            }
+            event.preventDefault();
+            owner.#editUndo();
+        };
+        document.addEventListener("keydown", owner.status.undo_key_handler);
     }
     /**
      * `onFiles` receives an array of `File`s (single-element when `multiple` is false)
@@ -598,14 +617,14 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
                     y: (label_y + (font_size / 2) - 4),
                     xScale: half_width * Math.SQRT2,
                     yScale: half_height * Math.SQRT2,
-                    color: rgb(1, 1, 1),
+                    color: rgb(1, 1, 1), // theme-independent: drawn into the PDF
                 });
                 page.drawText(label, {
                     x,
                     y: label_y,
                     size: font_size,
                     font,
-                    color: rgb(0.27, 0.27, 0.27),
+                    color: rgb(0.27, 0.27, 0.27), // theme-independent: drawn into the PDF
                 });
             });
         }
@@ -955,9 +974,9 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
             return;
         }
         for (const redaction of edit.redactions) {
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = "#ffffff"; // theme-independent: previews the whiteout baked into the PDF
             ctx.fillRect(redaction.x * canvas.width, redaction.y * canvas.height, redaction.width * canvas.width, redaction.height * canvas.height);
-            ctx.strokeStyle = "#ff5e5e";
+            ctx.strokeStyle = UiBuilder.themeColor("--vscode-charts-red");
             ctx.lineWidth = PDFEditor.#REDACT_STROKE_WIDTH;
             ctx.strokeRect(redaction.x * canvas.width, redaction.y * canvas.height, redaction.width * canvas.width, redaction.height * canvas.height);
         }
@@ -1029,7 +1048,8 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
                 ctx.save();
                 ctx.translate(stamp_position.x * canvas.width, stamp_position.y * canvas.height);
                 ctx.rotate(-Math.PI / 10);
-                ctx.fillStyle = "rgba(220, 50, 50, .85)";
+                ctx.fillStyle = UiBuilder.themeColor("--vscode-errorForeground");
+                ctx.globalAlpha = .85;
                 ctx.font = `bold ${Math.round(canvas.width * 0.07)}px sans-serif`;
                 ctx.textAlign = "center";
                 ctx.textBaseline = "middle";
@@ -1228,7 +1248,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
             } else if (owner.status.edit_active_tool === "redact" && owner.#edit_redact_start != undefined) {
                 owner.#redrawEditCanvas();
                 const ctx = canvas.getContext("2d");
-                ctx.strokeStyle = "#ff5e5e";
+                ctx.strokeStyle = UiBuilder.themeColor("--vscode-charts-red");
                 ctx.lineWidth = PDFEditor.#REDACT_STROKE_WIDTH;
                 ctx.strokeRect(
                     Math.min(owner.#edit_redact_start.x, point.x) * canvas.width,
@@ -1271,7 +1291,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
      * `#addEditCanvasListeners`) - drops a default-sized rectangle, centered on the tapped canvas
      * point, with two corner resize knobs (top-left, bottom-right; each drags its own corner while
      * the opposite one stays put). Appended to `document.body`, like `#startPlacingText`, so it
-     * isn't clipped by the workspace. Tapping the rectangle itself confirms it via
+     * isn't clipped by the workspace. Dragging the rectangle itself moves it; tapping it confirms it via
      * `#confirmPlacingRedaction`; tapping anywhere else on the canvas is handled by
      * `#addEditCanvasListeners`'s own pointerdown, which calls the same method.
      * @param {{x: number, y: number}} point
@@ -1338,7 +1358,23 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
             applyRect();
         }, undefined, 1, 1);
 
-        fill.addEventListener("click", () => owner.#confirmPlacingRedaction());
+        // dragging the rectangle itself moves it, size unchanged; a tap still confirms it - the click
+        // the browser fires at the end of a real drag (mouse) is ignored, a finger's tap jitter isn't
+        let dragged_px = 0;
+        fill.addEventListener("pointerdown", () => dragged_px = 0);
+        MovableUtil.trackMouse(fill, ({ x, y }) => {
+            dragged_px += Math.abs(x) + Math.abs(y);
+            rect.left -= x;
+            rect.top -= y;
+            applyRect();
+        }, undefined, 1, 1);
+
+        fill.addEventListener("click", () => {
+            if (dragged_px > PDFEditor.#REDACT_TAP_SLOP_PX) {
+                return;
+            }
+            owner.#confirmPlacingRedaction();
+        });
     }
     /**
      * commits the phone-only `#startPlacingRedaction` overlay's current position/size into this
@@ -1718,7 +1754,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
                 y: (center_y - rect.top) / rect.height,
                 font_size_fraction: PDFEditor.#ADD_TEXT_FONT_SIZE_FRACTION * state.scale,
                 rotation: state.rotation,
-                color: "#000000",
+                color: "#000000", // theme-independent: text color baked into the PDF
             });
             owner.#redrawEditCanvas();
             overlay.remove();
@@ -1881,7 +1917,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
             ctx.lineWidth = PDFEditor.#SIGNATURE_PAD_STROKE_WIDTH * dpr;
             ctx.lineCap = "round";
             ctx.lineJoin = "round";
-            ctx.strokeStyle = "#000000";
+            ctx.strokeStyle = "#000000"; // theme-independent: signature ink on the white pad, baked into the PDF
         };
         // the wrap is only just appended - wait a frame so its layout box is real before sizing off it
         requestAnimationFrame(sizeCanvas);
@@ -2248,7 +2284,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
     //#endregion
 
     #hexToRgbColor(hex, rgb) {
-        const clean = (hex ?? "#000000").replace("#", "");
+        const clean = (hex ?? "#000000").replace("#", ""); // theme-independent: PDF color conversion
         const normalized = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
         const value = parseInt(normalized, 16);
         return rgb(((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255);
@@ -2289,7 +2325,7 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
                     y: toPdfY(redaction.y + redaction.height),
                     width: redaction.width * width,
                     height: redaction.height * height,
-                    color: rgb(1, 1, 1),
+                    color: rgb(1, 1, 1), // theme-independent: drawn into the PDF
                 });
             }
             for (const stroke of edit.strokes) {
@@ -2497,6 +2533,11 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
     async onClickEditUndo() {
         /** @type PDFEditor */
         const owner = this.fwInstanceReference;
+        owner.#editUndo();
+    }
+    /** shared by the Undo button and its CTRL + Z shortcut (see `#addEventListeners`) */
+    #editUndo() {
+        const owner = this;
         // an in-progress gesture, placement overlay, or armed tool isn't in the undo history yet -
         // the first Undo just stops/discards it, matching what Escape does (see
         // `#stopActiveEditOperations`); a second Undo (nothing left active) then walks the real
@@ -2599,6 +2640,9 @@ class PDFEditor extends FrameworkGC(`${injector_html}`) {
         }
         if (this.status.escape_handler != undefined) {
             document.body.removeEventListener("keyup", this.status.escape_handler);
+        }
+        if (this.status.undo_key_handler != undefined) {
+            document.removeEventListener("keydown", this.status.undo_key_handler);
         }
         clearTimeout(this.#edit_width_render_timer);
         this.#closeStrokeWidthFloater();

@@ -126,10 +126,10 @@ body {
 .glowing-box-stars {
     animation: borderTurn var(--animation-speed) infinite linear;
     background-image: conic-gradient(from 0 at 50% 50%,
-            rgba(255, 255, 255, 0.5) 0deg,
-            rgba(255, 255, 255, 0) 60deg,
-            rgba(255, 255, 255, 0) 310deg,
-            rgba(255, 255, 255, 0.5) 360deg);
+            color-mix(in srgb, var(--vscode-foreground) 50%, transparent) 0deg,
+            transparent 60deg,
+            transparent 310deg,
+            color-mix(in srgb, var(--vscode-foreground) 50%, transparent) 360deg);
     background-position: center center;
     background-repeat: no-repeat;
     background-size: cover;
@@ -207,10 +207,10 @@ body {
 
 .glowing-box-button {
     background: radial-gradient(107.5% 107.5% at 50% 215%,
-            rgba(255, 255, 255, 0.24) 0%,
-            rgba(255, 255, 255, 0) 100%),
-        rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+            color-mix(in srgb, var(--vscode-foreground) 24%, transparent) 0%,
+            transparent 100%),
+        color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vscode-foreground) 10%, transparent);
     border-radius: 999px;
     cursor: pointer;
     padding: 7px 24px;
@@ -251,8 +251,8 @@ body {
 
 .glowing-box-button .glowing-span {
     background: linear-gradient(180deg,
-            rgba(255, 255, 255, 0.3) 8.85%,
-            #ffffff 100%);
+            color-mix(in srgb, var(--vscode-foreground) 30%, transparent) 8.85%,
+            var(--vscode-foreground) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -290,9 +290,9 @@ body {
     min-width: 100px;
     margin: 5px;
     cursor: pointer;
-    background: rgb(0 0 0 / 15%);
+    background: var(--vscode-toolbar-hoverBackground);
     backdrop-filter: blur(10px);
-    border: 1px solid rgb(130 119 119 / 20%);
+    border: 1px solid var(--vscode-editorWidget-border);
     color: var(--vscode-foreground);
     padding: 4px 8px;
     user-select: none;
@@ -300,7 +300,7 @@ body {
 
     &:hover {
         color: var(--vscode-button-foreground);
-        background: rgba(125, 122, 122, 0.25);
+        background: var(--vscode-toolbar-activeBackground);
     }
 }
 
@@ -311,6 +311,6 @@ body {
     background: var(--vscode-editorWidget-background);
     border-radius: 10px;
     transition: border-radius .5s cubic-bezier(.175, .885, .32, 1.275);
-    box-shadow: 0 0 0 1px rgb(190, 190, 190), .3em .3em 1em rgba(0, 0, 0, .1);
+    box-shadow: 0 0 0 1px var(--vscode-widget-border), .3em .3em 1em var(--vscode-widget-shadow);
 
 }

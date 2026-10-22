@@ -1,6 +1,7 @@
 /**
  * Encouragement texts shown by `DCSVAC` above the sliders, one at a time, changing at every whole percent of the day.
- * `morning` is used before the start of the afternoon slot, `afternoon` from then on; `jokes`, `challenges` and `flexes` are mixed into both.
+ * `morning` is used before the start of the afternoon slot, `afternoon` from then on; `jokes`, `challenges`, `flexes` and `comandamenti` are mixed into both,
+ * `before_day_off` too but only when tomorrow is not a working day.
  *
  * Lives in `DCSVAC/lib/` (not next to `DCSVAC.js`) because the component loader only prepends extra
  * JS files found in subfolders of the component folder.
@@ -253,7 +254,6 @@ class DCSVACEncouragements {
         "Bella giornata per fare belle cose 🌼",
         "Il mattino ti dà energia: usala bene ⚙️",
         "Dritto verso il pranzo, senza deviazioni ⬆️",
-        "Lavora sodo oggi, sorridi domani 😁",
         "Ogni progresso conta, anche quello piccolino 🐣",
         "Oggi si risolve, si migliora, si va avanti ➡️",
         "Mattinata in salita? Le salite fanno bene ai polpacci 🦵",
@@ -544,7 +544,7 @@ class DCSVACEncouragements {
         "Il colmo per un vigile del fuoco? Avere una moglie focosa 🚒",
         "Perché il pomodoro non riesce a dormire? Perché l'insalata russa 🍅",
         "Cosa dice un muro a un altro muro? Ci vediamo all'angolo 🧱",
-        "Cosa fa un ragno al computer? Un sito web 🕷️",
+        "What do spiders do on the computer? They make websites 🕷️",
         "Perché i programmatori confondono Halloween e Natale? Perché OCT 31 = DEC 25 🎃",
         "Perché il libro di matematica è triste? Ha troppi problemi 📕",
         "Perché il computer va dal dottore? Ha un virus 🤒",
@@ -562,19 +562,19 @@ class DCSVACEncouragements {
         "\"Dottore, ci vedo doppio.\" \"Si sieda sul lettino.\" \"Su quale dei due?\" 🛏️",
         "\"Dottore, mi sento un cane!\" \"Da quanto?\" \"Da quando ero cucciolo\" 🐕",
         "\"Cameriere, c'è una mosca nella zuppa!\" \"Tranquillo, non mangia molto\" 🪰",
-        "Un uomo entra in un bar… e sbatte la testa. Era una sbarra 🍺",
+        "A man walks into a bar… ouch! It was an iron bar 🍺",
         "Qual è la città preferita dai ragni? Mosca 🕸️",
         "Cosa ci fa un pinguino nel deserto? Si è perso 🐧",
         "Qual è l'animale più bravo al computer? Il mouse 🐭",
         "Cosa ordina un vampiro al bar? Un Bloody Mary 🧛",
-        "Perché l'informatico è finito in bancarotta? Ha svuotato la cache 💳",
+        "Why did the developer go broke? He used up all his cache 💳",
         "Quanti programmatori servono per cambiare una lampadina? Nessuno, è un problema hardware 🔦",
         "Cosa dice un semaforo all'altro? Non guardarmi, mi sto cambiando 🚦",
-        "Perché le api ronzano? Non sanno le parole della canzone 🐝",
+        "Why do bees hum? Because they don't know the words 🐝",
         "Perché i pesci non giocano a tennis? Hanno paura della rete 🎾",
         "Cosa dice una stampante all'altra? Questo foglio è tuo o è una mia impressione? 🖨️",
         "Cosa fa un uovo in discoteca? Si strapazza 🥚",
-        "Perché i fantasmi sono pessimi bugiardi? Si vede attraverso 👻",
+        "Why are ghosts bad liars? You can see right through them 👻",
         "\"Cameriere, questo pollo è freddo!\" \"Per forza, è morto\" 🍗",
         "Cosa fa un gallo in chiesa? Il chicchirichetto 🐓",
         "Qual è il colmo per un ladro? Fare il colpo della strega 🦹",
@@ -682,5 +682,29 @@ class DCSVACEncouragements {
         "c'è del dolo",
         "troppo difficile non lo faccio",
         "hai fatto uno sleep 3000?",
+    ];
+    /**
+     * mixed into both `morning` and `afternoon` only when tomorrow is not a working day (weekend or day off)
+     */
+    static before_day_off = [
+        "Lavora sodo oggi, sorridi domani 😁",
+        "Ultimo sforzo, domani niente sveglia ⏰",
+        "Domani si dorme: oggi si spinge 💪",
+        "Chiudi bene oggi, domani il PC resta spento 💤",
+        "Domani riposo: lascia tutto in ordine per il te del ritorno 🧹",
+        "L'ultimo giorno vale doppio: domani non si lavora 🎉",
+        "Non aprire ticket che non puoi chiudere: domani sei off 🎫",
+        "Domani colazione lenta, oggi caffè veloce ☕",
+        "Il divano di domani ti aspetta, la scrivania di oggi pure 🛋️",
+        "Ricordati di impostare la risposta automatica 📭",
+        "Fai il push prima di andare: domani nessuno ti chiama 🚀",
+        "Domani il calendario è vuoto, oggi riempilo di cose fatte ✅",
+        "Ancora un po' e poi stacchi per davvero 🔌",
+        "Oggi semina, domani te la godi 🌱",
+        "Il deploy prima del giorno libero? Ci pensiamo due volte 🙃",
+        "Domani niente call: goditi le ultime di oggi 📞",
+        "Lascia una nota per chi resta: domani non ci sei 📝",
+        "Il riposo te lo sei guadagnato: finisci in bellezza 🏁",
+        "Domani si ricarica la batteria, oggi si usa l'ultima tacca 🔋",
     ];
 }

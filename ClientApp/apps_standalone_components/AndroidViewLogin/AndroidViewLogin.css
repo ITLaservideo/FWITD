@@ -58,7 +58,7 @@
         outline: none;
         color: var(--vscode-editor-foreground);
         background-color: var(--vscode-input-background);
-        box-shadow: inset 2px 5px 10px rgb(5, 5, 5);
+        box-shadow: inset 2px 5px 10px var(--vscode-widget-shadow);
     }
 
     .input-field {
@@ -90,7 +90,7 @@
             margin-top: 15px;
             margin-bottom: 15px;
             color: var(--vscode-editor-foreground);
-            box-shadow: 3px 3px 15px rgb(58, 58, 58), -3px -3px 15px rgb(0, 0, 0);
+            box-shadow: 3px 3px 15px var(--vscode-widget-border), -3px -3px 15px var(--vscode-widget-shadow);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -112,31 +112,31 @@
 
         #github:hover {
             >svg {
-                fill: #c9510c;
+                fill: #c9510c; /* theme-independent: brand color */
             }
         }
 
         #instagram:hover {
             >svg {
-                fill: #d62976;
+                fill: #d62976; /* theme-independent: brand color */
             }
         }
 
         #facebook:hover {
             >svg {
-                fill: #3b5998;
+                fill: #3b5998; /* theme-independent: brand color */
             }
         }
 
         #twitter:hover {
             >svg {
-                fill: #00acee;
+                fill: #00acee; /* theme-independent: brand color */
             }
         }
 
         #google:hover {
             >svg {
-                fill: #4081ec;
+                fill: #4081ec; /* theme-independent: brand color */
             }
         }
     }

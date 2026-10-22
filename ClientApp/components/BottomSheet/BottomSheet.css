@@ -9,7 +9,7 @@
     z-index: 9999999999999;
     margin: auto;
     font-family: var(--vscode-font-family);
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--vscode-widget-shadow);
 
     >.bottom-sheet-template {
         border-top: 1px solid var(--vscode-widget-border);

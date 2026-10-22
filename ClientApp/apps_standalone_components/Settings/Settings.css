@@ -93,9 +93,9 @@
 }
 
 .sys-settings-status.ok {
-    color: #4caf50;
+    color: var(--vscode-charts-green);
 }
 
 .sys-settings-status.err {
-    color: #ef5350;
+    color: var(--vscode-errorForeground);
 }

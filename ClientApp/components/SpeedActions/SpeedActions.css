@@ -4,7 +4,7 @@
     display: none;
     pointer-events: none;
     box-sizing: border-box;
-    outline: 1px solid red;
+    /* outline: 1px solid red; */
 }
 
 .speed-actions-root.sa-visible {

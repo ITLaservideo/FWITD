@@ -111,7 +111,7 @@ class GeneralChart extends FrameworkGC(`${injector_html}`) {
         }
         const colors = ChartBase.generatePalette(data.length, { saturation: 88, lightness: 32 });
         if (colors.length > 0) {
-            colors[colors.length - 1] = "hsl(220, 13%, 18%)"; // "Others" always gets the same neutral slice
+            colors[colors.length - 1] = UiBuilder.themeColor("--vscode-badge-background"); // "Others" always gets the same neutral slice
         }
         ChartBase.createOrUpdateChart(owner, {
             type: type,
@@ -120,7 +120,7 @@ class GeneralChart extends FrameworkGC(`${injector_html}`) {
                 datasets: [{
                     data: data,
                     backgroundColor: colors,
-                    borderColor: "#ffffff",
+                    borderColor: UiBuilder.themeColor("--vscode-editor-background"),
                     borderWidth: 1,
                 }],
             },
@@ -290,8 +290,8 @@ class GeneralChart extends FrameworkGC(`${injector_html}`) {
                         showLine: false,
                         pointStyle: "triangle",
                         pointRadius: 7,
-                        pointBackgroundColor: "#2bde3f",
-                        borderColor: "#2bde3f",
+                        pointBackgroundColor: UiBuilder.themeColor("--vscode-charts-green"),
+                        borderColor: UiBuilder.themeColor("--vscode-charts-green"),
                         yAxisID: axis,
                         is_overlay: true,
                     });
@@ -302,8 +302,8 @@ class GeneralChart extends FrameworkGC(`${injector_html}`) {
                         showLine: false,
                         pointStyle: "rectRot",
                         pointRadius: 7,
-                        pointBackgroundColor: "#e42636",
-                        borderColor: "#e42636",
+                        pointBackgroundColor: UiBuilder.themeColor("--vscode-charts-red"),
+                        borderColor: UiBuilder.themeColor("--vscode-charts-red"),
                         yAxisID: axis,
                         is_overlay: true,
                     });

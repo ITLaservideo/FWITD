@@ -6,10 +6,10 @@
     min-width: 240px;
     border-radius: 12px;
     /* background: #e0e0e0; */
-    background: linear-gradient(#00000022, transparent);
+    background: linear-gradient(var(--vscode-widget-shadow), transparent);
     overflow: hidden;
     transition: 100ms ease;
-    box-shadow: rgba(0, 0, 0, 0.15) 2px 3px 4px;
+    box-shadow: var(--vscode-widget-shadow) 2px 3px 4px;
     /* box-shadow: 0 25px 25px rgba(0, 0, 0, 0.25); */
     cursor: pointer;
     margin-bottom: 5px;
@@ -125,7 +125,7 @@
             align-items: center;
             justify-content: space-between;
             min-height: 35px;
-            border-bottom: 1px solid #00000029;
+            border-bottom: 1px solid var(--vscode-widget-border);
 
             >div {
                 display: flex;

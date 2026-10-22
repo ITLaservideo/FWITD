@@ -16,6 +16,7 @@ class App {
             canvas.width = Math.max(640, Math.floor(window.innerWidth * 0.9));
             canvas.height = Math.max(480, Math.floor(window.innerHeight * 0.9) - 200);
             const ctx = canvas.getContext("2d");
+            // theme-independent: placeholder image handed to the editor as content
             const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
             gradient.addColorStop(0, "#4e8cff");
             gradient.addColorStop(1, "#ff5e7e");

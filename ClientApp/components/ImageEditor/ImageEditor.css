@@ -7,7 +7,7 @@
     padding: 16px 20px 20px;
     background: var(--vscode-editorWidget-background);
     border-radius: 10px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, .35);
+    box-shadow: 0 4px 24px var(--vscode-widget-shadow);
 
     .ie-close {
         position: absolute;
@@ -77,7 +77,7 @@
             margin: -13px;
             border-radius: 50%;
             background: var(--vscode-button-background);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, .5);
+            box-shadow: 0 2px 8px var(--vscode-widget-shadow);
             cursor: grab;
             z-index: 1;
 
@@ -127,8 +127,8 @@
 
         .ie-crop-frame {
             position: absolute;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55);
-            border: 1px dashed #fff;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55); /* theme-independent: dims the photo outside the crop */
+            border: 1px dashed #fff; /* theme-independent: crop frame drawn over the photo */
             pointer-events: none;
         }
 
@@ -269,7 +269,7 @@
         height: 40px;
         border-radius: 50%;
         border: 2px dashed var(--vscode-button-background);
-        background: rgba(255, 255, 255, .15);
+        background: rgba(255, 255, 255, .15); /* theme-independent: brush cursor drawn over the photo */
         transform: translate(-50%, -50%);
         pointer-events: none;
         display: none;
@@ -297,7 +297,7 @@
     &.ie-restoring {
         .ie-erase-cursor {
             display: block;
-            border-color: #4caf50;
+            border-color: var(--vscode-charts-green);
         }
 
         .ie-image {
@@ -316,8 +316,8 @@
     &.ie-drawing {
         .ie-erase-cursor {
             display: block;
-            border-color: #ff3b30;
-            background: rgba(255, 59, 48, .15);
+            border-color: var(--vscode-charts-red);
+            background: color-mix(in srgb, var(--vscode-charts-red) 15%, transparent);
         }
 
         .ie-image {
@@ -354,7 +354,7 @@
     height: 22px;
     border-radius: 50%;
     border: 2px solid transparent;
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, .3);
+    box-shadow: 0 0 0 1px var(--vscode-editorWidget-border);
     cursor: pointer;
 }
 
@@ -376,7 +376,7 @@
 
     &:hover {
         opacity: 1;
-        background: rgba(128, 128, 128, .2);
+        background: var(--vscode-toolbar-hoverBackground);
     }
 }
 
@@ -389,15 +389,15 @@
    transparent background instead of pe's black text on a translucent white one */
 .ie-text-overlay {
     position: absolute;
-    color: #fff;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, .7);
+    color: #fff; /* theme-independent: previews the white text baked onto the photo */
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .7); /* theme-independent: previews the white text baked onto the photo */
     user-select: none;
     cursor: default;
     z-index: 10000;
 
     /* outline: 1px solid red; */
     .f-icon-i {
-        outline: 1px solid #ff00004a;
+        outline: 1px solid color-mix(in srgb, var(--vscode-charts-red) 29%, transparent);
     }
 }
 
@@ -436,7 +436,7 @@
 }
 
 [fw-id="btn_erase"] {
-    color: rgba(216, 8, 8, 0.815);
+    color: var(--vscode-errorForeground);
 }
 
 .ie-text-overlay-handle {
@@ -489,7 +489,7 @@
     border-radius: 4px;
 
     &:hover {
-        background: rgba(128, 128, 128, .15);
+        background: var(--vscode-toolbar-hoverBackground);
     }
 }
 
