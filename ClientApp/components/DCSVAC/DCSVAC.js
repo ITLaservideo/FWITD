@@ -7,8 +7,9 @@
  * On startup a modal asks at what time the working day ends, which replaces 17:30.
  * Clicking the gap between morning and afternoon (as wide as the lunch break) opens a modal to change the lunch break, which replaces 12:30-13:30.
  * Above the sliders an encouragement text changes every time the day progress crosses a whole percent
- * (morning texts before the afternoon slot starts, afternoon texts after).
- * @version 1.2
+ * (morning texts before the afternoon slot starts, afternoon texts after); clicking it shows the next one.
+ * Clicking a day of the week slider opens a modal with a "work day" toggle: days off don't count in the week (and today off counts as the weekend).
+ * @version 1.4
  */
 class DCSVAC extends FrameworkGC(`${injector_html}`) {
     /**
@@ -19,6 +20,7 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
     static REFRESH_MS = 5000;
     static STORAGE_KEY_END_MINUTE = "dai-che-si-va-a-casa-end-minute";
     static STORAGE_KEY_LUNCH = "dai-che-si-va-a-casa-lunch";
+    static STORAGE_KEY_DAYS_OFF = "dai-che-si-va-a-casa-days-off";
     /**
      * default lunch break: between the two `WORK_SLOTS`, as [start, end] minutes from midnight
      */
@@ -68,10 +70,10 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
      */
     #encouragement_key = null;
     /**
-     * texts still to show per type, shuffled: popped one at a time and refilled when empty, so no text repeats until all are shown
-     * @type {{morning: Array<string>, afternoon: Array<string>}}
+     * texts still to show per type (`#encouragementType`), shuffled: popped one at a time and refilled when empty, so no text repeats until all are shown
+     * @type {Object<string, Array<string>>}
      */
-    #encouragement_bags = { morning: [], afternoon: [] };
+    #encouragement_bags = {};
     /**
      * end of the working day, minutes from midnight (asked to the user on startup, defaults to the last confirmed value)
      */
@@ -81,10 +83,16 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
      * @type {[number, number]}
      */
     #lunch = DCSVAC.savedLunch() ?? DCSVAC.DEFAULT_LUNCH;
+    /**
+     * working days set as days off (toggled by clicking a day in the week slider), as `dateKey`s
+     * @type {Set<string>}
+     */
+    #days_off = DCSVAC.savedDaysOff();
     async #initialize() {
         const owner = this;
         owner.#refresh();
         owner.#refresh_interval = setInterval(() => owner.#refresh(), DCSVAC.REFRESH_MS);
+        owner.elements.encouragement_text.addEventListener("click", () => owner.#nextEncouragement(owner.#encouragementType(new Date())));
         owner.#askEndHour();
     }
     /**
@@ -115,6 +123,46 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
             owner.#encouragement_key = null;
             owner.#refresh();
         });
+    }
+    /**
+     * opens a modal with a "work day" toggle for a day of the current week; applied and saved at every toggle
+     * @param {number} day - 0 = Monday .. `WORK_DAYS` - 1
+     */
+    #askWorkDay(day) {
+        const owner = this;
+        const date = DCSVAC.weekDates(new Date())[day];
+        const key = DCSVAC.dateKey(date);
+        const content = document.createElement("div");
+        content.className = "dcsvac-ask";
+        const title = document.createElement("div");
+        title.className = "dcsvac-ask-title";
+        title.innerText = date.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" });
+        const toggle_options = {
+            innerText: { on: "sì", off: "no" },
+            isOn: !owner.#days_off.has(key),
+            label: "Giorno lavorativo",
+            onClick: (event, options) => {
+                options.setIsOn(options.isOn = !options.isOn);
+                if (options.isOn) {
+                    owner.#days_off.delete(key);
+                } else {
+                    owner.#days_off.add(key);
+                }
+                owner.#saveDaysOff();
+                owner.#refresh();
+            },
+        };
+        content.append(title, UiBuilder.createToggle(toggle_options));
+        new BottomSheet({ element: content, centered: true });
+    }
+    /**
+     * saves `#days_off`, dropping the ones before the current week (they can't be toggled anymore)
+     */
+    #saveDaysOff() {
+        const week_start = DCSVAC.dateKey(DCSVAC.weekDates(new Date())[0]);
+        const keys = [...this.#days_off].filter(key => key >= week_start);
+        this.#days_off = new Set(keys);
+        localStorage.setItem(DCSVAC.STORAGE_KEY_DAYS_OFF, keys.join(","));
     }
     /**
      * modal with a title, a DatePicker and an OK button (Enter on the picker's last field = OK)
@@ -185,35 +233,72 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
         const [start, end] = (localStorage.getItem(DCSVAC.STORAGE_KEY_LUNCH) ?? "").split("-").map(part => part.trim() == "" ? NaN : Number(part));
         return Number.isInteger(start) && Number.isInteger(end) && start >= 0 && start <= end && end < 24 * 60 ? [start, end] : null;
     }
+    /**
+     * @returns {Set<string>} days off set by the user (`dateKey`s), invalid entries skipped
+     */
+    static savedDaysOff() {
+        const keys = (localStorage.getItem(DCSVAC.STORAGE_KEY_DAYS_OFF) ?? "").split(",").map(key => key.trim());
+        return new Set(keys.filter(key => /^\d{4}-\d{2}-\d{2}$/.test(key)));
+    }
+    /**
+     * @param {Date} date
+     * @returns {string} local "YYYY-MM-DD" (sortable as string)
+     */
+    static dateKey(date) {
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    }
+    /**
+     * @param {Date} now
+     * @returns {Array<Date>} the working days (Monday..) of `now`'s week, at midnight
+     */
+    static weekDates(now) {
+        return Array.from({ length: DCSVAC.WORK_DAYS }, (_, day) => new Date(now.getFullYear(), now.getMonth(), now.getDate() - DCSVAC.weekDay(now) + day));
+    }
+    /**
+     * @param {Date} now
+     * @returns {Array<boolean>} per working day of `now`'s week (0 = Monday), whether it's a day off
+     */
+    #weekDaysOff(now) {
+        return DCSVAC.weekDates(now).map(date => this.#days_off.has(DCSVAC.dateKey(date)));
+    }
     #refresh() {
         const owner = this;
         const now = new Date();
-        const is_weekend = DCSVAC.weekDay(now) >= DCSVAC.WORK_DAYS;
-        const day_progress = DCSVAC.workDayProgress(now, owner.#end_minute, owner.#lunch);
-        const week_progress = DCSVAC.workWeekProgress(now, owner.#end_minute, owner.#lunch);
+        const week_day = DCSVAC.weekDay(now);
+        const days_off = owner.#weekDaysOff(now);
+        const is_day_off = week_day >= DCSVAC.WORK_DAYS || days_off[week_day];
+        const day_progress = DCSVAC.workDayProgress(now, owner.#end_minute, owner.#lunch, days_off[week_day]);
+        const week_progress = DCSVAC.workWeekProgress(now, owner.#end_minute, owner.#lunch, days_off);
         owner.#refreshEncouragement(now, day_progress.percent);
 
         const slots = DCSVAC.daySlots(owner.#end_minute, owner.#lunch).filter(([start, end]) => end > start);
         const minute_of_day = DCSVAC.minuteOfDay(now);
-        // day: one track per slot, full on the weekend; the gap between them is the lunch break
+        // day: one track per slot, full on the weekend / a day off; the gap between them is the lunch break
         const [lunch_start, lunch_end] = owner.#lunch;
         owner.#refreshSegments(owner.elements.day_segments, owner.elements.day_thumb,
             slots.map(([start, end]) => end - start),
-            slots.map(slot => is_weekend ? 1 : DCSVAC.slotElapsed(minute_of_day, slot) / (slot[1] - slot[0])),
+            slots.map(slot => is_day_off ? 1 : DCSVAC.slotElapsed(minute_of_day, slot) / (slot[1] - slot[0])),
             {
                 widths: slots.slice(1).map(() => lunch_end - lunch_start),
                 hint: `pausa pranzo ${DCSVAC.formatMinute(lunch_start)}-${DCSVAC.formatMinute(lunch_end)}: clicca per cambiarla`,
                 onClick: () => owner.#askLunch(),
             });
         owner.#refreshBar(owner.elements.day_bar, owner.elements.day_explained,
-            day_progress, is_weekend ? `oggi non si lavora! 😎` : `100% — giornata finita! 🌇`);
+            day_progress, is_day_off ? `oggi non si lavora! 😎` : `100% — giornata finita! 🌇`);
 
-        // week: one track per working day, the past ones full, today's as the day progress
-        const week_day = DCSVAC.weekDay(now);
+        // week: one track per working day, the past ones full, today's as the day progress, the days off empty (clickable to toggle them)
         const days = Array.from({ length: DCSVAC.WORK_DAYS }, (_, day) => day);
+        const week_dates = DCSVAC.weekDates(now);
         owner.#refreshSegments(owner.elements.week_segments, owner.elements.week_thumb,
             days.map(() => 1),
-            days.map(day => day < week_day ? 1 : day > week_day ? 0 : day_progress.percent / 100));
+            days.map(day => days_off[day] ? 0 : day < week_day ? 1 : day > week_day ? 0 : day_progress.percent / 100),
+            null,
+            {
+                off: days_off,
+                hints: days.map(day => `${week_dates[day].toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })}: `
+                    + `${days_off[day] ? "non lavorativo" : "lavorativo"} — clicca per cambiare`),
+                onClick: day => owner.#askWorkDay(day),
+            });
         owner.#refreshBar(owner.elements.week_bar, owner.elements.week_explained, week_progress, `100% — si va a casa! 🏠`);
     }
     /**
@@ -229,8 +314,12 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
      * @param {Array<number>} gaps.widths - flex-grow of each gap, in the same unit as `widths`
      * @param {string} gaps.hint - hint of the gaps (UiBuilder hint)
      * @param {Function} gaps.onClick - only read when the tracks are (re)built
+     * @param {Object} [track_options] - makes the tracks clickable
+     * @param {Array<boolean>} track_options.off - per track, shown as off (`.dcsvac-track-off`)
+     * @param {Array<string>} track_options.hints - per track (UiBuilder hint)
+     * @param {(index: number) => void} track_options.onClick - only read when the tracks are (re)built
      */
-    #refreshSegments(container, thumb, widths, fractions, gaps = null) {
+    #refreshSegments(container, thumb, widths, fractions, gaps = null, track_options = null) {
         if (widths.length == 0) {
             widths = [1];
             fractions = [1];
@@ -250,6 +339,10 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
                 }
                 const track = document.createElement("div");
                 track.className = "dcsvac-track";
+                if (track_options != null) {
+                    track.classList.add("dcsvac-track-clickable");
+                    track.addEventListener("click", () => track_options.onClick(i));
+                }
                 const fill = document.createElement("div");
                 fill.className = "dcsvac-fill";
                 track.appendChild(fill);
@@ -260,6 +353,10 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
         tracks.forEach((track, i) => {
             track.style.flex = `${widths[i]} 1 0`;
             track.firstElementChild.style.width = `${fractions[i] * 100}%`;
+            if (track_options != null) {
+                track.classList.toggle("dcsvac-track-off", track_options.off[i] == true);
+                UiBuilder.addOrUpdateHint({ target: track, hint: track_options.hints[i], anchor: "top" });
+            }
         });
         if (gaps != null) {
             container.querySelectorAll(":scope > .dcsvac-gap").forEach((gap, i) => {
@@ -288,15 +385,34 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
             owner.#encouragement_key = null;
             return;
         }
-        const minute_of_day = now.getHours() * 60 + now.getMinutes();
-        const type = minute_of_day < this.#lunch[1] ? "morning" : "afternoon";
+        const type = owner.#encouragementType(now);
         const key = `${type}:${Math.floor(day_percent)}`;
         if (key == owner.#encouragement_key) return;
         owner.#encouragement_key = key;
-
-        const bag = owner.#encouragement_bags[type];
+        owner.#nextEncouragement(type);
+    }
+    /**
+     * @param {Date} now
+     * @returns {string} "morning" before the afternoon slot starts, "afternoon" after;
+     *   with a "_before_day_off" suffix when tomorrow is not a working day (weekend or day off)
+     */
+    #encouragementType(now) {
+        const minute_of_day = now.getHours() * 60 + now.getMinutes();
+        const tomorrow = DCSVAC.weekDay(now) + 1;
+        const before_day_off = tomorrow >= DCSVAC.WORK_DAYS || this.#weekDaysOff(now)[tomorrow];
+        return `${minute_of_day < this.#lunch[1] ? "morning" : "afternoon"}${before_day_off ? "_before_day_off" : ""}`;
+    }
+    /**
+     * shows the next encouragement text of `type` (with fade-in), refilling its shuffled bag when empty
+     * @param {string} type - from `#encouragementType`
+     */
+    #nextEncouragement(type) {
+        const owner = this;
+        const bag = owner.#encouragement_bags[type] ??= [];
         if (bag.length == 0) {
-            bag.push(...DCSVACEncouragements[type], ...DCSVACEncouragements.jokes, ...DCSVACEncouragements.challenges, ...DCSVACEncouragements.flexes, ...DCSVACEncouragements.comandamenti);
+            const [slot, before_day_off] = type.split("_before_day_off");
+            bag.push(...DCSVACEncouragements[slot], ...DCSVACEncouragements.jokes, ...DCSVACEncouragements.challenges, ...DCSVACEncouragements.flexes, ...DCSVACEncouragements.comandamenti,
+                ...(before_day_off != null ? DCSVACEncouragements.before_day_off : []));
             for (let i = bag.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [bag[i], bag[j]] = [bag[j], bag[i]];
@@ -372,34 +488,37 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
     }
     /**
      * Fraction of the working day elapsed at `now`, counting only `WORK_SLOTS`.
-     * Before 08:30 → 0%, after the end of the day or on the weekend → 100%.
+     * Before 08:30 → 0%, after the end of the day, on the weekend or on a day off → 100%.
      * @param {Date} now
      * @param {number} [end_minute] - end of the working day (minutes from midnight), see `daySlots`
      * @param {[number, number]} [lunch] - lunch break, see `daySlots`
+     * @param {boolean} [is_day_off=false] - today is a day off
      * @returns {{percent: number, remaining_minutes: number}}
      */
-    static workDayProgress(now, end_minute = DCSVAC.WORK_SLOTS.at(-1)[1], lunch = DCSVAC.DEFAULT_LUNCH) {
+    static workDayProgress(now, end_minute = DCSVAC.WORK_SLOTS.at(-1)[1], lunch = DCSVAC.DEFAULT_LUNCH, is_day_off = false) {
         const slots = DCSVAC.daySlots(end_minute, lunch);
         const total = slots.reduce((acc, [start, end]) => acc + (end - start), 0);
-        const elapsed = DCSVAC.weekDay(now) >= DCSVAC.WORK_DAYS ? total : DCSVAC.elapsedToday(now, slots);
+        const elapsed = is_day_off || DCSVAC.weekDay(now) >= DCSVAC.WORK_DAYS ? total : DCSVAC.elapsedToday(now, slots);
         return { percent: total > 0 ? elapsed / total * 100 : 100, remaining_minutes: total - elapsed };
     }
     /**
      * Fraction of the working week elapsed at `now`, counting only `WORK_SLOTS` on Monday..Friday.
-     * Before Monday 08:30 → 0%, from Friday's end of day through the weekend → 100%.
+     * Before Monday 08:30 → 0%, from Friday's end of day through the weekend → 100%. Days off don't count.
      * @param {Date} now
      * @param {number} [end_minute] - end of the working day (minutes from midnight), see `daySlots`
      * @param {[number, number]} [lunch] - lunch break, see `daySlots`
+     * @param {Array<boolean>} [days_off] - per working day (0 = Monday), whether it's a day off
      * @returns {{percent: number, remaining_minutes: number}}
      */
-    static workWeekProgress(now, end_minute = DCSVAC.WORK_SLOTS.at(-1)[1], lunch = DCSVAC.DEFAULT_LUNCH) {
+    static workWeekProgress(now, end_minute = DCSVAC.WORK_SLOTS.at(-1)[1], lunch = DCSVAC.DEFAULT_LUNCH, days_off = []) {
         const slots = DCSVAC.daySlots(end_minute, lunch);
         const minutes_per_day = slots.reduce((acc, [start, end]) => acc + (end - start), 0);
-        const total = minutes_per_day * DCSVAC.WORK_DAYS;
+        const work_days = Array.from({ length: DCSVAC.WORK_DAYS }, (_, day) => day).filter(day => !days_off[day]);
+        const total = minutes_per_day * work_days.length;
         const week_day = DCSVAC.weekDay(now);
         const elapsed = week_day >= DCSVAC.WORK_DAYS
             ? total
-            : week_day * minutes_per_day + DCSVAC.elapsedToday(now, slots);
+            : work_days.reduce((acc, day) => acc + (day < week_day ? minutes_per_day : day == week_day ? DCSVAC.elapsedToday(now, slots) : 0), 0);
         return { percent: total > 0 ? elapsed / total * 100 : 100, remaining_minutes: total - elapsed };
     }
 
