@@ -3,6 +3,8 @@
 }
 window.configurations.debug_dand = true;
 class DoubleClickBehaviour {
+    /** max ms between two presses for them to count as a double click */
+    static double_click_window_ms = 500;
     static double_click_status = {
         /**
          * @type Element
@@ -15,7 +17,7 @@ class DoubleClickBehaviour {
     };
     static trigger() {
         const now = new Date();
-        if (now - DoubleClickBehaviour.double_click_status.last_click > 500) {
+        if (now - DoubleClickBehaviour.double_click_status.last_click > DoubleClickBehaviour.double_click_window_ms) {
             DoubleClickBehaviour.double_click_status.last_click = new Date();
             if (window.configurations.debug_dand) {
                 new Notify({
@@ -56,8 +58,16 @@ class DragAndDrop {
             options: null,
             last_valid_target_hovered: null,
             last_event_listener_added_on_body_moveElement: null,
-            start_drag_date: null
+            start_drag_date: null,
+            /** this press completed a double click, so its release must not doClick */
+            is_double_click: false
         }
+    }
+    /** setTimeout id of a doClick held back until the double click window has passed */
+    static #pending_do_click_timeout;
+    static #cancelPendingDoClick() {
+        clearTimeout(DragAndDrop.#pending_do_click_timeout);
+        DragAndDrop.#pending_do_click_timeout = undefined;
     }
     /**
      * Number
@@ -107,6 +117,8 @@ class DragAndDrop {
      * @property {function(Element): void} [onDragEnd] (target)
      * @property {function({start_id: string, end_id: string, event: DragAndDropMockEvent}): void} [onDrop]
      * @property {function(DragAndDropMockEvent): void} [doClick] callback when dropping on itself //in 200ms
+     *  when onDoubleClick is also set, doClick is held back until the double click window
+     *  (DoubleClickBehaviour.double_click_window_ms) has passed, and never fires for a double click
      *
      *  doClick !== addEventListener('click')
      *
@@ -136,8 +148,8 @@ class DragAndDrop {
      * @param [options.onDoubleClick] (target, event)
      * @param [options.onDragEnd] (target)
      * @param [options.onDrop]
-     * @param [options.doClick] click-on-self within 200ms
-     * 
+     * @param [options.doClick] click-on-self within 200ms (debounced against onDoubleClick, when set)
+     *
      *  (doClick !== a 'click' listener; unreliable on phones)
      * @param [options.onDropSameContainer] click-on-self after 200ms
      * @param [options.onMouseEnter] (target)
@@ -246,6 +258,7 @@ class DragAndDrop {
                 DragAndDrop.#draggingStarted();
                 DragAndDrop.#mainStatus.dragging.options = options;
                 DragAndDrop.#mainStatus.dragging.mock_event = { clientX: x, clientY: y, target: event_target };
+                DragAndDrop.#mainStatus.dragging.is_double_click = false;
                 DragAndDrop.#group_id_drag_in_progress = options.group_id;
                 if (options.img_offset != undefined) {
                     DragAndDrop.#offset_left = options.img_offset.x + DragAndDrop.#offset_preview;
@@ -282,6 +295,8 @@ class DragAndDrop {
                 }
                 onDragStart(event.clientX, event.clientY, event.target);
                 if (DoubleClickBehaviour.trigger()) {
+                    DragAndDrop.#cancelPendingDoClick();
+                    DragAndDrop.#mainStatus.dragging.is_double_click = true;
                     if (options.onDoubleClick != undefined) {
                         options.onDoubleClick(options.target, event);
                     }
@@ -293,6 +308,8 @@ class DragAndDrop {
                 const touch = event.touches[0];
                 onDragStart(touch.clientX, touch.clientY, event.target);
                 if (DoubleClickBehaviour.trigger()) {
+                    DragAndDrop.#cancelPendingDoClick();
+                    DragAndDrop.#mainStatus.dragging.is_double_click = true;
                     if (options.onDoubleClick != undefined) {
                         options.onDoubleClick(options.target, event);
                     }
@@ -572,7 +589,20 @@ class DragAndDrop {
 
                 if (within_its_bounds) {
                     // alert("within bounds " + Locale.parseDateConvertToReadable(DragAndDrop.#mainStatus.dragging.start_drag_date, { tipo: 101 }))
-                    options.doClick(mock_event);
+                    if (DragAndDrop.#mainStatus.dragging.is_double_click) {
+                        // second press of a double click: onDoubleClick already handled it
+                    } else if (options.onDoubleClick == undefined) {
+                        options.doClick(mock_event);
+                    } else {
+                        // debounce: wait out the rest of the double click window (counted from the press),
+                        // a second press within it cancels this doClick and fires onDoubleClick instead
+                        const elapsed_since_press = new Date() - DragAndDrop.#mainStatus.dragging.start_drag_date;
+                        DragAndDrop.#cancelPendingDoClick();
+                        DragAndDrop.#pending_do_click_timeout = setTimeout(() => {
+                            DragAndDrop.#pending_do_click_timeout = undefined;
+                            options.doClick(mock_event);
+                        }, Math.max(0, DoubleClickBehaviour.double_click_window_ms - elapsed_since_press));
+                    }
                 } else {
                     console.log("out of bounds" + Locale.parseDateConvertToReadable(DragAndDrop.#mainStatus.dragging.start_drag_date, { tipo: 101 }))
                 }

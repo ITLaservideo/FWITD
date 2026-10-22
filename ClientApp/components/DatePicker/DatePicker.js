@@ -878,9 +878,17 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                 if (owner.options.is_time_intervall == true) {// every opening starts from the start of the interval
                     owner.#setEditingEnd(false);
                 }
+                // Esc closes the open picker, same as closing the BottomSheet (the date is still applied by onClose)
+                const closeOnEscape = (event) => {
+                    if (event.key === "Escape") {
+                        owner.elements.instanceBottomSheet?.destroy();
+                    }
+                };
+                document.addEventListener("keyup", closeOnEscape);
                 owner.elements.instanceBottomSheet = new BottomSheet({
                     element: owner.self_ref,
                     onClose: () => {
+                        document.removeEventListener("keyup", closeOnEscape);
                         the_input.value = owner.#displayText();
                         owner.options.onChange?.(owner.getDate('iso'), owner);
                     },

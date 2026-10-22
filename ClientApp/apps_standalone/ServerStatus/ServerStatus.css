@@ -134,17 +134,17 @@ body {
 }
 
 .ss-badge-online {
-    background-color: rgba(137, 209, 133, 0.16);
+    background-color: color-mix(in srgb, var(--vscode-charts-green) 16%, transparent);
     color: var(--vscode-charts-green);
 }
 
 .ss-badge-offline {
-    background-color: rgba(241, 76, 76, 0.16);
+    background-color: color-mix(in srgb, var(--vscode-charts-red) 16%, transparent);
     color: var(--vscode-charts-red);
 }
 
 .ss-badge-checking {
-    background-color: rgba(204, 167, 0, 0.16);
+    background-color: color-mix(in srgb, var(--vscode-charts-yellow) 16%, transparent);
     color: var(--vscode-charts-yellow);
 }
 

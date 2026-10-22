@@ -25,7 +25,7 @@
     -o-animation: pop-from-below 0.3s ease-out 1;
     animation: pop-from-below 0.3s ease-out 1; */
     z-index: 9999999999;
-    filter: drop-shadow(0 0 14px black);
+    filter: drop-shadow(0 0 14px var(--vscode-widget-shadow));
     transition: opacity ease 0.1s;
 
     .function-svg {
@@ -49,11 +49,12 @@
         padding: 1.6em;
         cursor: pointer;
         opacity: 0.2;
+        aspect-ratio: 1;
         /* font-size: 28px; */
     }
 
     .close-svg:hover {
-        background: rgba(255, 255, 255, 0.1);
+        background: var(--vscode-toolbar-hoverBackground);
         transition: all ease-in .3s;
         opacity: 1;
     }

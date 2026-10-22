@@ -203,7 +203,7 @@
 
     td {
         border: unset;
-        border-left: 0.5px solid #e9e9e921;
+        border-left: 0.5px solid var(--vscode-tree-tableColumnsBorder);
         /* border-bottom: 1px solid #cbcbcb21; */
         /* border-right: 1px solid #cbcbcb21; */
         padding-top: 1px;
@@ -217,7 +217,7 @@
     }
 
     tr:nth-child(5n+5) {
-        border-bottom: 1px solid #e9e9e9 !important;
+        border-bottom: 1px solid var(--vscode-foreground) !important;
     }
 
     tr:last-child {

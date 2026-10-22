@@ -49,7 +49,7 @@
                 return !owner.status.expanded;
             }
         });
-        owner.elements.container.addEventListener("pointerup", (event) => {
+        owner.#on_pointer_up = (event) => {
             if (event.pointerType === "mouse" && event.button === 0 || event.pointerType === "touch") {
                 if (owner.options.onClick != undefined) {
                     owner.options.onClick(event);
@@ -57,8 +57,10 @@
                     console.error(`missing action onClick:\n    ${owner.text} || ${owner.hint}`);
                 }
             }
-        });
+        };
+        owner.elements.container.addEventListener("pointerup", owner.#on_pointer_up);
     }
+    #on_pointer_up = null;
     expand(fr = true) {
         const owner = this;
         owner.elements.text.classList.toggle("display-none-important", !fr);
@@ -68,11 +70,26 @@
         const owner = this;
         owner.elements.container.classList.toggle("display-none-important", fr);
     }
+    destroy() {
+        const owner = this;
+        if (owner.#on_pointer_up != null) {
+            owner.elements.container.removeEventListener("pointerup", owner.#on_pointer_up);
+            owner.#on_pointer_up = null;
+        }
+        owner.elements.container?.remove();
+        owner.elements.container = null;
+        owner.elements.icon = null;
+        owner.elements.text = null;
+        owner.options = null;
+        owner.status = null;
+    }
 }
 /**
- * @version 1.0
+ * @version 1.1
  */
 class SideBarLeft extends FrameworkGC(`${injector_html}`) {
+    #overlay_handler = null;
+    #destroyed = false;
     elements = {
         self_ref: null,
         footer: null,
@@ -101,7 +118,7 @@ class SideBarLeft extends FrameworkGC(`${injector_html}`) {
         const owner = this;
         owner.elements.self_ref = owner.self_ref;
         const overlay = owner.self_ref.getElementsByClassName("sbl-overlay-close")[0];
-        overlay.addEventListener("click", () => {
+        owner.#overlay_handler = () => {
             let can_self_destroy = true;
             if (owner.options.canSelfDestroy != undefined) {
                 can_self_destroy = owner.options.canSelfDestroy();
@@ -109,7 +126,8 @@ class SideBarLeft extends FrameworkGC(`${injector_html}`) {
             if (can_self_destroy) {
                 owner.destroy();
             }
-        });
+        };
+        overlay.addEventListener("click", owner.#overlay_handler);
         const container = owner.self_ref.getElementsByClassName("mid-container")[0];
         if (owner.options.element != undefined) {
             if (owner.options.element instanceof Element) {
@@ -134,37 +152,63 @@ class SideBarLeft extends FrameworkGC(`${injector_html}`) {
                     overlay.style.display = `block`;
                 }, 0);
             }
+            if (owner.options.onReady != undefined) {// FrameworkGC documents onReady but doesn't call it
+                setTimeout(() => {
+                    owner.options.onReady();
+                }, 0);
+            }
         }, 0);
     }
     async #addEventListeners() {
         const owner = this;
         //TODO add event listeners for component here
     }
+    hide(fr = true) {
+        this.self_ref.classList.toggle("display-none-important", fr);
+    }
     setExpanded(fr = true) {
         const owner = this;
         const ops = [];
-        for (let i = 0; i > owner.built_elements.top_selections.length; i++) {
-            const t_selection = owner.options.top_selections[i];
-            ops.push(() => {
-                t_selection.expand(fr);
-            });
-        }
-        for (let i = 0; i > owner.built_elements.bot_selections.length; i++) {
-            const t_selection = owner.options.bot_selections[i];
-            ops.push(() => {
-                t_selection.expand(fr);
-            });
-        }
-        for (let i = 0; i > owner.built_elements.mid_selections.length; i++) {
-            const t_selection = owner.options.mid_selections[i];
-            ops.push(() => {
-                t_selection.expand(fr);
-            });
+        for (const group of [owner.built_elements.top_selections, owner.built_elements.mid_selections, owner.built_elements.bot_selections]) {
+            for (let i = 0; i < group.length; i++) {
+                const t_selection = group[i];
+                ops.push(() => {
+                    t_selection.expand(fr);
+                });
+            }
         }
         requestAnimationFrame(() => {
-            for (let i = 0; i > ops.length; i++) {
+            for (let i = 0; i < ops.length; i++) {
                 ops[i]();
             }
         });
+    }
+    /**
+     * `super.destroy()` (FrameworkGC) only detaches `self_ref`, runs the `onClose` callbacks and unregisters
+     * the back handler - the overlay listener and the built selections are released here
+     * @param {number} [timeout_ms=0]
+     */
+    destroy(timeout_ms = 0) {
+        const owner = this;
+        if (owner.#destroyed) {// overlay click + an explicit destroy() must not run onClose twice
+            return;
+        }
+        owner.#destroyed = true;
+        if (owner.#overlay_handler != null) {
+            owner.self_ref.getElementsByClassName("sbl-overlay-close")[0]?.removeEventListener("click", owner.#overlay_handler);
+            owner.#overlay_handler = null;
+        }
+        for (const group of Object.values(owner.built_elements)) {
+            for (const t_selection of group) {
+                try {
+                    t_selection.destroy();
+                } catch (error) {
+                    console.warn(error);
+                }
+            }
+            group.length = 0;
+        }
+        owner.self_ref.classList.add("unpop-from-below");
+        super.destroy(timeout_ms);
     }
 }

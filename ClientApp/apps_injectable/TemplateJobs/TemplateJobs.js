@@ -295,24 +295,24 @@ class App {
     // ── Static theme maps ─────────────────────────────────────────────────────
 
     static #BADGE = {
-        Pending: { bg: '#3c3c3c', fg: '#9d9d9d' },
-        Scheduled: { bg: '#1a3a6b', fg: '#90caf9' },
-        Running: { bg: '#1a4020', fg: '#a5d6a7' },
-        Paused: { bg: '#6a3200', fg: '#ffb74d' },
-        Completed: { bg: '#1b5e20', fg: '#c8e6c9' },
-        Failed: { bg: '#7a1515', fg: '#ef9a9a' },
-        Interrupted: { bg: '#333', fg: '#777' },
-        default: { bg: '#333', fg: '#aaa' },
+        Pending: { bg: 'var(--vscode-badge-background)', fg: 'var(--vscode-badge-foreground)' },
+        Scheduled: { bg: 'color-mix(in srgb, var(--vscode-charts-blue) 25%, transparent)', fg: 'var(--vscode-charts-blue)' },
+        Running: { bg: 'color-mix(in srgb, var(--vscode-charts-green) 20%, transparent)', fg: 'var(--vscode-charts-green)' },
+        Paused: { bg: 'color-mix(in srgb, var(--vscode-charts-orange) 25%, transparent)', fg: 'var(--vscode-charts-orange)' },
+        Completed: { bg: 'color-mix(in srgb, var(--vscode-charts-green) 35%, transparent)', fg: 'var(--vscode-charts-green)' },
+        Failed: { bg: 'color-mix(in srgb, var(--vscode-charts-red) 25%, transparent)', fg: 'var(--vscode-charts-red)' },
+        Interrupted: { bg: 'var(--vscode-badge-background)', fg: 'var(--vscode-disabledForeground)' },
+        default: { bg: 'var(--vscode-badge-background)', fg: 'var(--vscode-badge-foreground)' },
     }
 
     static #BAR = {
-        Running: '#2196f3',
-        Paused: '#ff9800',
-        Scheduled: '#7986cb',
-        Completed: '#4caf50',
-        Failed: '#ef5350',
-        Interrupted: '#757575',
-        default: '#555',
+        Running: 'var(--vscode-charts-blue)',
+        Paused: 'var(--vscode-charts-orange)',
+        Scheduled: 'var(--vscode-charts-purple)',
+        Completed: 'var(--vscode-charts-green)',
+        Failed: 'var(--vscode-charts-red)',
+        Interrupted: 'var(--vscode-disabledForeground)',
+        default: 'var(--vscode-badge-background)',
     }
 
     static #onPageFullyLoaded() { }

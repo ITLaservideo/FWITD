@@ -26,8 +26,9 @@ One CSS variables file per theme, naming all design tokens (colors, spacing, sha
 
 | File | Theme |
 |---|---|
-| `vars_dark.css` | Dark theme |
-| `vars_light.css` | Light theme |
-| `vars_vscode_dark.css` | VS Code dark theme (default) |
+| `vars_vscode_dark.css` | VS Code dark theme (default) — VS Code's "Dark Modern" webview variables |
+| `vars_vscode_light.css` | VS Code light theme — same variables, line for line, resolved for VS Code's "Light Modern" theme |
 
-The active theme is set by `JSProvider.current_css_theme` (`CSSThemes` enum). To add a new theme, create a `vars_{name}.css` + `.min.css` pair and add the name to the `CSSThemes` enum.
+Both files define the same variables (the light one adds the legacy `--default-button-color-selected`), so a component styled against one works with the other.
+
+The active theme is set by `JSProvider.current_css_theme` (`CSSThemes` enum), persisted in `appsettings.json` as `GlobalPreferences.Theme`. At runtime it's changed via `Lobby.post("Settings/ChangeTheme", { a_number: <CSSThemes value> })`, which reloads every webview's current app with the new theme. To add a new theme, create a `vars_{name}.css` + `.min.css` pair and add the name to the `CSSThemes` enum (and to `enumThemes` in `ThemeSelector.js`).

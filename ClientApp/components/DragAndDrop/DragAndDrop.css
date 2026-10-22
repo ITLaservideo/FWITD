@@ -16,18 +16,18 @@
     opacity: 0.8;
 
     img {
-        --color: #3ee015b0;
+        --color: color-mix(in srgb, var(--vscode-charts-green) 69%, transparent);
         --border: 3px;
         --offset: 30px;
         --gap: 11px;
         /* border-radius: 50%; */
         cursor: pointer;
         padding: calc(var(--border) + var(--gap));
-        border: var(--offset) solid #0000;
-        --_m: radial-gradient(50% 50%, #000 calc(100% - var(--offset)), #0000 calc(100% - var(--border)));
+        border: var(--offset) solid transparent;
+        --_m: radial-gradient(50% 50%, #000 calc(100% - var(--offset)), transparent calc(100% - var(--border))); /* theme-independent: mask, only the alpha is used */
         -webkit-mask: var(--_m);
         mask: var(--_m);
-        --_g: #0000 calc(99% - var(--border)), var(--color) calc(100% - var(--border)) 99%, #0000;
+        --_g: transparent calc(99% - var(--border)), var(--color) calc(100% - var(--border)) 99%, transparent;
         --_s: var(--offset);
         --_r: 100% 100% at;
         background: radial-gradient(var(--_r) 0 0, var(--_g)) calc(100% + var(--_s)) calc(100% + var(--_s)), radial-gradient(var(--_r) 100% 0, var(--_g)) calc(0% - var(--_s)) calc(100% + var(--_s)), radial-gradient(var(--_r) 0 100%, var(--_g)) calc(100% + var(--_s)) calc(0% - var(--_s)), radial-gradient(var(--_r) 100% 100%, var(--_g)) calc(0% - var(--_s)) calc(0% - var(--_s));

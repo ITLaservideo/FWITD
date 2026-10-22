@@ -17,6 +17,8 @@ namespace FWITD {
 #else
         private static readonly Dictionary<int, EventHandler<WebNavigatedEventArgs>> _injectableAppHandlers = new();
 #endif
+        // last app loaded into each webview, so it can be reloaded (e.g. after a theme change)
+        internal static readonly Dictionary<int, StartApp> current_apps = new();
 
         internal static async Task LoadAsync(int id_webview, StartApp app) {
             if (!RequestDispatcher.webviews.TryGetValue(id_webview, out var webView))
@@ -24,6 +26,7 @@ namespace FWITD {
 
             if (!AppConfig._scripts.TryGetValue(app, out var entry))
                 throw new InvalidOperationException($"No configuration found for app: {app}");
+            current_apps[id_webview] = app;
 
             // Each call may target the same, reused webview (see AppRouterController's on-demand
             // navigation), so the handler attached by a *previous* LoadAsync call must be detached

@@ -169,7 +169,7 @@ class App {
             Size: { width: "200px", height: "300px", fontSize: "14px", maxItemHeight: "40px" },
             title: "Drag and Drop Events",
         });
-        list_box.addItem("care for multiple events attached to same element", { backgroundColor: "#606060c0" });
+        list_box.addItem("care for multiple events attached to same element", { backgroundColor: "var(--vscode-badge-background)" });
         document.getElementById("drag-and-drop-testing").appendChild(list_box.elementReference());
         for (let i = 0; i < tests.length; i++) {
             const element = tests[i];
@@ -180,16 +180,16 @@ class App {
                 img_src: `Images\\Icone2024\\ui_2024\\box.svg`,
                 onDragStart: (arg_target) => {
                     //App.drag_motors_in_progress = arg_target.offsetParent.parentElement;
-                    list_box.addItem(`${i + 1}: onDragStart`, { color: "#888" });
+                    list_box.addItem(`${i + 1}: onDragStart`, { color: "var(--vscode-descriptionForeground)" });
                 },
                 onDragEnd: (target) => {
                     //App.drag_motors_in_progress = false;
-                    list_box.addItem(`${i + 1}: onDragEnd`, { color: "#888", backgroundColor: "#444343e3" });
+                    list_box.addItem(`${i + 1}: onDragEnd`, { color: "var(--vscode-descriptionForeground)", backgroundColor: "var(--vscode-toolbar-activeBackground)" });
                 },
                 onDrop: async (obj) => {
-                    list_box.addItem(`${i + 1}: onDrop:`, { backgroundColor: "#8a6363c0" });
-                    list_box.addItem(`${obj.start_id}`, { backgroundColor: "#8a6363c0" });
-                    list_box.addItem(`${obj.end_id}`, { backgroundColor: "#8a6363c0" });
+                    list_box.addItem(`${i + 1}: onDrop:`, { backgroundColor: "color-mix(in srgb, var(--vscode-charts-red) 40%, transparent)" });
+                    list_box.addItem(`${obj.start_id}`, { backgroundColor: "color-mix(in srgb, var(--vscode-charts-red) 40%, transparent)" });
+                    list_box.addItem(`${obj.end_id}`, { backgroundColor: "color-mix(in srgb, var(--vscode-charts-red) 40%, transparent)" });
                 },
                 doClick: (event) => {
                     //owner.openSettings(event);
@@ -197,19 +197,19 @@ class App {
                         console.log("dispatch event click");
                         element.dispatchEvent(new Event("click", { bubbles: true, clientX: event.clientX, clientY: event.clientY }));
                     }
-                    list_box.addItem(`${i + 1}: doClick`, { color: "green" });
+                    list_box.addItem(`${i + 1}: doClick`, { color: "var(--vscode-charts-green)" });
                 },
                 onDropSameContainer: (event) => {
                     //owner.openSettings(event);
-                    list_box.addItem(`${i + 1}: onDropSameContainer`, { backgroundColor: "green" });
+                    list_box.addItem(`${i + 1}: onDropSameContainer`, { backgroundColor: "color-mix(in srgb, var(--vscode-charts-green) 50%, transparent)" });
                 },
                 onMouseEnter: (event) => {
                     //owner.openSettings(event);
-                    list_box.addItem(`${i + 1}: onMouseEnter`, { backgroundColor: "#88888880" });
+                    list_box.addItem(`${i + 1}: onMouseEnter`, { backgroundColor: "var(--vscode-toolbar-hoverBackground)" });
                 },
                 onMouseLeave: (event) => {
                     //owner.openSettings(event);
-                    list_box.addItem(`${i + 1}: onMouseLeave`, { backgroundColor: "#88888880" });
+                    list_box.addItem(`${i + 1}: onMouseLeave`, { backgroundColor: "var(--vscode-toolbar-hoverBackground)" });
                 },
                 img_offset: { x: 15, y: 15 },
                 img_style: 1,
