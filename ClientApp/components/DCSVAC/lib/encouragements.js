@@ -520,6 +520,10 @@ class DCSVACEncouragements {
      * silly jokes, not tied to the time of day: mixed into both `morning` and `afternoon`
      */
     static jokes = [
+        "Cosa fa un pomodoro la mattina? Salsa. E una patata? Pure.",
+        "Cosa indossa Haidi quando va nei boschi con il nonno? Le Haididas",
+        "Il nome di un prete intoccabile? DonTouch",
+        "Il nome di un prete che va sull'altalena? DonDolando",
         "Il colmo per un idraulico? Non capire un tubo 🔧",
         "Il colmo per un elettricista? Non essere al corrente ⚡",
         "Il colmo per un orologiaio? Non avere tempo ⌚",
