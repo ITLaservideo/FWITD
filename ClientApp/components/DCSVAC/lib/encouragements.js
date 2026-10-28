@@ -434,7 +434,7 @@ class DCSVACEncouragements {
         "Ho detto \"arrivo subito\" 40 minuti fa ⌛",
         "Il capo è uscito? Allora è quasi venerdì 🕺",
         "Ho preso un altro caffè. Ora vedo i suoni 🌈",
-        "Il merge conflict di fine giornata: un classico ⚔️",
+        "Il mArge conflict di fine giornata: un classico ⚔️",
         "\"Domani ne parliamo\": la frase più bella del pomeriggio 💬",
         "Oggi ho imparato una cosa: niente 🤓",
         "Il PC si blocca. Anch'io. Siamo in sintonia 🧊",
