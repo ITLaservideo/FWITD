@@ -500,7 +500,7 @@ html {
     display: none !important;
 }
 
-/* toggled by `disablePointerEvents`/`enablePointerEvents` (UiBuilder.js) and MousePopUp */
+/* toggled by 'disablePointerEvents'/'enablePointerEvents' (UiBuilder.js) and MousePopUp */
 .disable-pointer-events {
     pointer-events: none !important;
 }
@@ -1752,7 +1752,7 @@ html {
     color: var(--vscode-descriptionForeground);
 }
 
-/* `input_type: 'number'`: createInput's wrapper takes the field's place in the dialog */
+/* 'input_type: 'number'': createInput's wrapper takes the field's place in the dialog */
 .simple-text-input-modal>.ui-number-input {
     width: 100%;
     margin-bottom: 4px;

@@ -1,4 +1,4 @@
-/* set on `body` while a `.pe-tool-button` edit tool (draw/add text/redact) is active, so dragging
+/* set on 'body' while a '.pe-tool-button' edit tool (draw/add text/redact) is active, so dragging
    on the edit canvas doesn't also scroll the page behind it */
 body.pe-body-scroll-lock {
     overflow: hidden;
@@ -196,7 +196,7 @@ body.pe-body-scroll-lock {
         }
     }
 
-    /* pinned to the top of the viewport: sets `.pe-edit-workspace`'s width (see PDFEditor.js #applyEditWidth) */
+    /* pinned to the top of the viewport: sets '.pe-edit-workspace''s width (see PDFEditor.js #applyEditWidth) */
     .pe-edit-width-slider {
         position: fixed;
         top: 0;
@@ -394,7 +394,7 @@ body.pe-body-scroll-lock .pe-edit-bottom-bar .pe-edit-page-nav {
 
 /* pe-text-overlay* below are body-level (appended to document.body, not .pe-container), the same
    reason ImageEditor's own text overlay is: it must float above the whole editor, not be clipped
-   by .pe-edit-workspace's `overflow: hidden` */
+   by .pe-edit-workspace's 'overflow: hidden' */
 
 .pe-text-overlay {
     position: absolute;
