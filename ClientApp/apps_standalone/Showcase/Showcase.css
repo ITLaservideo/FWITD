@@ -212,6 +212,16 @@ body:not([data-showcase-tab="2"])>.sticky-bar:is(.pe-tabs-bar, :has(> .pe-tool-b
     justify-content: center;
 }
 
+.demo-tree-holder {
+    width: 99%;
+    height: 220px;
+    flex-shrink: 0;
+    border: 1px solid var(--vscode-widget-border);
+    border-radius: 6px;
+    overflow: hidden;
+    text-align: left;
+}
+
 .demo-split-holder {
     width: 99%;
     height: 110px;

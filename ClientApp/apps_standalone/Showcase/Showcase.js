@@ -36,6 +36,7 @@ class App {
             { title: "Drag & Drop", desc: "DragAndDrop.makeItDraggable", build: (el) => this.demoDragAndDrop(el) },
             { title: "Skeleton Loader", desc: "new SkeletonLoader(...)", build: (el) => this.demoSkeleton(el) },
             { title: "Mega Menu", desc: "new MegaMenu(...)", build: (el) => this.demoMegaMenu(el) },
+            { title: "Tree Menu", desc: "new TreeMenu(...)", build: (el) => this.demoTreeMenu(el) },
             { title: "Sticky Bar", desc: "new StickyBar(...)", build: (el) => this.demoStickyBar(el) },
             { title: "Bottom Nav Bar", desc: "new BottomNavBar(...)", build: (el) => this.demoBottomNavBar(el) },
             { title: "Side Bar", desc: "new SideBarLeft(...)", build: (el) => this.demoSideBarLeft(el) },
@@ -617,9 +618,112 @@ class App {
                     items: [[{ items: [{ label: "Docs", icon: "e88e", onClick: pick("Docs") }, { label: "Settings", icon: "e8b8", onClick: pick("Settings") }] }]],
                 },
             ],
-            style: "width: 99%;outline: 1px solid #00800040;"
+            style: "width: 99%;outline: 1px solid color-mix(in srgb, var(--vscode-charts-green) 25%, transparent);"
         });
         el.appendChild(menu.elementReference());
+        el.appendChild(status);
+    }
+
+    demoTreeMenu(el) {
+        const status = document.createElement("div");
+        status.className = "demo-status";
+        status.textContent = "right click > Add to Bookmarks · F2 rename · type to filter · drag onto a folder";
+        // in-memory file system: folder id -> child names, a trailing "/" marks a folder (folder ids end with "/" too)
+        const fs = {
+            "": ["src/", "assets/", "readme.md"],
+            "src/": ["main/", "App.js", "App.min.js", "App.css", "App.min.css"],
+            "src/main/": ["java/"],
+            "src/main/java/": ["Main.java", "Utils.java"],
+            "assets/": ["icons/", "logo.png"],
+            "assets/icons/": [],
+        };
+        const parent_of = (id) => {
+            const trimmed = id.endsWith("/") ? id.slice(0, -1) : id;
+            return trimmed.slice(0, trimmed.lastIndexOf("/") + 1);
+        };
+        const name_of = (id) => id.slice(parent_of(id).length);
+        const to_node = (parent_id, name) => ({
+            id: parent_id + name,
+            label: name.replace(/\/$/, ""),
+            hasChildren: name.endsWith("/") || undefined,
+            decoration: name === "App.js" ? { badge: "M", color: "var(--vscode-charts-yellow)", propagate: true } : undefined,
+        });
+        /** moves/renames an entry, re-keying the subtree of a folder */
+        const move_entry = (id, new_id) => {
+            fs[parent_of(id)] = fs[parent_of(id)].filter(name => name !== name_of(id));
+            fs[parent_of(new_id)] = [...(fs[parent_of(new_id)] ?? []), name_of(new_id)];
+            for (const key of Object.keys(fs).filter(key => id.endsWith("/") && key.startsWith(id))) {
+                fs[new_id + key.slice(id.length)] = fs[key];
+                delete fs[key];
+            }
+        };
+        const delete_entry = (id) => {
+            fs[parent_of(id)] = fs[parent_of(id)].filter(name => name !== name_of(id));
+            for (const key of Object.keys(fs).filter(key => id.endsWith("/") && key.startsWith(id))) {
+                delete fs[key];
+            }
+        };
+
+        const tree = new TreeMenu({
+            id: "showcase-tree",// persists expanded folders + bookmarks
+            title: "Explorer",
+            provider: {
+                getChildren: async (node) => (fs[node?.id ?? ""] ?? []).map(name => to_node(node?.id ?? "", name)),
+                getParent: async (id) => parent_of(id) || null,
+            },
+            compactFolders: true,
+            nesting: { "*.js": ["${base}.min.js"], "*.css": ["${base}.min.css"] },
+            headerActions: [
+                { icon: "e89c", title: "New file", run: () => tree.createNode(undefined, false) },
+                { icon: "e2cc", title: "New folder", run: () => tree.createNode(undefined, true) },
+            ],
+            onActivate: (node, { pinned }) => status.textContent = `${pinned ? "opened" : "preview"}: ${node.id}`,
+            onRename: async (node, label) => {
+                const new_id = parent_of(node.id) + label + (node.hasChildren ? "/" : "");
+                move_entry(node.id, new_id);
+                return { ...node, id: new_id, label };
+            },
+            onCreate: async (parent, label, is_folder) => {
+                const name = label + (is_folder ? "/" : "");
+                const parent_id = parent?.id ?? "";
+                fs[parent_id] = [...(fs[parent_id] ?? []), name];
+                if (is_folder) {
+                    fs[parent_id + name] = [];
+                }
+                return to_node(parent_id, name);
+            },
+            onDelete: (nodes) => {
+                const rect = tree.elementReference().getBoundingClientRect();
+                new MousePopUp({
+                    title: `Delete ${nodes.length === 1 ? nodes[0].label : `${nodes.length} items`}?`,
+                    style: "alert",
+                    action_titles: ["Delete", "Cancel"],
+                    next: [
+                        () => nodes.forEach(node => {
+                            delete_entry(node.id);
+                            tree.removeNode(node.id);
+                        }),
+                        () => { },
+                    ],
+                    event: { clientX: rect.left + 20, clientY: rect.top + 40 },
+                });
+            },
+            onDrop: async (nodes, target) => {
+                const target_id = target?.id ?? "";
+                for (const node of nodes) {
+                    if ((fs[target_id] ?? []).includes(name_of(node.id))) {
+                        new Notify({ text: `${node.label} already exists in ${target?.label ?? "the root"}`, type: "error", ms_timeout: 2000 });
+                        continue;
+                    }
+                    move_entry(node.id, target_id + name_of(node.id));
+                }
+                await tree.refresh();
+            },
+        });
+        const holder = document.createElement("div");
+        holder.className = "demo-tree-holder";
+        holder.appendChild(tree.elementReference());
+        el.appendChild(holder);
         el.appendChild(status);
     }
 
