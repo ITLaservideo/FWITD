@@ -10,7 +10,7 @@
     font-family: var(--vscode-font-family);
     max-width: 95vw;
     margin: auto;
-    color: var(--vscode-button-foreground);
+    color: var(--vscode-foreground);
 
     /* one slider (day / week) */
     .dcsvac-bar {
@@ -133,6 +133,8 @@
     .dcsvac-home {
         font-size: 18px;
         line-height: 1;
+        cursor: pointer;
+        user-select: none;
     }
 
     .dcsvac-bar.dcsvac-done {

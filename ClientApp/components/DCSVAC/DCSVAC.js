@@ -10,7 +10,8 @@
  * (morning texts before the afternoon slot starts, afternoon texts after); clicking it shows the next one.
  * Clicking a day of the week slider opens a modal with a "work day" toggle: days off don't count in the week (and today off counts as the weekend).
  * The `HOLIDAYS` are days off by default (the toggle can turn them back into working days).
- * @version 1.5
+ * Clicking a home icon (🌇/🏠) switches to the next CSS theme.
+ * @version 1.6
  */
 class DCSVAC extends FrameworkGC(`${injector_html}`) {
     /**
@@ -27,6 +28,10 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
      * default lunch break: between the two `WORK_SLOTS`, as [start, end] minutes from midnight
      */
     static DEFAULT_LUNCH = [DCSVAC.WORK_SLOTS[0][1], DCSVAC.WORK_SLOTS[1][0]];
+    /**
+     * mirrors JSProvider.CSSThemes (C#): index = theme id
+     */
+    static THEMES = ["vscode_dark", "vscode_light"];
     /**
      * holidays falling on a working day, days off by default: `dateKey` → name
      * @type {Object<string, string>}
@@ -192,7 +197,29 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
         owner.#refresh();
         owner.#refresh_interval = setInterval(() => owner.#refresh(), DCSVAC.REFRESH_MS);
         owner.elements.encouragement_text.addEventListener("click", () => owner.#nextEncouragement(owner.#encouragementType(new Date())));
+        owner.elements.container.querySelectorAll(".dcsvac-home").forEach(home => home.addEventListener("click", () => DCSVAC.nextTheme()));
         owner.#askEndHour();
+    }
+    /**
+     * switches to the theme after the current one in `THEMES` (wrapping around); the host then reloads the app with it
+     */
+    static nextTheme() {
+        Lobby.post("Settings/ChangeTheme", {
+            a_number: (DCSVAC.currentTheme() + 1) % DCSVAC.THEMES.length,
+        }, (rsp) => {/*none, the app automatically reloads the current app of every webview */ });
+    }
+    /**
+     * the page doesn't know the theme id, so it's guessed from the brightness of the editor background
+     * @returns {number} index in `THEMES`
+     */
+    static currentTheme() {
+        const probe = document.createElement("div");
+        probe.style.color = "var(--vscode-editor-background)";
+        document.body.appendChild(probe);
+        const [r, g, b] = getComputedStyle(probe).color.match(/\d+(\.\d+)?/g).map(Number);
+        probe.remove();
+        const is_light = (0.299 * r + 0.587 * g + 0.114 * b) > 128;
+        return DCSVAC.THEMES.indexOf(is_light ? "vscode_light" : "vscode_dark");
     }
     /**
      * opens a modal with an hour/minutes DatePicker asking at what time the working day ends

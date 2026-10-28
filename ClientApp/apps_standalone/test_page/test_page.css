@@ -299,7 +299,7 @@ body {
     -moz-user-select: none;
 
     &:hover {
-        color: var(--vscode-button-foreground);
+        color: var(--vscode-strongForeground);
         background: var(--vscode-toolbar-activeBackground);
     }
 }
