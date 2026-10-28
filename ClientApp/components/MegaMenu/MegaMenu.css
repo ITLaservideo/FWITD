@@ -47,7 +47,7 @@
         background: var(--vscode-list-hoverBackground);
     }
 
-    /* `sa-target-active` is set by SpeedActions while the entry's panel is shown */
+    /* 'sa-target-active' is set by SpeedActions while the entry's panel is shown */
     .mm-root-item.sa-target-active>.mm-root-link {
         background: var(--vscode-list-activeSelectionBackground);
         color: var(--vscode-list-activeSelectionForeground);
@@ -109,7 +109,7 @@
     }
 }
 
-/* the panel is rendered inside the shared SpeedActions container, outside `.mega-menu` */
+/* the panel is rendered inside the shared SpeedActions container, outside '.mega-menu' */
 .mm-panel {
     display: flex;
     flex-direction: row;
