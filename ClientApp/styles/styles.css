@@ -1839,27 +1839,36 @@ html {
 
     .ui-number-input-arrows {
         position: absolute;
-        top: 1px;
-        right: 1px;
-        bottom: 1px;
+        top: 0px;
+        right: 0px;
+        bottom: 0px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-    }
 
-    .ui-number-input-arrow {
-        flex: 1;
-        min-width: 16px;
-        min-height: 0;
-        font-size: 22px;
-        line-height: 1;
-        cursor: pointer;
-        opacity: .6;
-        border-radius: unset;
+        .ui-number-input-arrow {
+            flex: 1;
+            min-width: 16px;
+            min-height: 0;
+            font-size: 22px;
+            line-height: 1;
+            cursor: pointer;
+            opacity: .6;
+            border-radius: unset;
+            overflow: hidden;
 
-        &:hover {
-            opacity: 1;
-            /* background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, .1)); */
+            &:hover {
+                opacity: 1;
+                /* background: var(--vscode-toolbar-hoverBackground, rgba(255, 255, 255, .1)); */
+            }
+
+            &:first-of-type {
+                padding-top: 4px;
+            }
+
+            &:last-of-type {
+                padding-bottom: 4px;
+            }
         }
     }
 }
