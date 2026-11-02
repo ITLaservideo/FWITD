@@ -1,12 +1,12 @@
 .date-picker-container {
-    min-width: 330px;
+    min-width: 240px;
     display: flex;
     flex-direction: column;
     align-items: center;
     width: fit-content;
-    padding: 10px;
+    padding: 4px;
     user-select: none;
-    gap: 4px;
+    gap: 2px;
 
     .f-icon-i {
         &:active {
@@ -14,22 +14,28 @@
         }
     }
 
+    .divisorio {
+        margin-top: 2px;
+        margin-bottom: 2px;
+    }
+
     /* options.is_time_intervall: tabs choosing which end of the interval the rest of the picker edits */
     .dp-interval-edges {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-bottom: 8px;
+        gap: 4px;
+        margin-bottom: 2px;
 
         .dp-interval-edge {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 4px 10px;
+            padding: 1px 6px;
             border-radius: 4px;
             border: 1px solid var(--vscode-widget-border);
             cursor: pointer;
             white-space: nowrap;
+            line-height: 1.2;
 
             &:hover {
                 background-color: var(--vscode-list-hoverBackground);
@@ -43,7 +49,7 @@
         }
 
         .dp-interval-edge-label {
-            font-size: 11px;
+            font-size: 10px;
             opacity: .8;
         }
     }
@@ -52,54 +58,44 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: center;
-        gap: 4px 16px;
-        margin-bottom: 8px;
-        margin-right: 23px;
-        margin-left: 23px;
+        gap: 2px 8px;
+        margin-bottom: 2px;
+        margin-right: 33px;
+        margin-left: 15px;
 
-        .dp-fields-date,
-        .dp-fields-time {
+        .dp-fields-date {
             display: flex;
             align-items: center;
-            gap: 2px;
+            gap: 1px;
+        }
+    }
+
+    /* date fields and, between the arrows of .time-selections, the time ones */
+    .dp-field {
+        width: 2.4em;
+        padding: 2px 3px;
+        border-radius: 4px;
+        text-align: center;
+        /* no double-tap zoom on touch: double tap clears the field */
+        touch-action: manipulation;
+
+        &.dp-field-year {
+            width: 3.6em;
         }
 
-        .dp-field {
-            width: 3em;
-            text-align: center;
-            /* no double-tap zoom on touch: double tap clears the field */
-            touch-action: manipulation;
-
-            &.dp-field-year {
-                width: 4.5em;
-            }
-
-            &.dp-field-invalid {
-                border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-charts-red));
-            }
+        &.dp-field-invalid {
+            border-color: var(--vscode-inputValidation-errorBorder, var(--vscode-charts-red));
         }
     }
 
     .date-picker-header {
         display: flex;
-        justify-content: space-around;
+        justify-content: space-between;
         align-items: stretch;
+        width: 100%;
 
         >div {
-            padding-left: 5px;
-            padding-right: 5px;
-            padding-top: 8px;
-            padding-bottom: 10px;
-
-            &:first-of-type {
-                padding-left: 25px;
-                padding-right: 15px;
-            }
-
-            &:last-of-type {
-                padding-left: 15px;
-                padding-right: 25px;
-            }
+            padding: 2px 2px 4px;
         }
 
         .year-text,
@@ -108,21 +104,28 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
+            border-radius: 4px;
+
+            &:hover {
+                background-color: var(--vscode-list-hoverBackground);
+            }
         }
 
         .month-text {
-            min-width: 100px;
+            min-width: 80px;
+            flex: 2;
         }
 
         .year-text {
-            min-width: 60px;
+            min-width: 44px;
+            flex: 1;
         }
 
         >.f-icon-i {
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: min(5vw, 5vh);
+            font-size: 20px;
             cursor: pointer;
         }
     }
@@ -131,7 +134,6 @@
         display: flex;
         align-items: center;
         gap: 1px;
-
 
         >div {
             display: flex;
@@ -143,40 +145,47 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: min(5vw, 5vh);
+                font-size: 18px;
                 cursor: pointer;
-                padding: 8px;
+                padding: 2px;
             }
         }
 
         >div:last-of-type {
             gap: 2px;
             align-items: stretch;
-            padding-left: 10px;
+            padding-left: 6px;
         }
     }
 
+    /* fixed rows: 1 header + 6 weeks, so the picker doesn't change height between months */
     .body-selections {
-        min-height: 291px;
+        --dp-row-height: 1.9em;
+        min-height: calc(7 * var(--dp-row-height));
     }
 
     .calendar-container {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        /* gap: 4px; */
+        grid-auto-rows: var(--dp-row-height);
         width: 100%;
-        max-width: 320px;
+        max-width: 240px;
     }
 
     .calendar-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
         font-weight: bold;
-        text-align: center;
-        padding: 0px 4px;
+        font-size: 0.85em;
+        opacity: .8;
     }
 
     .calendar-date {
-        text-align: center;
-        padding: 12px 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 2px;
         cursor: pointer;
         border-radius: 4px;
         user-select: none;
@@ -200,6 +209,7 @@
     .calendar-date.today {
         border-radius: 100%;
         outline: 1px solid var(--vscode-focusBorder);
+        outline-offset: -1px;
     }
 
     /* options.is_time_intervall: days between start and end (start and end are .selected-date) */
@@ -248,18 +258,17 @@
 .dp-month-selector {
     display: grid;
     grid-template-columns: auto repeat(3, 1fr);
-    gap: 2px 4px;
-    padding: 4px;
+    gap: 1px 2px;
+    padding: 2px;
     user-select: none;
 
     >.f-icon-i {
         margin: auto;
-        font-size: 22px;
+        font-size: 18px;
     }
 
     .dp-month-cell {
-        text-align: center;
-        padding: 10px 12px;
+        padding: 3px 8px;
         border-radius: 4px;
         cursor: pointer;
         text-align: left;
@@ -270,6 +279,7 @@
 
         &.today {
             outline: 1px solid var(--vscode-focusBorder);
+            outline-offset: -1px;
         }
 
         &.selected-month {
@@ -284,75 +294,6 @@
     .template-operations-container {
         display: grid !important;
         grid-template-columns: repeat(10, 1fr) !important;
-    }
-}
-
-/* narrow screens (down to 300px, less isn't supported): horizontal space only, first the margins/gaps... */
-@media (max-width: 399px) {
-    .date-picker-container {
-        min-width: 0;
-
-        .dp-fields {
-            column-gap: 8px;
-        }
-
-        .time-selections>div:last-of-type {
-            padding-left: 4px;
-        }
-    }
-}
-
-/* ...then the paddings */
-@media (max-width: 359px) {
-    .date-picker-container {
-        padding-left: 2px;
-        padding-right: 2px;
-
-        .date-picker-header {
-            >div {
-                padding-left: 2px;
-                padding-right: 2px;
-
-                &:first-of-type {
-                    padding-left: 8px;
-                    padding-right: 4px;
-                }
-
-                &:last-of-type {
-                    padding-left: 4px;
-                    padding-right: 8px;
-                }
-            }
-
-            .month-text {
-                min-width: 80px;
-            }
-
-            .year-text {
-                min-width: 50px;
-            }
-        }
-
-        .time-selections>div>.f-icon-i {
-            /* rotated 90deg, but the layout uses the unrotated box: these are its horizontal paddings */
-            padding-left: 2px;
-            padding-right: 2px;
-        }
-
-        .calendar-header {
-            padding-left: 0;
-            padding-right: 0;
-        }
-
-        .calendar-date {
-            padding-left: 0;
-            padding-right: 0;
-        }
-    }
-
-    .dp-month-selector .dp-month-cell {
-        padding-left: 6px;
-        padding-right: 6px;
     }
 }
 

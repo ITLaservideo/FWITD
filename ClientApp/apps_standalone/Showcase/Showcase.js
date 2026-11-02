@@ -46,6 +46,7 @@ class App {
             { title: "Tabs", desc: "UiBuilder.createTabs", build: (el) => this.demoTabs(el) },
             { title: "Badges", desc: "UiBuilder.createBadge", build: (el) => this.demoBadges(el) },
             { title: "Inputs", desc: "UiBuilder.createInput / createSearchInput", build: (el) => this.demoInputs(el) },
+            { title: "OTP", desc: "new OTPComponent(...)", build: (el) => this.demoOTP(el) },
             { title: "Dialogs", desc: "UiBuilder.createSimpleTextInput / mockDialog / ask", build: (el) => this.demoDialogs(el) },
             { title: "Searchable Accordion", desc: "UiBuilder.createSearchableAccordion", build: (el) => this.demoSearchableAccordion(el) },
             { title: "Floating Container", desc: "UiBuilder.createFloatingContainer", build: (el) => this.demoFloatingContainer(el) },
@@ -960,6 +961,20 @@ class App {
         el.appendChild(UiBuilder.createInput({ type: "number", value: 5, min: 0, max: 10, step: 1, oninput: (event) => status.textContent = `number: ${event.target.value}` }));
         el.appendChild(UiBuilder.createSearchInput({ placeholder: "createSearchInput (debounced)", onSearch: (query) => status.textContent = `search: "${query}"` }));
         el.appendChild(status);
+    }
+
+    demoOTP(el) {
+        const log = new ListBox({ title: "submitted codes", Size: { width: "99%", height: "90px" } });
+        // server-agnostic: onSubmit receives the code, the caller decides what to do with it
+        const otp = new OTPComponent({ onSubmit: (code) => log.addItem(`submitted: ${code}`) });
+        el.appendChild(otp.elementReference());
+        const hint = document.createElement("div");
+        hint.className = "demo-status";
+        hint.textContent = "type, paste (6 digits) or Backspace/←/→ - the 6th digit or Enter submits";
+        el.appendChild(hint);
+        // a code is submitted once per instance: clear to send the same one again
+        el.appendChild(UiBuilder.createButton({ title: "reset", icon_code: "e5d5", onClick: () => otp.clear() }));
+        el.appendChild(log.elementReference());
     }
 
     demoDialogs(el) {

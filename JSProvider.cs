@@ -231,7 +231,7 @@ namespace FWITD {
                 { components.AndroidViewAnalytics, Array.Empty<components>() },
                 { components.AndroidViewHome, Array.Empty<components>() },
                 { components.AndroidViewInventory, new components[] { components.PosizioneMotore } },
-                { components.AndroidViewLogin, new components[] { components.OTPComponent } },
+                { components.AndroidViewLogin, Array.Empty<components>() },
                 { components.AndroidViewSalesDrivenRestock, new components[] { components.CardRefillmentSuggestions } },
                 { components.AndroidViewSettings, Array.Empty<components>() },
                 { components.AndroidViewTasks, new components[] { components.TaskItem } },
@@ -658,13 +658,18 @@ namespace FWITD {
                                 r_css.Append(more_js_css.Value);
                             }
                             foreach (JS.components x_component in components_views[component]) {
+                                if (componentsAndUtils.Contains(x_component)) {
+                                    continue;// also referenced directly: its own iteration (else branch below) loads it, don't declare the class twice
+                                }
                                 var c_pair_x = await getJSComponentPair(x_component, $"{path_script_apps_standalone_components}{component.ToString()}/components");
                                 r_js.AppendLine();
                                 r_js.Append(c_pair_x.Key);
                                 r_css.Append(c_pair_x.Value);
                             }
                         } else {
-                            var c_pair = await getJSComponentPair(component);
+                            // a view's child component (e.g. TaskItem) referenced directly by a page lives in that view's components/ folder, not in components/
+                            components? parent_view = components_views.Where(kv => kv.Value.Contains(component)).Select(kv => (components?)kv.Key).FirstOrDefault();
+                            var c_pair = await getJSComponentPair(component, parent_view == null ? null : $"{path_script_apps_standalone_components}{parent_view}/components");
                             r_js.Append(c_pair.Key);
                             r_css.Append(c_pair.Value);
                         }

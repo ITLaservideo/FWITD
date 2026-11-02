@@ -4,4 +4,5 @@ out/
 appsettings.json
 *.min.min.*
 BuildingProcess/node_modules/
+*.min.*
 MockController.cs

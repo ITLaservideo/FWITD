@@ -98,7 +98,7 @@ namespace FWITD.Controllers.FM32_25 {
             bool permanent_setting = (req["permanent_setting"]?.GetValue<bool>() ?? false);//aka prefix @ by default or #
             bool has_terminal_response = (req["has_terminal_response"]?.GetValue<bool>() ?? true);//false for SCNENA*/ALLENA*/NFCENA*/NFCDOE*, otherwise it waits for the timeout
             var ss = await FM3281.SendCommandAsync(command, has_terminal_response: has_terminal_response, permanent_setting: permanent_setting);
-            Ui.log($"`{(has_terminal_response ? ss.the_response : ss.terminal_response)}` {ss.toStatus()}", Ui.TypeLog.info);
+            Ui.log($"`{(has_terminal_response ? ss.the_response : ss.terminal_response)}` {(has_terminal_response ? ss.terminal_response : "")}-{ss.toStatus()}", Ui.TypeLog.info);
             return new { ok = true };
         }
         public object WriteDataCommand(JsonNode req) {

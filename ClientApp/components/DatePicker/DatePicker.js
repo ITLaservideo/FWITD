@@ -163,11 +163,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
          */
         "time-container-minutes": null,
 
-        /**
-         * @type HTMLElement
-         */
-        "timer1-text": null,
-
         /** @type HTMLInputElement */
         "input-day": null,
         /** @type HTMLInputElement */
@@ -180,8 +175,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         "input-minutes": null,
         /** @type HTMLInputElement */
         "input-seconds": null,
-        /** @type HTMLElement */
-        "fields-time": null,
         /** @type HTMLElement */
         "interval-edges": null,
         /** @type HTMLElement */
@@ -204,9 +197,9 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         if (owner.options.is_time_intervall != true) {
             owner.elements["interval-edges"].remove();
         }
-        owner.#makeItScorribile(owner.elements["time-container-hour"], "selected_hour", "timer1-text", 23);
-        owner.#makeItScorribile(owner.elements["time-container-minutes"], "selected_minutes", "timer2-text", 59);
-        owner.#makeItScorribile(owner.elements["time-container-seconds"], "selected_seconds", "timer3-text", 59);
+        owner.#makeItScorribile(owner.elements["time-container-hour"], "selected_hour", 23);
+        owner.#makeItScorribile(owner.elements["time-container-minutes"], "selected_minutes", 59);
+        owner.#makeItScorribile(owner.elements["time-container-seconds"], "selected_seconds", 59);
         owner.#refreshEdited();
         owner.#wireFieldInputs();
         return;
@@ -218,9 +211,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         const owner = this;
         owner.elements["month-text"].innerText = Locale.parseMonthConvertToReadable(owner.#edited.selected_month);
         owner.elements["year-text"].innerText = (owner.#edited.selected_year);
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#reGenerateDates();
         owner.#refreshFields();
     }
@@ -290,15 +280,15 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
     }
     //#endregion
     /**
-     * one entry per text field: which `status` key it edits, its valid range (as typed) and, for the time ones, the timer label to keep in sync
+     * one entry per text field: which `status` key it edits and its valid range (as typed)
      */
     #fields = [
         { input: "input-day", key: "selected_day", min: 1, max: () => new Date(this.#edited.selected_year, this.#edited.selected_month + 1, 0).getDate(), date: true },
         { input: "input-month", key: "selected_month", min: 1, max: () => 12, offset: 1, date: true },
         { input: "input-year", key: "selected_year", min: 1, max: () => 9999, date: true },
-        { input: "input-hour", key: "selected_hour", min: 0, max: () => 23, text: "timer1-text" },
-        { input: "input-minutes", key: "selected_minutes", min: 0, max: () => 59, text: "timer2-text" },
-        { input: "input-seconds", key: "selected_seconds", min: 0, max: () => 59, text: "timer3-text" },
+        { input: "input-hour", key: "selected_hour", min: 0, max: () => 23 },
+        { input: "input-minutes", key: "selected_minutes", min: 0, max: () => 59 },
+        { input: "input-seconds", key: "selected_seconds", min: 0, max: () => 59 },
     ];
     /**
      * each text field applies what's typed on change, Enter, blur and 1s after the last keyup;
@@ -309,9 +299,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      */
     #wireFieldInputs() {
         const owner = this;
-        if (owner.options.ignore_seconds == true) {
-            owner.elements["fields-time"].remove();
-        }
         owner.#refreshFields();
         for (const field of owner.#fields) {
             const input = owner.elements[field.input];
@@ -500,18 +487,15 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             owner.elements["year-text"].innerText = (owner.#edited.selected_year);
             const calendar = owner.#reGenerateDates();
             calendar.querySelectorAll(".calendar-date:not(.empty)")[owner.#edited.selected_day - 1]?.classList.add("selected-date");
-        } else {
-            owner.elements[field.text].innerText = DatePicker.pad(owner.#edited[field.key]);
         }
         owner.#refreshFields();
     }
     /**
      * @param {Element} element_to_grab
      * @param {string} change_status_variable
-     * @param {string} change_element_innertext
      * @param {number} max - upper clamp (inclusive) for `owner.#edited[change_status_variable]`; the lower clamp is always 0.
      */
-    #makeItScorribile(element_to_grab, change_status_variable, change_element_innertext, max) {
+    #makeItScorribile(element_to_grab, change_status_variable, max) {
         const owner = this;
         if (typeof MovableUtil !== "undefined") {
             MovableUtil.trackMouse(element_to_grab, ({ x, y }) => {
@@ -520,7 +504,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
                 } else if (y < 0) {
                     owner.#edited[change_status_variable] = Math.min(Math.max((owner.#edited[change_status_variable]) - 1, 0), max);
                 }
-                owner.elements[change_element_innertext].innerText = DatePicker.pad(owner.#edited[change_status_variable]);
                 owner.#refreshFields();
                 // if (x > 0) {
                 //     element_to_grab.value = Math.max(Number(element_to_grab.value) - 10, 0);
@@ -658,42 +641,36 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
     async onClickTimer1Previous(event) {
         const owner = this.fwInstanceReference;
         owner.#edited.selected_hour = (owner.#edited.selected_hour + 1) % 24;   // wrap 23 → 0
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
         owner.#refreshFields();
     }
 
     async onClickTimer1Next(event) {
         const owner = this.fwInstanceReference;
         owner.#edited.selected_hour = (owner.#edited.selected_hour - 1 + 24) % 24; // wrap 0 → 23
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
         owner.#refreshFields();
     }
 
     async onClickTimer2Previous(event) {
         const owner = this.fwInstanceReference;
         owner.#edited.selected_minutes = (owner.#edited.selected_minutes + 1) % 60;   // wrap 59 → 0
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
         owner.#refreshFields();
     }
 
     async onClickTimer2Next(event) {
         const owner = this.fwInstanceReference;
         owner.#edited.selected_minutes = (owner.#edited.selected_minutes - 1 + 60) % 60; // wrap 0 → 59
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
         owner.#refreshFields();
     }
 
     async onClickTimer3Previous(event) {
         const owner = this.fwInstanceReference;
         owner.#edited.selected_seconds = (owner.#edited.selected_seconds + 1 + 60) % 60;
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
 
     async onClickTimer3Next(event) {
         const owner = this.fwInstanceReference;
         owner.#edited.selected_seconds = (owner.#edited.selected_seconds - 1 + 60) % 60;
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     async onClickNextMonth(event) {
@@ -824,9 +801,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.#edited.selected_hour = 23;
         owner.#edited.selected_minutes = 59;
         owner.#edited.selected_seconds = 59;
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     async onClickInizioGiornata(event) {
@@ -834,9 +808,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.#edited.selected_hour = 0;
         owner.#edited.selected_minutes = 0;
         owner.#edited.selected_seconds = 0;
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     async onClickOraCorrente(event) {
@@ -845,9 +816,6 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.#edited.selected_hour = now.getHours();
         owner.#edited.selected_minutes = now.getMinutes();
         owner.#edited.selected_seconds = now.getSeconds();
-        owner.elements["timer1-text"].innerText = DatePicker.pad(owner.#edited.selected_hour);
-        owner.elements["timer2-text"].innerText = DatePicker.pad(owner.#edited.selected_minutes);
-        owner.elements["timer3-text"].innerText = DatePicker.pad(owner.#edited.selected_seconds);
         owner.#refreshFields();
     }
     //#endregion
