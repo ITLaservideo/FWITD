@@ -118,7 +118,10 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                         });
                         setTimeout(async () => {
                             owner.self_ref.innerText = "";
-                            const otp_component = new OTPComponent({});
+                            const otp_component = new OTPComponent({
+                                title: "inserisci l'OTP inviato sull'APP",
+                                onSubmit: (otp) => owner.#submitOtp(otp_component, otp),
+                            });
                             owner.self_ref.appendChild(otp_component.elementReference());
                         }, 500);
                     } else {
@@ -168,6 +171,25 @@ class AndroidViewLogin extends FrameworkGC(`${injector_html}`) {
                 element.querySelector("input").focus();
             })
         }
+    }
+    /**
+     * opens AndroidAppDemo once the device-authentication OTP is entered
+     * TODO: verify the OTP server-side first (no controller endpoint exists yet) and return false on rejection
+     * @param {OTPComponent} otp_component
+     * @param {string} otp
+     */
+    #submitOtp(otp_component, otp) {
+        const misure = otp_component.elements.container_otps_inputs.firstElementChild.getBoundingClientRect();
+        new Notify({
+            text: `${Locale.at("mock otp inviato")} ${otp}`,
+            event: { clientX: misure.x - 30, clientY: misure.y + 100 },
+            ms_timeout: 2000,
+            style: 3,
+            type: "warning"
+        });
+        setTimeout(() => {
+            Lobby.post("AppRouter/Navigate", { where: "AndroidAppDemo" }, (rsp) => { });
+        }, 500);
     }
     // owner.self_ref;//access element reference here
     // owner.elementReference();//alternative way to access element reference

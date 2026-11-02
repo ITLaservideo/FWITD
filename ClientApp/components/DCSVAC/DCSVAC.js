@@ -4,7 +4,7 @@
  * The day slider is split in one track per slot (morning / afternoon), each as wide as the slot,
  * the week slider in one track per working day.
  * Hovering each slider shows the percentage via addHint.
- * On startup a modal asks at what time the working day ends, which replaces 17:30.
+ * On startup a modal asks at what time the working day ends, which replaces 17:30; clicking the last track of the day slider (the afternoon) asks it again.
  * Clicking the gap between morning and afternoon (as wide as the lunch break) opens a modal to change the lunch break, which replaces 12:30-13:30.
  * Above the sliders an encouragement text changes every time the day progress crosses a whole percent
  * (morning texts before the afternoon slot starts, afternoon texts after); clicking it shows the next one.
@@ -425,6 +425,11 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
                 widths: slots.slice(1).map(() => lunch_end - lunch_start),
                 hint: `pausa pranzo ${DCSVAC.formatMinute(lunch_start)}-${DCSVAC.formatMinute(lunch_end)}: clicca per cambiarla`,
                 onClick: () => owner.#askLunch(),
+            },
+            {// only the last track (the one ending at `#end_minute`) changes the end of the day
+                clickable: slots.map((_, i) => i == slots.length - 1),
+                hints: slots.map((_, i) => i == slots.length - 1 ? `fine giornata ${DCSVAC.formatMinute(owner.#end_minute)}: clicca per cambiarla` : null),
+                onClick: () => owner.#askEndHour(),
             });
         owner.#refreshBar(owner.elements.day_bar, owner.elements.day_explained,
             day_progress, is_day_off ? `oggi non si lavora! 😎` : `100% — giornata finita! 🌇`);
@@ -458,8 +463,9 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
      * @param {string} gaps.hint - hint of the gaps (UiBuilder hint)
      * @param {Function} gaps.onClick - only read when the tracks are (re)built
      * @param {Object} [track_options] - makes the tracks clickable
-     * @param {Array<boolean>} track_options.off - per track, shown as off (`.dcsvac-track-off`)
-     * @param {Array<string>} track_options.hints - per track (UiBuilder hint)
+     * @param {Array<boolean>} [track_options.clickable] - per track, whether it's clickable (missing = clickable); only read when the tracks are (re)built
+     * @param {Array<boolean>} [track_options.off] - per track, shown as off (`.dcsvac-track-off`)
+     * @param {Array<string|null>} track_options.hints - per track (UiBuilder hint), null for none
      * @param {(index: number) => void} track_options.onClick - only read when the tracks are (re)built
      */
     #refreshSegments(container, thumb, widths, fractions, gaps = null, track_options = null) {
@@ -482,7 +488,7 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
                 }
                 const track = document.createElement("div");
                 track.className = "dcsvac-track";
-                if (track_options != null) {
+                if (track_options != null && (track_options.clickable?.[i] ?? true)) {
                     track.classList.add("dcsvac-track-clickable");
                     track.addEventListener("click", () => track_options.onClick(i));
                 }
@@ -497,8 +503,10 @@ class DCSVAC extends FrameworkGC(`${injector_html}`) {
             track.style.flex = `${widths[i]} 1 0`;
             track.firstElementChild.style.width = `${fractions[i] * 100}%`;
             if (track_options != null) {
-                track.classList.toggle("dcsvac-track-off", track_options.off[i] == true);
-                UiBuilder.addOrUpdateHint({ target: track, hint: track_options.hints[i], anchor: "top" });
+                track.classList.toggle("dcsvac-track-off", track_options.off?.[i] == true);
+                if (track_options.hints[i] != null) {
+                    UiBuilder.addOrUpdateHint({ target: track, hint: track_options.hints[i], anchor: "top" });
+                }
             }
         });
         if (gaps != null) {

@@ -63,7 +63,7 @@
         border-radius: 3px;
         background-color: var(--vscode-widget-border);
 
-        /* week: one per day, clickable to toggle it as a work day; the hit area is taller than the 6px track */
+        /* week: one per day, clickable to toggle it as a work day; day: the last one, clickable to change the end of the day; the hit area is taller than the 6px track */
         &.dcsvac-track-clickable {
             cursor: pointer;
 
@@ -188,18 +188,7 @@
         justify-content: center;
         gap: 6px 12px;
         padding: 0;
-
-    }
-
-    .date-picker-container {
-        flex-direction: row;
-    }
-
-    .time-selections {
-        display: none !important;
-    }
-
-    .dp-fields {
-        margin: 0px !important;
+        padding-left: 6px;
+        padding-right: 6px;
     }
 }

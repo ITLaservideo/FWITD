@@ -28,7 +28,7 @@ const COMMANDS = [
  * prefixes of the commands the reader doesn't answer with a terminal response (sent with `has_terminal_response: false`,
  * otherwise FM3281.SendCommandAsync waits for its timeout)
  */
-const NO_TERMINAL_RESPONSE_PREFIXES = ["SCNENA", "ALLENA", "NFCENA", "NFCDOE"];
+const NO_TERMINAL_RESPONSE_PREFIXES = ["SCNENA", "ALLENA", "NFCENA", "NFCDOE", "BEEPON"];
 /**
  * @param {string} command
  * @returns {boolean}
@@ -441,10 +441,44 @@ class App {
             anchor: "left"
         };
         const permanent_toggle = UiBuilder.createToggle(options_create_toggle);
+
+        //@note follows `hasTerminalResponse` while typing, clicking it overrides the guess for the current command
+        const terminal_response_storage_key = "DashboardLettoreBarcode_terminal_response";
+        const terminal_response = { yes: true };
+        try {
+            const saved = localStorage.getItem(terminal_response_storage_key);
+            if (saved !== null) terminal_response.yes = saved === "true";
+        } catch (e) {
+            console.warn(`Failed to load terminal response from localStorage: ${e.message}`);
+        }
+        const setTerminalResponse = (yes) => {
+            terminal_response.yes = yes;
+            options_terminal_response_toggle.setIsOn(yes);
+            try {
+                localStorage.setItem(terminal_response_storage_key, `${yes}`);
+            } catch (e) {
+                console.warn(`Failed to save terminal response to localStorage: ${e.message}`);
+            }
+        };
+        const options_terminal_response_toggle = {
+            label: `${Locale.at("terminal response")}?`,
+            innerText: {
+                on: Locale.at("yes"),
+                off: Locale.at("no")
+            },
+            onClick: (event) => setTerminalResponse(!terminal_response.yes),
+            isOn: terminal_response.yes,
+            theme: "mini",
+            hint: "has_terminal_response:\n yes: waits for the reader's terminal response;\n no: doesn't wait for it (SCNENA*/ALLENA*/NFCENA*/NFCDOE*), otherwise it waits for the timeout.",
+            anchor: "left"
+        };
+        const terminal_response_toggle = UiBuilder.createToggle(options_terminal_response_toggle);
+        command_input.addEventListener("input", () => setTerminalResponse(hasTerminalResponse(command_input.value.trim())));
+
         const send_btn = UiBuilder.createButton({
             title: Locale.at("send"),
             class: "dlb-action-btn",
-            onClick: (event) => owner.#runSendRawCommand(command_input.value, self_aware.yes, event),
+            onClick: (event) => owner.#runSendRawCommand(command_input.value, self_aware.yes, event, terminal_response.yes),
         });
 
         const btn_row = document.createElement("div");
@@ -453,6 +487,7 @@ class App {
 
         container.appendChild(owner.#buildWriteMifareRow("command", command_input));
         container.appendChild(permanent_toggle);
+        container.appendChild(terminal_response_toggle);
         container.appendChild(btn_row);
 
         new SpeedActions({
@@ -465,9 +500,9 @@ class App {
     /**
      * `permanent_setting` mirrors FM32_25Controller.SendRawCommand's flag: true prefixes the
      * command with `@` (persisted setting) instead of the default `#` (transient command).
-     * `has_terminal_response` is derived from the command, see `hasTerminalResponse`.
+     * `has_terminal_response`, when not given, is derived from the command, see `hasTerminalResponse`.
      */
-    async #runSendRawCommand(command, permanent_setting, event) {
+    async #runSendRawCommand(command, permanent_setting, event, has_terminal_response = undefined) {
         const owner = this;
         if (!owner.#portIsOpen || !command) {
             return;
@@ -477,7 +512,7 @@ class App {
         const rsp = await Lobby.postAsync("FM32_25/SendRawCommand", {
             command: String(command),
             permanent_setting: Boolean(permanent_setting),
-            has_terminal_response: hasTerminalResponse(command),
+            has_terminal_response: has_terminal_response ?? hasTerminalResponse(command),
         });
         if (rsp.error != undefined) {
             LiveLogger.log(`${Locale.at("error")}: ${rsp.error}`);
