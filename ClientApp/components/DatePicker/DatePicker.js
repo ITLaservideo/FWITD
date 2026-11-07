@@ -14,6 +14,11 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      * @param {number} [options.offset_years] - How many years ahead of the current year the year-picker starts (then counts down 100 years). Defaults to whatever offset lands on the closest multiple of 10 (e.g. in 2026, defaults to 4, landing on 2030).
      * @param {boolean} [options.ignore_seconds] - If true, removes the entire hour/minute/second row (despite the name, not just seconds - this also removes the "fine giornata"/"inizio giornata"/"ora attuale" shortcuts).
      * @param {boolean} [options.time_only] - If true, shows only the hour and minutes selectors (hides seconds, the day shortcuts and the whole calendar). Read the result from `status.selected_hour` / `status.selected_minutes`.
+     * @param {boolean} [options.year_only] - If true, picks only a year: shows the year field and a grid of 12 years (the selected one's decade, plus the year before and after), the arrows page by decade.
+     * Clicking a year selects it (and closes the floating `BottomSheet`). Month, day and time are fixed to January 1st 00:00:00; read the year with `getDate('yyyy')` or `status.selected_year`.
+     * `options.value` also accepts the bare year as a number (e.g. `2020`). Not combinable with `is_time_intervall`.
+     * @param {number} [options.min_year] - Lowest selectable year (any mode): limits the year field, the year grid and popup, the month arrows; the initial value is clamped into it. Default 1.
+     * @param {number} [options.max_year] - Highest selectable year, same as `options.min_year`. Default 9999. A 2-digit year typed past it goes to the previous century (with max 2027, "98" → 1998).
      * @param {boolean} [options.floating=true] - If not `false`, `elementReference()` returns a read-only trigger input that opens the full picker in a centered `BottomSheet` on click, instead of rendering the picker inline.
      * @param {string} [options.placeholder] - Placeholder text for the floating trigger input; only used when `options.floating` isn't `false`.
      * @param {string} [options.label] - Label rendered above the floating trigger input; only used when `options.floating` isn't `false`.
@@ -43,8 +48,12 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         if (options.height != undefined) {
             this.self_ref.style.height = options.height;
         }
-        if (options.value != undefined) {
-            const initial = options.value instanceof Date ? options.value : new Date(options.value);
+        const is_year_only = options.year_only == true;
+        console.assert(!is_year_only || options.is_time_intervall != true, "DatePicker: year_only doesn't support is_time_intervall");
+        // year_only: a bare number is the year (not a timestamp)
+        const value = is_year_only && typeof options.value == "number" ? new Date(options.value, 0, 1) : options.value;
+        if (value != undefined) {
+            const initial = value instanceof Date ? value : new Date(value);
             if (!isNaN(initial.getTime())) {
                 this.current_time = initial;
                 this.#setStatus(initial, "");
@@ -56,6 +65,18 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             if (!isNaN(initial_end.getTime())) {
                 this.#setStatus(initial_end, "_end");
             }
+        }
+        // initial value (or now) out of min_year/max_year: clamped into it
+        for (const suffix of ["", "_end"]) {
+            const year = this.status[`selected_year${suffix}`];
+            if (!this.#isYearAllowed(year)) {
+                const date = this.#statusDate(suffix);
+                date.setFullYear(Math.min(Math.max(year, this.#minYear()), this.#maxYear()));
+                this.#setStatus(date, suffix);
+            }
+        }
+        if (is_year_only) {// only the year matters: the rest is fixed to its first moment
+            this.#setStatus(new Date(this.status.selected_year, 0, 1), "");
         }
     }
     /**
@@ -197,6 +218,12 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         if (owner.options.is_time_intervall != true) {
             owner.elements["interval-edges"].remove();
         }
+        if (owner.options.year_only == true) {
+            owner.self_ref.classList.add("dp-year-only");
+            // only the year field: the day and month ones go, with their "/" separators (still updated, just never shown)
+            owner.elements["input-year"].parentElement.replaceChildren(owner.elements["input-year"]);
+            owner.elements["time-selections"].remove();
+        }
         owner.#makeItScorribile(owner.elements["time-container-hour"], "selected_hour", 23);
         owner.#makeItScorribile(owner.elements["time-container-minutes"], "selected_minutes", 59);
         owner.#makeItScorribile(owner.elements["time-container-seconds"], "selected_seconds", 59);
@@ -283,12 +310,12 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
      * one entry per text field: which `status` key it edits and its valid range (as typed)
      */
     #fields = [
-        { input: "input-day", key: "selected_day", min: 1, max: () => new Date(this.#edited.selected_year, this.#edited.selected_month + 1, 0).getDate(), date: true },
-        { input: "input-month", key: "selected_month", min: 1, max: () => 12, offset: 1, date: true },
-        { input: "input-year", key: "selected_year", min: 1, max: () => 9999, date: true },
-        { input: "input-hour", key: "selected_hour", min: 0, max: () => 23 },
-        { input: "input-minutes", key: "selected_minutes", min: 0, max: () => 59 },
-        { input: "input-seconds", key: "selected_seconds", min: 0, max: () => 59 },
+        { input: "input-day", key: "selected_day", min: () => 1, max: () => new Date(this.#edited.selected_year, this.#edited.selected_month + 1, 0).getDate(), date: true },
+        { input: "input-month", key: "selected_month", min: () => 1, max: () => 12, offset: 1, date: true },
+        { input: "input-year", key: "selected_year", min: () => this.#minYear(), max: () => this.#maxYear(), date: true },
+        { input: "input-hour", key: "selected_hour", min: () => 0, max: () => 23 },
+        { input: "input-minutes", key: "selected_minutes", min: () => 0, max: () => 59 },
+        { input: "input-seconds", key: "selected_seconds", min: () => 0, max: () => 59 },
     ];
     /**
      * each text field applies what's typed on change, Enter, blur and 1s after the last keyup;
@@ -441,8 +468,30 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         let value = digits == "" ? NaN : Number(digits);
         if (field.key == "selected_year" && digits.length <= 2) {
             value += 2000;
+            if (value > this.#maxYear()) {// past max_year: the previous century (e.g. "98" → 1998)
+                value -= 100;
+            }
         }
         return value;
+    }
+    /**
+     * @returns {number} lowest selectable year (`options.min_year`, default 1)
+     */
+    #minYear() {
+        return this.options.min_year ?? 1;
+    }
+    /**
+     * @returns {number} highest selectable year (`options.max_year`, default 9999)
+     */
+    #maxYear() {
+        return this.options.max_year ?? 9999;
+    }
+    /**
+     * @param {number} year
+     * @returns {boolean}
+     */
+    #isYearAllowed(year) {
+        return year >= this.#minYear() && year <= this.#maxYear();
     }
     /**
      * matches the typed letters (anything else is ignored) against `Locale.getShortMonths()`, case-insensitive:
@@ -464,7 +513,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         return index < 0 ? NaN : index + 1;
     }
     #isInRange(field, value) {
-        return !isNaN(value) && value >= field.min && value <= field.max();
+        return !isNaN(value) && value >= field.min() && value <= field.max();
     }
     /**
      * applies the typed number to the picker, forced into the field's range: not a number → min, too small → min, too big → max
@@ -478,7 +527,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             return;
         }
         const value = owner.#parseField(field, text);
-        owner.#edited[field.key] = (isNaN(value) ? field.min : Math.min(Math.max(value, field.min), field.max())) - (field.offset ?? 0);
+        owner.#edited[field.key] = (isNaN(value) ? field.min() : Math.min(Math.max(value, field.min()), field.max())) - (field.offset ?? 0);
         if (field.date == true) {
             // e.g. 31 → February: clamp the day to the new month's length
             const days_in_month = new Date(owner.#edited.selected_year, owner.#edited.selected_month + 1, 0).getDate();
@@ -517,7 +566,7 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         return String(n).padStart(2, "0");
     }
     /**
-     * @param {'iso'|'ddMMyyyy'|'ddMMyyyy_HHmmss'|'HHmmss_ddMMyyy'|'HHmm'} [date_format='iso'] - `iso`: "yyyy-MM-ddTHH:mm:ss" | `ddMMyyyy`: "dd-MM-yyyy" | `ddMMyyyy_HHmmss`: "dd-MM-yyyy HH:mm:ss" | `HHmmss_ddMMyyy`: "HH:mm:ss dd-MM-yyyy" | `HHmm`: "HH:mm"
+     * @param {'iso'|'ddMMyyyy'|'ddMMyyyy_HHmmss'|'HHmmss_ddMMyyy'|'HHmm'|'yyyy'} [date_format='iso'] - `iso`: "yyyy-MM-ddTHH:mm:ss" | `ddMMyyyy`: "dd-MM-yyyy" | `ddMMyyyy_HHmmss`: "dd-MM-yyyy HH:mm:ss" | `HHmmss_ddMMyyy`: "HH:mm:ss dd-MM-yyyy" | `HHmm`: "HH:mm" | `yyyy`: "yyyy"
      * @param {boolean} [end=false] - with `is_time_intervall`, the end of the interval instead of the start
      * @returns {string}
      */
@@ -534,6 +583,8 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
             case 'HHmm':
                 // HH:mm
                 return `${HH}:${mm}`;
+            case 'yyyy':
+                return `${yyyy}`;
             case 'ddMMyyyy':
                 // dd-MM-yyyy
                 return `${dd}-${MM}-${yyyy}`;
@@ -550,11 +601,11 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         }
     }
     /**
-     * @returns {'HHmm'|'ddMMyyyy'|'HHmmss_ddMMyyy'} the `getDate` format matching what the picker shows (floating input, interval tabs)
+     * @returns {'yyyy'|'HHmm'|'ddMMyyyy'|'HHmmss_ddMMyyy'} the `getDate` format matching what the picker shows (floating input, interval tabs)
      */
     #displayFormat() {
         const options = this.options;
-        return options.time_only == true ? 'HHmm' : options.ignore_seconds == true ? 'ddMMyyyy' : 'HHmmss_ddMMyyy';
+        return options.year_only == true ? 'yyyy' : options.time_only == true ? 'HHmm' : options.ignore_seconds == true ? 'ddMMyyyy' : 'HHmmss_ddMMyyy';
     }
     /**
      * @returns {string} text of the floating trigger input: the date, or "start → end" with `is_time_intervall`
@@ -567,6 +618,9 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
     //#region UiBuilder
     #reGenerateDates() {
         const owner = this;
+        if (owner.options.year_only == true) {
+            return owner.#reGenerateYears();
+        }
 
         const container = document.createElement("div");
         container.classList.add("calendar-container");
@@ -633,6 +687,43 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         owner.elements["body-selections"].appendChild(container);
         return container;
     }
+    /**
+     * with `year_only`, the first year of the decade shown by the year grid (the arrows page it without changing the selection)
+     */
+    #shown_decade = 0;
+    /**
+     * `year_only` body: 12 years, the decade plus the year before and after (dimmed), clicking one selects it
+     * @param {number} [decade] - first year of the decade to show, defaults to the selected year's
+     */
+    #reGenerateYears(decade = Math.floor(this.#edited.selected_year / 10) * 10) {
+        const owner = this;
+        owner.#shown_decade = decade;
+        const container = document.createElement("div");
+        container.classList.add("dp-year-grid");
+        const current_year = new Date().getFullYear();
+        for (let year = decade - 1; year <= decade + 10; year++) {
+            const cell = document.createElement("div");
+            cell.classList.add("dp-year-cell");
+            cell.innerText = year;
+            cell.classList.toggle("dp-year-outside", year < decade || year > decade + 9);
+            cell.classList.toggle("selected-year", year == owner.#edited.selected_year);
+            cell.classList.toggle("today", year == current_year);
+            if (!owner.#isYearAllowed(year)) {// out of min_year/max_year
+                cell.classList.add("dp-year-disabled");
+                container.appendChild(cell);
+                continue;
+            }
+            cell.addEventListener("click", () => {
+                owner.#edited.selected_year = year;
+                owner.#refreshEdited();
+                owner.elements.instanceBottomSheet?.destroy();
+            });
+            container.appendChild(cell);
+        }
+        owner.elements["body-selections"].innerText = "";
+        owner.elements["body-selections"].appendChild(container);
+        return container;
+    }
     setInputText() {
 
     }
@@ -678,6 +769,15 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
          * @type DatePicker
          */
         const owner = this.fwInstanceReference;
+        if (owner.options.year_only == true) {// next decade, unless it's all past max_year
+            if (owner.#shown_decade + 10 <= owner.#maxYear()) {
+                owner.#reGenerateYears(owner.#shown_decade + 10);
+            }
+            return;
+        }
+        if (owner.#edited.selected_month == 11 && owner.#edited.selected_year >= owner.#maxYear()) {
+            return;
+        }
         owner.#edited.selected_month++;
         if (owner.#edited.selected_month > 11) {
             owner.#edited.selected_month = 0;
@@ -691,6 +791,15 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
     }
     async onClickPreviousMonth(event) {
         const owner = this.fwInstanceReference;
+        if (owner.options.year_only == true) {// previous decade, unless it's all before min_year
+            if (owner.#shown_decade - 1 >= owner.#minYear()) {
+                owner.#reGenerateYears(owner.#shown_decade - 10);
+            }
+            return;
+        }
+        if (owner.#edited.selected_month == 0 && owner.#edited.selected_year <= owner.#minYear()) {
+            return;
+        }
         owner.#edited.selected_month--;
         if (owner.#edited.selected_month < 0) {
             owner.#edited.selected_month = 11;
@@ -762,11 +871,13 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
         const current_year = owner.current_time.getFullYear();
         // default: offset to whichever multiple of 10 is closest to the current year (e.g. 2026 -> 2030, offset 4)
         const offset_years = owner.options.offset_years ?? (Math.round(current_year / 10) * 10 - current_year);
-        const start_year = current_year + offset_years;
+        // never past max_year
+        const start_year = Math.min(current_year + offset_years, owner.#maxYear());
         // wide screens: 10 years per row, each row in ascending order (rows still descend, e.g. 2021..2030 / 2011..2020)
         const is_grid = window.innerWidth > 600;
         const years = [];
-        for (let i = start_year; i > start_year - 100; i--) {
+        // 100 years down, stopping at min_year
+        for (let i = start_year; i > start_year - 100 && i >= owner.#minYear(); i--) {
             years.push(i);
         }
         if (is_grid) {
@@ -950,6 +1061,12 @@ class DatePicker extends FrameworkGC(`${injector_html}`) {
 //             options: { floating: false, is_time_intervall: true, time_only: true, value: new Date(new Date().setHours(8, 30, 0, 0)), value_end: new Date(new Date().setHours(17, 30, 0, 0)) },
 //             test: "Scrivi l'ora e i minuti di inizio (o premi Invio sui minuti), poi quelli di fine; passa tra le schede \"inizio\"/\"fine\" e trascina ore/minuti; prova a mettere la fine prima dell'inizio (es. inizio 18:00).",
 //             expect: "Si vedono solo le schede (\"inizio 08:30\" → \"fine 17:30\") e ore/minuti, niente calendario. Riempiti i minuti di inizio (o con Invio) il fuoco passa alle ore di fine; le schede si aggiornano mentre modifichi. La fine non va mai prima dell'inizio: inizio 18:00 porta anche la fine a 18:00."
+//         },
+//         {
+//             title: "11) year_only",
+//             options: { floating: false, year_only: true, value: 2020 },
+//             test: "Clicca un anno nella griglia, usa le frecce, scrivi un anno nel campo (anche \"98\").",
+//             expect: "Solo il campo anno e una griglia di 12 anni (decennio + anno prima/dopo attenuati), 2020 selezionato. Le frecce cambiano decennio senza cambiare la selezione; \"98\" diventa 2098. dp.getDate('iso') dà sempre yyyy-01-01T00:00:00."
 //         }
 //     ];
 

@@ -1,0 +1,21 @@
+html,
+body {
+    height: 100%;
+}
+
+body {
+    background-color: var(--vscode-editor-background);
+    font-family: var(--vscode-font-family);
+    margin-top: 0;
+    color: var(--vscode-input-foreground);
+}
+
+#app-main-content {
+    height: 100%;
+    overflow-y: auto;
+}
+
+/* onboarding dialog form (built in VehicleMaintenance.js with UiBuilder.createSettingsGroup, shown inside a BottomSheet) */
+.vm-info-form {
+    width: 100%;
+}

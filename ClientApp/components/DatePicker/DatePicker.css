@@ -233,6 +233,70 @@
         }
     }
 
+    /* options.year_only: year field + a grid of 12 years, the arrows page by decade */
+    &.dp-year-only {
+        min-width: 200px;
+
+        .dp-fields {
+            margin-left: 0;
+            margin-right: 0;
+        }
+
+        .month-text {
+            display: none;
+        }
+
+        .body-selections {
+            width: 100%;
+            min-height: auto;
+        }
+    }
+
+    .dp-year-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-auto-rows: var(--dp-row-height);
+        gap: 2px;
+        width: 100%;
+    }
+
+    .dp-year-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+        cursor: pointer;
+        border-radius: 4px;
+
+        &:hover {
+            background-color: var(--vscode-list-hoverBackground);
+        }
+
+        /* the year before and after the decade */
+        &.dp-year-outside {
+            opacity: .6;
+        }
+
+        /* out of options.min_year/max_year */
+        &.dp-year-disabled {
+            opacity: .3;
+            cursor: default;
+            background: transparent;
+        }
+
+        &.today {
+            outline: 1px solid var(--vscode-focusBorder);
+            outline-offset: -1px;
+        }
+
+        &.selected-year {
+            background-color: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            font-weight: bold;
+            opacity: 1;
+        }
+    }
+
 }
 
 .dp-triggerer-wrap {
