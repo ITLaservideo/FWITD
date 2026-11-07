@@ -221,6 +221,7 @@ namespace FWITD {
             /// </summary>
             internal static readonly Dictionary<pages, components[]> page_to_components = new Dictionary<pages, components[]>() {
                 { pages.test_page, new components[] { components.FrameworkTestComponent } },
+                { pages.VehicleMaintenance, new components[] { components.VehicleDashboard } },
             };
             /// <summary>
             /// the child components are loaded automatically
@@ -239,9 +240,9 @@ namespace FWITD {
                 { components.InstallationSecureMessaging, Array.Empty<components>() },
                 { components.Settings, Array.Empty<components>() },
             };
-            internal enum pages { AdminSettings, AndroidAppDemo, AndroidLogin, DashboardLayout1, DashboardLettoreBarcode, DataCruncher, DCVAC, ImageEditor, left_panel, PDFEditor, ServerStatus, Showcase, some_page, test_page }
+            internal enum pages { AdminSettings, AndroidAppDemo, AndroidLogin, DashboardLayout1, DashboardLettoreBarcode, DataCruncher, DCVAC, ImageEditor, left_panel, PDFEditor, ServerStatus, Showcase, some_page, test_page, VehicleMaintenance }
             internal enum injectable_apps { cloudflared, GestionaleDistributore, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
-            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, BreadCrumbs, CardRefillmentSuggestions, DataAnalizis1, DataCruncher, DatePicker, DCSVAC, DockWindow, DragAndDrop, EmptyState, ExportDataButton, FrameworkTestComponent, GeneralChart, ImageEditor, Insight, InstallationSecureMessaging, KeyBoard, ListBox, MegaMenu, MousePopUp, Notify, OTPComponent, PDFEditor, PosizioneMotore, Settings, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, StickyBar, Table, Table2, TaskItem, ThemeSelector, Tooltip, TreeMenu, WizardStepper }
+            internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, BreadCrumbs, CardRefillmentSuggestions, DataAnalizis1, DataCruncher, DatePicker, DCSVAC, DockWindow, DragAndDrop, EmptyState, ExportDataButton, FrameworkTestComponent, GeneralChart, ImageEditor, Insight, InstallationSecureMessaging, KeyBoard, ListBox, MegaMenu, MousePopUp, Notify, OTPComponent, PDFEditor, PosizioneMotore, Settings, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, StickyBar, Table, Table2, TaskItem, ThemeSelector, Tooltip, TreeMenu, VehicleDashboard, WizardStepper }
             internal enum utils { AppRouter, Icons, LiveLogger, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
             internal enum frameworks { AppStatus, FrameworkGC }
             /// <summary>

@@ -1,0 +1,233 @@
+.vd-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.vd-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.vd-name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.vd-sub {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground, #858585);
+}
+
+.vd-header-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.vd-header-btn {
+    border: 1px solid var(--vscode-input-border, #3c3c3c);
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.vd-header-btn:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.vd-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.vd-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    color: var(--vscode-descriptionForeground, #858585);
+    margin-bottom: 8px;
+}
+
+.vd-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vd-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: var(--vscode-editorWidget-background, rgba(128, 128, 128, .08));
+    border-left: 3px solid transparent;
+}
+
+.vd-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vd-row-label {
+    font-size: 13px;
+}
+
+.vd-row-detail {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground, #858585);
+}
+
+.vd-badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.vd-row-action {
+    flex-shrink: 0;
+    border: 1px solid var(--vscode-input-border, #3c3c3c);
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.vd-row-action:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.vd-status-ok {
+    border-left-color: #4caf50;
+}
+
+.vd-status-ok .vd-badge {
+    background-color: rgba(76, 175, 80, .18);
+    color: #4caf50;
+}
+
+.vd-status-warning {
+    border-left-color: #e0a940;
+}
+
+.vd-status-warning .vd-badge {
+    background-color: rgba(224, 169, 64, .18);
+    color: #e0a940;
+}
+
+.vd-status-overdue {
+    border-left-color: #e05252;
+}
+
+.vd-status-overdue .vd-badge {
+    background-color: rgba(224, 82, 82, .18);
+    color: #e05252;
+}
+
+.vd-status-info {
+    border-left-color: var(--vscode-descriptionForeground, #858585);
+}
+
+.vd-status-info .vd-badge {
+    background-color: rgba(128, 128, 128, .18);
+    color: var(--vscode-descriptionForeground, #858585);
+}
+
+/* profile switcher dialog body (built in VehicleDashboard.js, shown inside a BottomSheet) */
+.vd-profile-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+.vd-profile-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: var(--vscode-editorWidget-background, rgba(128, 128, 128, .08));
+}
+
+.vd-profile-current {
+    border: 1px solid var(--vscode-focusBorder, #4caf50);
+}
+
+.vd-profile-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vd-profile-action {
+    flex-shrink: 0;
+    border: 1px solid var(--vscode-input-border, #3c3c3c);
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border-radius: 4px;
+    padding: 4px 8px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.vd-profile-action:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.vd-profile-delete:hover {
+    background-color: rgba(224, 82, 82, .18);
+    color: #e05252;
+}
+
+.vd-profile-add {
+    margin-top: 6px;
+    border: 1px dashed var(--vscode-input-border, #3c3c3c);
+    background-color: transparent;
+    color: var(--vscode-input-foreground);
+    border-radius: 4px;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.vd-profile-add:hover {
+    background-color: var(--vscode-list-hoverBackground);
+}
+
+.vd-header-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.vd-profile-icon {
+    flex-shrink: 0;
+    font-size: 18px;
+}
+
+.vd-header-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}

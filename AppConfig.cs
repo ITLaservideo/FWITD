@@ -24,6 +24,7 @@ namespace FWITD {
             PDFEditor = 9002,
             DataCruncher = 9004,
             DCVAC = 9005,
+            VehicleMaintenance = 9006,
     }
 
     internal static class AppConfig {
@@ -80,6 +81,8 @@ namespace FWITD {
                     [StartApp.DataCruncher]          = ( main: (JSProvider.JS.pages.DataCruncher,          null),
                                                   extra: (null, null)),
                     [StartApp.DCVAC]          = ( main: (JSProvider.JS.pages.DCVAC,          null),
+                                                  extra: (null, null)),
+                    [StartApp.VehicleMaintenance] = ( main: (JSProvider.JS.pages.VehicleMaintenance, null),
                                                   extra: (null, null)),
         };
 #pragma warning restore IDE0055
