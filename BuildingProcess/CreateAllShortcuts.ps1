@@ -13,7 +13,23 @@ $shortcuts = @(
     @{ Name = "_ToDoList.lnk"; Args = "--start-app 7"; Icon = "todo.ico" },
     @{ Name = "_ServerStatus.lnk"; Args = "--start-app 12"; Icon = "server_status.ico" },
     @{ Name = "_ImageEditor.lnk"; Args = "--start-app 13"; Icon = "image_editor.ico" },
-    @{ Name = "_DCVAC5.lnk"; Args = "--start-app 9005"; Icon = "ttgh.ico" }
+    @{ Name = "_DCVAC5.lnk"; Args = "--start-app 9005"; Icon = "ttgh.ico" },
+    @{ Name = "_TestPage.lnk"; Args = "--start-app -1"; Icon = "demo.ico" },
+    @{ Name = "_Showcase.lnk"; Args = "--start-app -2"; Icon = "demo.ico" },
+    @{ Name = "_Dashboard.lnk"; Args = "--start-app 0"; Icon = "demo.ico" },
+    @{ Name = "_GestionaleDistributore.lnk"; Args = "--start-app 2"; Icon = "demo.ico" },
+    @{ Name = "_GoogleDocs.lnk"; Args = "--start-app 4"; Icon = "demo.ico" },
+    @{ Name = "_AndroidLogin.lnk"; Args = "--start-app 6"; Icon = "demo.ico" },
+    @{ Name = "_TemplateJobs.lnk"; Args = "--start-app 8"; Icon = "demo.ico" },
+    @{ Name = "_YouTube.lnk"; Args = "--start-app 9"; Icon = "demo.ico" },
+    @{ Name = "_AndroidDebug.lnk"; Args = "--start-app 10"; Icon = "demo.ico" },
+    @{ Name = "_AndroidGestionaleDistributore.lnk"; Args = "--start-app 11"; Icon = "demo.ico" },
+    @{ Name = "_DashboardLettoreBarcode.lnk"; Args = "--start-app 3225"; Icon = "demo.ico" },
+    @{ Name = "_DashboardLayout1.lnk"; Args = "--start-app 3226"; Icon = "demo.ico" },
+    @{ Name = "_AdminSettings.lnk"; Args = "--start-app 9001"; Icon = "demo.ico" },
+    @{ Name = "_PDFEditor.lnk"; Args = "--start-app 9002"; Icon = "demo.ico" },
+    @{ Name = "_DataCruncher.lnk"; Args = "--start-app 9004"; Icon = "demo.ico" },
+    @{ Name = "_VehicleMaintenance.lnk"; Args = "--start-app 9006"; Icon = "demo.ico" }
 )
 
 foreach ($s in $shortcuts) {

@@ -5,7 +5,23 @@ class BottomSheet extends FrameworkGC(`${injector_html}`) {
     static enable_animations = document.querySelector("[name~=enable-animations][content]")?.content == "true";
     static pro_user = document.querySelector("[name~=expert-user][content]")?.content == "true";
     /**
-     * @param {Object} options 
+     * the open sheets that Escape closes, the newest last: Escape closes only the topmost
+     * @type {BottomSheet[]}
+     */
+    static #escape_stack = [];
+    static #onEscape = (event) => {
+        if (event.key != "Escape" || BottomSheet.#escape_stack.length == 0) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        BottomSheet.#escape_stack[BottomSheet.#escape_stack.length - 1].destroy();
+    };
+    /**
+     * @param {Object} options
+     * @param {Element} options.element - the content
+     * @param {boolean} [options.centered] - in the middle of the window instead of at the bottom
+     * @param {boolean} [options.escape_closes] - Escape closes it (the topmost such sheet only), like its ✕ and a click outside
      * @param {Function|Array<Function>} [options.onClose] - callback(s) to be called on destroy
      * @param {Function} [options.onReady] - callback to be called when component is ready
      */
@@ -14,6 +30,25 @@ class BottomSheet extends FrameworkGC(`${injector_html}`) {
         console.assert(this.elements != null, "missing owner.elements container of the ref elements");
         this.#initialize();
         this.enqueueHistory();
+        if (options.escape_closes == true) {
+            if (BottomSheet.#escape_stack.length == 0) {
+                document.addEventListener("keydown", BottomSheet.#onEscape, true);
+            }
+            BottomSheet.#escape_stack.push(this);
+        }
+    }
+    /**
+     * @param {number} timeout_ms 0 by default
+     */
+    destroy(timeout_ms = 0) {
+        const i = BottomSheet.#escape_stack.indexOf(this);
+        if (i >= 0) {
+            BottomSheet.#escape_stack.splice(i, 1);
+            if (BottomSheet.#escape_stack.length == 0) {
+                document.removeEventListener("keydown", BottomSheet.#onEscape, true);
+            }
+        }
+        super.destroy(timeout_ms);
     }
     /**
      * store here the elements references of the html  

@@ -1714,6 +1714,103 @@ html {
     color: var(--vscode-editorError-foreground);
 }
 
+.ui-badge-urgent {
+    background: color-mix(in srgb, var(--vscode-charts-orange) 20%, transparent);
+    color: var(--vscode-charts-orange);
+}
+
+/* ── UiBuilder.createButton({ disabled }) / setDisabled(): still hoverable, so its hint can say why ── */
+.ui-disabled {
+    opacity: 0.45;
+    cursor: default;
+    filter: grayscale(0.4);
+}
+
+/* ── UiBuilder.createMeter: one fill element, cut into --n segments by a mask ── */
+.ui-meter-wrap {
+    position: relative;
+
+    &.mid::after {
+        content: "";
+        position: absolute;
+        left: calc(50% - 1px);
+        top: -3px;
+        bottom: -3px;
+        width: 2px;
+        border-radius: 1px;
+        background: var(--vscode-foreground);
+        opacity: 0.55;
+    }
+}
+
+.ui-meter {
+    --n: 36;
+    --fill: 0%;
+    --tone: var(--vscode-progressBar-background);
+    position: relative;
+    height: 9px;
+    background: color-mix(in srgb, var(--vscode-descriptionForeground) 22%, transparent);
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 calc(100% / var(--n) - 2px), transparent calc(100% / var(--n) - 2px) calc(100% / var(--n)));
+    mask-image: repeating-linear-gradient(90deg, #000 0 calc(100% / var(--n) - 2px), transparent calc(100% / var(--n) - 2px) calc(100% / var(--n)));
+
+    >i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: var(--fill);
+        background: var(--tone);
+    }
+
+    &.ui-meter-success {
+        --tone: var(--vscode-charts-green);
+    }
+
+    &.ui-meter-warning {
+        --tone: var(--vscode-editorWarning-foreground);
+    }
+
+    &.ui-meter-danger {
+        --tone: var(--vscode-editorError-foreground);
+    }
+}
+
+/* ── UiBuilder.createCountdown ── */
+.ui-countdown {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 4px 0;
+
+    >.ui-countdown-n {
+        font-size: 40px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+    }
+
+    >.ui-countdown-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: color-mix(in srgb, var(--vscode-descriptionForeground) 22%, transparent);
+        overflow: hidden;
+
+        >i {
+            display: block;
+            height: 100%;
+            background: var(--vscode-progressBar-background);
+        }
+    }
+
+    &.low>.ui-countdown-n {
+        color: var(--vscode-editorWarning-foreground);
+    }
+
+    &.low>.ui-countdown-bar>i {
+        background: var(--vscode-editorWarning-foreground);
+    }
+}
+
 /* ── simple text input modal ───────────────────── */
 
 .simple-text-input-overlay {
