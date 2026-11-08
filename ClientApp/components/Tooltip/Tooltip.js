@@ -54,30 +54,35 @@ class Tooltip {
     }
     /**
      * 
-     * @param {Object} options 
-     * @param {string} [options.text] 
-     * @param {Function<Element>} [options.live_element] 
+     * @param {Object} options
+     * @param {string} [options.text] plain text (tags are stripped), cut at 500 characters
+     * @param {string} [options.html] trusted HTML, shown as is (escape what isn't yours); not cut
+     * @param {Function<Element>} [options.live_element]
      * @param {Event} [options.event]
-     * @param {string} [options.anchor] left|top|right|bottom 
+     * @param {string} [options.anchor] left|top|right|bottom|cursor ("cursor": beside the pointer, flipped near the window's edges; call `show` again on `mousemove` to follow it)
     */
     show(options) {
         const owner = this;
         let tmp_top = 0;
         let tmp_left = 0;
+        const has_html = options.html != undefined && `${options.html}`.trim() != '';
+        const has_text = !has_html && options.text != undefined && `${options.text}`.trim() != '';
+        // nothing to show: bail out before the `finally` below, which would reveal the previous hint
+        if (!has_html && !has_text && options.live_element == undefined) {
+            return;
+        }
         try {
-            if (options.text != undefined && options.text.trim() != '') {
+            if (has_html) {
+                owner.#main_text_element.innerHTML = policy.createHTML(`${options.html}`);
+            } else if (has_text) {
                 if (options.text.length > 500) {
                     owner.#main_text_element.innerHTML = UiBuilder.parseHTMLToDisplay(`${options.text.substring(0, 500)}...`);
                 } else {
                     owner.#main_text_element.innerHTML = UiBuilder.parseHTMLToDisplay(options.text);
                 }
             } else {
-                if (options.live_element != undefined) {
-                    owner.#main_text_element.innerText = '';
-                    owner.#main_text_element.appendChild(options.live_element());
-                } else {
-                    return;
-                }
+                owner.#main_text_element.innerText = '';
+                owner.#main_text_element.appendChild(options.live_element());
             }
             if (options.anchor != undefined) {
                 owner.setAnchor(options.anchor);
@@ -89,7 +94,15 @@ class Tooltip {
             } else {
                 owner.#offset = 10;
             }
-            if (options.event != undefined) {
+            if (options.event != undefined && owner.#anchor == "cursor") {
+                const ev = options.event.changedTouches?.[0] ?? options.event;
+                const w = owner.#self_ref.clientWidth, h = owner.#self_ref.clientHeight, gap = 14;
+                let x = ev.clientX + gap, y = ev.clientY + gap;
+                if (x + w > window.innerWidth - 8) x = ev.clientX - w - gap;
+                if (y + h > window.innerHeight - 8) y = ev.clientY - h - gap;
+                tmp_left = Math.max(5, x) + window.scrollX;
+                tmp_top = Math.max(5, y) + window.scrollY;
+            } else if (options.event != undefined) {
                 const target_pos = options.event.target.getBoundingClientRect();
                 /*owner.#self_ref.style.left = options.event.clientX + window.scrollX;
                 owner.#self_ref.style.top = options.event.clientY + window.scrollY;*/
@@ -130,11 +143,14 @@ class Tooltip {
     #offset = 10;
     /**
      * 
-     * @param {string} anchor left|top|right|bottom 
+     * @param {string} anchor left|top|right|bottom|cursor
      */
     setAnchor(anchor) {
         const owner = this;
         switch (anchor) {
+            case "cursor":
+                owner.#anchor = 'cursor';
+                break;
             case "left":
                 owner.#anchor = 'left';
                 break;

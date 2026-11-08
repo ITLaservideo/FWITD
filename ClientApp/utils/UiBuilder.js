@@ -413,8 +413,12 @@ class UiBuilder {
             return new_id;
         }
     }
+    /**
+     * @param {*} str null/undefined → "", anything else through `String()`
+     * @returns {string}
+     */
     static escapeHTML(str) {
-        return str.replace(/&(?!#34;|#38;|#39;|#60;|#62;|#10;|#13;|amp;)/g, '&amp;')
+        return String(str ?? "").replace(/&(?!#34;|#38;|#39;|#60;|#62;|#10;|#13;|amp;)/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
@@ -469,10 +473,11 @@ class UiBuilder {
      * Attaches hover/touch/click listeners to target that show a tooltip via window.custom_tooltip.
      * Calling this again on the same target stacks a duplicate set of listeners — use addOrUpdateHint instead.
      * @param {Object} options
-     * @param {string} options.hint
+     * @param {string|(() => string)} options.hint a function is called on every show: a live hint (e.g. built from the latest data)
      * @param {Element} options.target
      * @param {Function} [options.conditionsMet]
-     * @param {"top"|"left"|"right"|"bottom"} options.anchor
+     * @param {boolean} [options.html] the hint is trusted HTML (escape what isn't yours), shown as is and never cut; default: plain text
+     * @param {"top"|"left"|"right"|"bottom"|"cursor"} options.anchor "cursor": beside the pointer, following it (charts, wide targets)
      */
     static addHint(options) {
         const target = options.target;
@@ -486,45 +491,61 @@ class UiBuilder {
         target['hint_builder_options'] = options;
         console.assert(target != undefined, "can't add hint to empty");
         if (hint != undefined) {
+            const show = (event) => {
+                // gone already (e.g. a click that re-rendered its view): nothing to point at
+                if (!target.isConnected || (options.conditionsMet != undefined && !options.conditionsMet())) {
+                    return;
+                }
+                UiBuilder.showHint({ hint: options.hint ?? hint, html: options.html, event: event, anchor: options.anchor });
+            };
             target.addEventListener("mouseenter", (event) => {
-                console.warn("mouseenter")
-                if (options.conditionsMet != undefined) {
-                    if (!options.conditionsMet()) {
-                        return;
-                    }
-                }
                 if (event.buttons == 0) {
-                    if (window.custom_tooltip != undefined) {
-                        window.custom_tooltip.show({ text: options.hint ?? hint, event: event, anchor: options.anchor });
-                    }
+                    show(event);
                 }
             });
-            target.addEventListener("touchend", (event) => {
-                if (options.conditionsMet != undefined) {
-                    if (!options.conditionsMet()) {
-                        return;
+            if (options.anchor == "cursor") {
+                target.addEventListener("mousemove", (event) => {
+                    if (event.buttons == 0) {
+                        show(event);
                     }
-                }
-                if (window.custom_tooltip != undefined) {
-                    window.custom_tooltip.show({ text: options.hint ?? hint, event: event, anchor: options.anchor });
-                }
-            }, false);// Bubbling phase
-            target.addEventListener("mouseup", (event) => {
-                if (options.conditionsMet != undefined) {
-                    if (!options.conditionsMet()) {
-                        return;
-                    }
-                }
-                if (window.custom_tooltip != undefined) {
-                    window.custom_tooltip.show({ text: options.hint ?? hint, event: event, anchor: options.anchor });
-                }
-            }, false);// Bubbling phase
-            target.addEventListener("mouseleave", () => {
-                if (window.custom_tooltip != undefined) {
-                    window.custom_tooltip.hide();
-                }
-            });
+                });
+            }
+            target.addEventListener("touchend", show, false);// Bubbling phase
+            target.addEventListener("mouseup", show, false);// Bubbling phase
+            target.addEventListener("mouseleave", () => UiBuilder.hideHint());
         }
+    }
+    /**
+     * Shows the shared tooltip once, for callers that drive it themselves (e.g. a chart's crosshair on `mousemove`);
+     * pair it with `hideHint` on `mouseleave`. Elements with a fixed hint use `addHint` instead.
+     * @param {Object} options
+     * @param {string|(() => string)} options.hint
+     * @param {Event} options.event
+     * @param {boolean} [options.html] trusted HTML instead of plain text
+     * @param {"top"|"left"|"right"|"bottom"|"cursor"} [options.anchor="top"]
+     */
+    static showHint({ hint, event, html = false, anchor }) {
+        if (window.custom_tooltip == undefined) {
+            return;
+        }
+        const value = typeof hint === "function" ? hint() : hint;
+        window.custom_tooltip.show({ [html ? "html" : "text"]: value, event: event, anchor: anchor });
+        // a target removed while hovered (a re-render) never gets its `mouseleave`: hide the hint when it leaves the page
+        UiBuilder.#hint_owner = event?.currentTarget ?? event?.target ?? null;
+        UiBuilder.#hint_watch ??= setInterval(() => {
+            if (UiBuilder.#hint_owner?.isConnected === false) {
+                UiBuilder.hideHint();
+            }
+        }, 300);
+    }
+    /** the element whose hint is shown, and the timer watching that it's still on the page */
+    static #hint_owner = null;
+    static #hint_watch = null;
+    static hideHint() {
+        clearInterval(UiBuilder.#hint_watch);
+        UiBuilder.#hint_watch = null;
+        UiBuilder.#hint_owner = null;
+        window.custom_tooltip?.hide();
     }
     /**
      * Adds a hint to target via addHint, or if one is already attached, updates its
@@ -556,16 +577,23 @@ class UiBuilder {
      * @param {string} [options.icon] Must be specified if `options.title` is undefined
      * @param {string} [options.icon_code] Must be specified if `options.title` is undefined
      * @param {string} [options.title] Must be specified if `options.icon` is undefined
+     * @param {Element[]} [options.content] elements appended inside the button, after the title (e.g. a label and a sub-label); enough without a title or an icon
      * @param {string} [options.class]
      * @param {string} [options.style] text
      * @param {string} [options.automationID] `automation-id` attribute
-     * @param {'shiny'|'text'} [options.theme]
+     * @param {'shiny'|'text'|'ez'|'bare'} [options.theme] 'bare': no framework look at all, `options.class` styles it
+     * @param {boolean} [options.disabled=false] greyed out and not clickable; its hint still shows (to say why). Change it later with the returned element's `setDisabled(bool)`
      * @param {boolean} [options.auto_disable_on_click=false] If true, the button will be automatically disabled (by adding a "clicked" class) when clicked, and re-enabled after 1 second.
-     * @returns {HTMLDivElement}
-     * @throws {Error} If both `options.title` and `options.icon` are undefined, or if neither `options.onClick` nor `options.onRightClick` are provided
+     * @returns {HTMLDivElement} with `setDisabled(is_disabled)`
+     * @throws {Error} If `options.title`, `options.icon`, `options.icon_code` and `options.content` are all undefined, or if neither `options.onClick` nor `options.onRightClick` are provided
      */
     static createButton(options) {
         const tmp = document.createElement("div");
+        tmp.setDisabled = (is_disabled) => {
+            tmp.classList.toggle("ui-disabled", is_disabled == true);
+            tmp.setAttribute("aria-disabled", is_disabled == true ? "true" : "false");
+        };
+        tmp.setDisabled(options.disabled);
         switch (options.theme) {
             case 'shiny':
                 tmp.classList.add("btn-wrapper");
@@ -577,6 +605,8 @@ class UiBuilder {
             case 'text':
                 tmp.classList.add("btn-wrapper");
                 break;
+            case 'bare':
+                break;
             default:
                 tmp.classList.add("twj-button");
                 break;
@@ -584,6 +614,9 @@ class UiBuilder {
         //tmp.style = 'position:relative;'
         if (options.onClick != undefined || options.onRightClick != undefined) {
             tmp.addEventListener("mouseup", (event) => {
+                if (tmp.classList.contains("ui-disabled")) {
+                    return;
+                }
                 if (event.button == 0 && options.onClick != undefined) {
                     if (options.auto_disable_on_click == true) {
                         tmp.classList.toggle("clicked", true);
@@ -665,8 +698,11 @@ class UiBuilder {
             }
             tmp.appendChild(Icons.create(options.icon_code));
         }
-        if (options.icon == undefined && options.title == undefined && options.icon_code == undefined) {
-            throw new Error("button can't be without a .title or an .icon");
+        if (options.content != undefined) {
+            tmp.append(...options.content);
+        }
+        if (options.icon == undefined && options.title == undefined && options.icon_code == undefined && options.content == undefined) {
+            throw new Error("button can't be without a .title, an .icon or a .content");
         }
         if (options.hint != undefined) {
             if (options.target == undefined) {
@@ -1198,14 +1234,20 @@ class UiBuilder {
      * @param {string[]} [args.hints]
      * @param {Element[]} [args.content] 
      * @param {string} [args.id] used to store open status in localStorage between pages if provided
-     * @param {Function<{event,index}>[]} [args.onOpen] 
+     * @param {boolean[]} [args.open] sections open at the start, until the user toggles them (with `id`, the saved state wins); default: all closed
+     * @param {boolean} [args.persistent] opening a section leaves the others as they are (default: it closes them)
+     * @param {string} [args.class] extra class(es) on the accordion, space-separated
+     * @param {Function<{event,index}>[]} [args.onOpen]
      * @returns Element
      */
     static createAccordion(args) {
-        const { titles, hints, content = [], onOpen = [], id = null } = args;
+        const { titles, hints, content = [], onOpen = [], id = null, open = [] } = args;
 
         const accordion = document.createElement("div");
         accordion.classList.add("ui-accordion");
+        if (args.class != undefined) {
+            accordion.classList.add(...args.class.split(" ").filter(Boolean));
+        }
         accordion.content_container = [];
 
         // Initialize localStorage key if id is provided
@@ -1248,8 +1290,8 @@ class UiBuilder {
             // Save container reference
             accordion.content_container[i] = body;
 
-            // Restore saved state if available
-            if (savedStates && savedStates[i]) {
+            // Restore saved state if available, else the default
+            if (savedStates ? savedStates[i] : open[i]) {
                 header.setAttribute("aria-expanded", "true");
                 body.style.display = "";
             }
@@ -2311,7 +2353,7 @@ class UiBuilder {
      * A small status pill (e.g. a job/order status column, a count next to a nav item).
      * @param {string} text
      * @param {Object} [options]
-     * @param {"neutral"|"info"|"success"|"warning"|"danger"} [options.color="neutral"]
+     * @param {"neutral"|"info"|"success"|"warning"|"urgent"|"danger"} [options.color="neutral"] urgent: orange, between warning and danger (e.g. "act now")
      * @param {string} [options.hint] optional hover hint, wired via `addHint`
      * @param {"top"|"left"|"right"|"bottom"} [options.anchor] hint anchor, used with `options.hint`
      * @returns {HTMLSpanElement}
@@ -2324,6 +2366,90 @@ class UiBuilder {
             UiBuilder.addHint({ hint: options.hint, target: badge, anchor: options.anchor ?? "top" });
         }
         return badge;
+    }
+    /**
+     * A segmented meter: a track cut into `segments` blocks, filled to `fill` (a score, a progress, a share).
+     * @param {Object} [options]
+     * @param {number|null} [options.fill=0] 0..1, clamped; null / NaN: nothing to show, the meter is hidden
+     * @param {number} [options.segments=36]
+     * @param {"accent"|"success"|"warning"|"danger"} [options.color="accent"]
+     * @param {boolean} [options.mid=false] a tick at the middle (a diverging score: below / above zero)
+     * @param {boolean} [options.snap=true] fill whole segments only; false: the exact share (a progress bar)
+     * @param {string} [options.hint] hover hint, wired via `addHint`
+     * @returns {HTMLDivElement} with `setFill(fill)` and `setColor(color)`
+     */
+    static createMeter(options = {}) {
+        const segments = options.segments ?? 36;
+        const wrap = document.createElement("div");
+        wrap.className = `ui-meter-wrap${options.mid ? " mid" : ""}`;
+        const meter = document.createElement("div");
+        meter.className = "ui-meter";
+        meter.style.setProperty("--n", segments);
+        meter.append(document.createElement("i"));
+        wrap.append(meter);
+        wrap.setFill = (fill) => {
+            const known = fill != null && isFinite(fill);
+            const f = known ? Math.max(0, Math.min(1, fill)) : 0;
+            meter.style.setProperty("--fill", `${(options.snap === false ? f : Math.round(f * segments) / segments) * 100}%`);
+            wrap.style.display = known ? "" : "none";
+        };
+        wrap.setColor = (color) => {
+            meter.className = `ui-meter ${color && color != "accent" ? `ui-meter-${color}` : ""}`;
+        };
+        wrap.setFill(options.fill ?? 0);
+        wrap.setColor(options.color);
+        if (options.hint != undefined) {
+            UiBuilder.addHint({ hint: options.hint, target: wrap, anchor: "top" });
+        }
+        return wrap;
+    }
+    /**
+     * A countdown: the seconds left in big digits over a shrinking bar, warning-coloured in the last `low_at` seconds.
+     * Ticks every 100 ms; stops by itself once removed from the page (without calling `onExpire`).
+     * @param {Object} options
+     * @param {number} options.seconds the full length (the bar is full at this)
+     * @param {number} [options.deadline] epoch ms when it ends; default: now + `seconds`
+     * @param {number} [options.low_at=10] seconds left from which it turns to the warning colour
+     * @param {Function} [options.onExpire] called once at 0
+     * @returns {HTMLDivElement} with `stop()`
+     */
+    static createCountdown(options) {
+        const deadline = options.deadline ?? Date.now() + options.seconds * 1000;
+        const low_at = options.low_at ?? 10;
+        const clock = document.createElement("div");
+        clock.className = "ui-countdown";
+        const num = document.createElement("div");
+        num.className = "ui-countdown-n";
+        const bar = document.createElement("div");
+        bar.className = "ui-countdown-bar";
+        const fill = document.createElement("i");
+        bar.append(fill);
+        clock.append(num, bar);
+        let timer = null, started = false;
+        clock.stop = () => {
+            clearInterval(timer);
+            timer = null;
+        };
+        const tick = () => {
+            if (started && !clock.isConnected) {
+                clock.stop();
+                return;
+            }
+            started = true;
+            const left = Math.max(0, (deadline - Date.now()) / 1000);
+            num.textContent = left >= 10 ? `${Math.ceil(left)} s` : `${left.toFixed(1)} s`;
+            fill.style.width = `${Math.min(100, (100 * left) / options.seconds)}%`;
+            clock.classList.toggle("low", left <= low_at);
+            if (left <= 0) {
+                clock.stop();
+                options.onExpire?.();
+            }
+        };
+        tick();
+        if (deadline > Date.now()) {
+            timer = setInterval(tick, 100);
+        }
+        return clock;
     }
     /**
      * A debounced search box - fires `options.onSearch(query)` `options.debounce_ms` after typing
