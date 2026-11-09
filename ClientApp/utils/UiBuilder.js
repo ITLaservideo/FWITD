@@ -414,11 +414,38 @@ class UiBuilder {
         }
     }
     /**
+     * Data (the database's included) may be stored raw (`<manual override>`) or already escaped (`&lt;manual override&gt;`):
+     * this turns both into the same plain text, `<manual override>`, by decoding the entities only. Tags aren't parsed nor
+     * stripped: `List<string>` stays as is.
+     *
+     * The result is plain text: for `textContent`/`innerText`, or through `escapeHTML` (which already calls this) for markup.
+     * Opinionated: a text that really meant to show `&lt;` shows `<`. One level only: `&amp;lt;` → `&lt;`.
+     * @param {*} str null/undefined → "", anything else through `String()`
+     * @returns {string}
+     */
+    static decodeHTMLEntities(str) {
+        const text = String(str ?? "");
+        if (!text.includes("&")) {
+            return text;
+        }
+        // only a lone entity reaches the parser (no `<` can), and a <textarea> parses its content as text: nothing runs
+        const decoder = UiBuilder.#entity_decoder ??= document.createElement("textarea");
+        return text.replace(/&(?:#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);/gi, (entity) => {
+            decoder.innerHTML = entity;
+            return decoder.value;
+        });
+    }
+    static #entity_decoder = null;
+    /**
+     * Escapes a piece of data (never trusted, the database's included) for HTML text or a quoted attribute value.
+     * It normalizes first (`decodeHTMLEntities`), so raw and already escaped data come out the same:
+     * `<manual override>` and `&lt;manual override&gt;` both → `&lt;manual override&gt;`, shown as `<manual override>`.
+     * Escaping twice is harmless.
      * @param {*} str null/undefined → "", anything else through `String()`
      * @returns {string}
      */
     static escapeHTML(str) {
-        return String(str ?? "").replace(/&(?!#34;|#38;|#39;|#60;|#62;|#10;|#13;|amp;)/g, '&amp;')
+        return UiBuilder.decodeHTMLEntities(str).replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
@@ -432,6 +459,15 @@ class UiBuilder {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&apos;");
     }
+    /**
+     * Strips the tags from an HTML string and returns its text (anything that looks like a tag goes: `List<string>` → `List`).
+     *
+     * **Not a sanitizer**: the result is for `textContent`/`innerText` only, never `innerHTML`, because entities come back
+     * decoded (`&lt;img onerror=…&gt;` → `<img onerror=…>`).
+     * @param {string} [str="- - -"]
+     * @param {boolean} [trust_on_error=false] when the text is empty, return `str` as is (raw markup: unsafe anywhere but `textContent`)
+     * @returns {string}
+     */
     static parseHTMLToDisplay(str = "- - -", trust_on_error = false) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(str, "text/html");
@@ -473,10 +509,9 @@ class UiBuilder {
      * Attaches hover/touch/click listeners to target that show a tooltip via window.custom_tooltip.
      * Calling this again on the same target stacks a duplicate set of listeners — use addOrUpdateHint instead.
      * @param {Object} options
-     * @param {string|(() => string)} options.hint a function is called on every show: a live hint (e.g. built from the latest data)
+     * @param {string|Element|(() => string|Element)} options.hint a string is plain text; rich content is an Element the caller builds. A function is called on every show: a live hint (e.g. built from the latest data)
      * @param {Element} options.target
      * @param {Function} [options.conditionsMet]
-     * @param {boolean} [options.html] the hint is trusted HTML (escape what isn't yours), shown as is and never cut; default: plain text
      * @param {"top"|"left"|"right"|"bottom"|"cursor"} options.anchor "cursor": beside the pointer, following it (charts, wide targets)
      */
     static addHint(options) {
@@ -496,7 +531,7 @@ class UiBuilder {
                 if (!target.isConnected || (options.conditionsMet != undefined && !options.conditionsMet())) {
                     return;
                 }
-                UiBuilder.showHint({ hint: options.hint ?? hint, html: options.html, event: event, anchor: options.anchor });
+                UiBuilder.showHint({ hint: options.hint ?? hint, event: event, anchor: options.anchor });
             };
             target.addEventListener("mouseenter", (event) => {
                 if (event.buttons == 0) {
@@ -519,17 +554,20 @@ class UiBuilder {
      * Shows the shared tooltip once, for callers that drive it themselves (e.g. a chart's crosshair on `mousemove`);
      * pair it with `hideHint` on `mouseleave`. Elements with a fixed hint use `addHint` instead.
      * @param {Object} options
-     * @param {string|(() => string)} options.hint
+     * @param {string|Element|(() => string|Element)} options.hint a string is plain text; rich content is an Element the caller builds
      * @param {Event} options.event
-     * @param {boolean} [options.html] trusted HTML instead of plain text
      * @param {"top"|"left"|"right"|"bottom"|"cursor"} [options.anchor="top"]
      */
-    static showHint({ hint, event, html = false, anchor }) {
+    static showHint({ hint, event, anchor }) {
         if (window.custom_tooltip == undefined) {
             return;
         }
         const value = typeof hint === "function" ? hint() : hint;
-        window.custom_tooltip.show({ [html ? "html" : "text"]: value, event: event, anchor: anchor });
+        if (value instanceof Element) {
+            window.custom_tooltip.show({ live_element: () => value, event: event, anchor: anchor });
+        } else {
+            window.custom_tooltip.show({ text: value, event: event, anchor: anchor });
+        }
         // a target removed while hovered (a re-render) never gets its `mouseleave`: hide the hint when it leaves the page
         UiBuilder.#hint_owner = event?.currentTarget ?? event?.target ?? null;
         UiBuilder.#hint_watch ??= setInterval(() => {

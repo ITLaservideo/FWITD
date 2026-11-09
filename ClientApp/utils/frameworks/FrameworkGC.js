@@ -1,3 +1,29 @@
+/**
+ * Trusted Types policy used where a string is assigned to `innerHTML`.
+ *
+ * **It does not sanitize anything**: `createHTML` returns its input unchanged. It only wraps the string in a
+ * `TrustedHTML`, so the assignment would still be accepted if a `require-trusted-types-for 'script'` CSP were
+ * ever turned on (none is today). Wrapping a string in it does not make that string safe.
+ *
+ * Use it only for markup that is entirely ours and contains no runtime data: the components' and frameworks'
+ * own HTML templates (`injector_html`, `the_framework_html`), loaded from the embedded ClientApp.
+ * Never pass it a string that holds data (server responses, user input, settings, translations of data...);
+ * build DOM nodes and set `textContent` instead, or escape every piece of data where the string is built.
+ *
+ * Helpers in `utils/UiBuilder.js` (there is no sanitizer that keeps "safe" tags: escape the data, don't filter the markup):
+ * - `UiBuilder.escapeHTML(str)`: escapes `& < > " '` for HTML text and quoted attribute values. It normalizes first, so data
+ *   stored raw (`<manual override>`) or already escaped (`&lt;manual override&gt;`) comes out the same; escaping twice is harmless.
+ * - `UiBuilder.decodeHTMLEntities(str)`: that normalization alone, for `textContent`/`innerText`: decodes the entities,
+ *   leaves anything that looks like a tag as text.
+ * - `UiBuilder.escapeXmlCharacters(str)`: the same for XML (`&apos;`); escapes every `&`.
+ * - `UiBuilder.parseHTMLToDisplay(str)`: strips the tags and returns the plain text. Its output is for `textContent`
+ *   only, never `innerHTML`: entities come back decoded (`&lt;img&gt;` → `<img>`). With `trust_on_error = true`
+ *   it returns the raw input when the text is empty, so that mode is not sanitization at all.
+ *
+ * A generic component (e.g. `Tooltip`) doesn't know where its content comes from, so it must not take HTML
+ * strings at all: it takes text or an `Element`, and the caller that wrote the markup is the one who builds it.
+ * @type {TrustedTypePolicy}
+ */
 const policy = trustedTypes.createPolicy('docs-layout', {
     createHTML: (html) => html
 });
