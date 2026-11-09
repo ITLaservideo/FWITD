@@ -853,12 +853,13 @@ class App {
      * swaps which pane is attached, so the work in progress survives switching tabs)
      */
     #mountTabs() {
-        const titles = ["Showcase", "Image Editor", "PDF Editor", "Data Cruncher"];
+        const titles = ["Showcase", "Image Editor", "PDF Editor", "Data Cruncher", "Security"];
         const builders = [
             null,// the grid, already built
             (pane) => this.#mountImageEditor(pane, App.#sampleImage()),
             (pane) => pane.appendChild(new PDFEditor({}).elementReference()),
             (pane) => pane.appendChild(new DataCruncher({}).elementReference()),
+            (pane) => this.#mountSecurityTests(pane),
         ];
         const panes = [document.querySelector(".showcase-root")];
         for (let i = 1; i < titles.length; i++) {
@@ -925,6 +926,303 @@ class App {
         ctx.textAlign = "center";
         ctx.fillText("crop / rotate / draw me", canvas.width / 2, canvas.height / 2);
         return canvas.toDataURL("image/png");
+    }
+    //#endregion
+
+    //#region security tests - every sink that shows data gets the same hostile payloads: nothing may run, nothing may turn into markup
+    /** the payloads call `window[App.#xss_mark](id)`: a call is a script that ran */
+    static #xss_mark = "__showcase_xss";
+    /**
+     * data as the database could hand it over: hostile, stored raw or already escaped (`ID` becomes the row's own id).
+     * `dangerous`: decoded once, it's a script; the control row must catch it
+     */
+    static #xss_payloads = [
+        { name: "img onerror", text: `<img src=x onerror="__showcase_xss('ID')">`, dangerous: true },
+        { name: "svg onload", text: `<svg onload="__showcase_xss('ID')"></svg>`, dangerous: true },
+        { name: "script tag", text: `<script>__showcase_xss('ID')</script>`, dangerous: true },
+        { name: `attribute breakout "`, text: `"><img src=x onerror="__showcase_xss('ID')">`, dangerous: true },
+        { name: "attribute breakout '", text: `'><img src=x onerror='__showcase_xss("ID")'>`, dangerous: true },
+        { name: "javascript: link", text: `<a href="javascript:__showcase_xss('ID')">click</a>`, dangerous: true },
+        { name: "iframe srcdoc", text: `<iframe srcdoc="<script>parent.__showcase_xss('ID')</script>"></iframe>`, dangerous: true },
+        { name: "details ontoggle", text: `<details open ontoggle="__showcase_xss('ID')">x</details>`, dangerous: true },
+        { name: "stored escaped", text: `&lt;img src=x onerror="__showcase_xss('ID')"&gt;`, dangerous: true },
+        { name: "stored as numeric entities", text: `&#60;img src=x onerror=&#34;__showcase_xss('ID')&#34;&#62;`, dangerous: true },
+        { name: "stored escaped twice", text: `&amp;lt;img src=x onerror="__showcase_xss('ID')"&amp;gt;`, dangerous: false },
+        { name: "benign, stored raw", text: `<manual override>`, dangerous: false },
+        { name: "benign, stored escaped", text: `&lt;manual override&gt;`, dangerous: false },
+    ];
+
+    /** @param {HTMLElement} pane */
+    #mountSecurityTests(pane) {
+        const root = document.createElement("div");
+        root.className = "security-tests";
+        const intro = document.createElement("div");
+        intro.className = "security-intro";
+        intro.textContent = "Every sink that shows data gets the same payloads, stored raw or already escaped (as the database may hold them). "
+            + "A row fails when the payload's script runs, when markup carrying it gets created, or (\"exact\" sinks) when the text shown "
+            + "isn't the stored text with its entities decoded. The control row uses the unsafe pattern on purpose: it must catch every dangerous payload.";
+        const summary = document.createElement("div");
+        summary.className = "security-summary";
+        const results = document.createElement("div");
+        // off-screen, not display:none: images still load there, so an onerror would fire
+        const sandbox = document.createElement("div");
+        sandbox.className = "security-sandbox";
+        let running = false;
+        const run = async () => {
+            if (running) return;
+            running = true;
+            try {
+                await this.#runSecurityTests(sandbox, summary, results, run_button);
+            } finally {
+                running = false;
+            }
+        };
+        const run_button = UiBuilder.createButton({ title: "run again", onClick: run });
+        root.append(intro, run_button, summary, results, sandbox);
+        pane.appendChild(root);
+        run();
+    }
+
+    /**
+     * the sinks under test. `render(text)` shows `text` the way the app does and returns
+     * `{ root, shown?, check?, cleanup? }`: `root`'s descendants are searched for the payload,
+     * `shown` is the text a user reads (default `root.textContent`), `check()` returns a problem or nothing,
+     * `cleanup()` removes what was created. `null`: the sink isn't available here.
+     * `exact`: `shown` must equal `UiBuilder.decodeHTMLEntities(text)` (raw and escaped data read the same)
+     * @param {HTMLElement} sandbox
+     * @param {HTMLElement} insight_target an attached, visible element for Insight to point at
+     */
+    #securitySinks(sandbox, insight_target) {
+        const span = () => {
+            const s = document.createElement("span");
+            sandbox.append(s);
+            return s;
+        };
+        const no_children = (el, what) => el != undefined && el.children.length > 0 ? `${what}: markup created` : undefined;
+        return [
+            {
+                name: "control: innerHTML = decodeHTMLEntities(data)",
+                desc: "the unsafe pattern (the old Tooltip's: decode, then innerHTML), on purpose",
+                control: true,
+                render: (text) => {
+                    const s = span();
+                    s.innerHTML = UiBuilder.decodeHTMLEntities(text);
+                    return { root: s };
+                },
+            },
+            {
+                name: "UiBuilder.escapeHTML → element text",
+                desc: "`<b>${UiBuilder.escapeHTML(data)}</b>` through innerHTML",
+                exact: true,
+                render: (text) => {
+                    const s = span();
+                    s.innerHTML = `<b>${UiBuilder.escapeHTML(text)}</b>`;
+                    return { root: s.firstElementChild, check: () => s.children.length != 1 ? "markup created" : no_children(s.firstElementChild, "<b>") };
+                },
+            },
+            {
+                name: "UiBuilder.escapeHTML → attribute values",
+                desc: "`<b title=\"…\" data-x='…'>` through innerHTML, both quote styles",
+                exact: true,
+                render: (text) => {
+                    const s = span();
+                    const escaped = UiBuilder.escapeHTML(text);
+                    s.innerHTML = `<b title="${escaped}" data-x='${escaped}'></b>`;
+                    const b = s.firstElementChild;
+                    return {
+                        root: b,
+                        shown: b?.title,
+                        check: () => s.children.length != 1 || b.attributes.length != 2 || b.dataset.x !== b.title ? "broke out of the attribute" : undefined,
+                    };
+                },
+            },
+            {
+                name: "UiBuilder.decodeHTMLEntities → textContent",
+                desc: "normalizes raw and escaped data to the same text",
+                exact: true,
+                render: (text) => {
+                    const s = span();
+                    s.textContent = UiBuilder.decodeHTMLEntities(text);
+                    return { root: s };
+                },
+            },
+            {
+                name: "UiBuilder.parseHTMLToDisplay → textContent",
+                desc: "strips tag-like text, so not exact; its DOMParser must not run anything",
+                render: (text) => {
+                    const s = span();
+                    s.textContent = UiBuilder.parseHTMLToDisplay(text);
+                    return { root: s };
+                },
+            },
+            {
+                name: "UiBuilder.showHint (Tooltip)",
+                desc: "a string hint is text (tag-like text stripped); markup only comes as a caller-built Element",
+                render: (text) => {
+                    if (window.custom_tooltip == undefined) return null;
+                    UiBuilder.showHint({ hint: text });
+                    const box = window.custom_tooltip.elementReference().querySelector(".jctt-text");
+                    return { root: box, shown: box.textContent, check: () => no_children(box, ".jctt-text"), cleanup: () => UiBuilder.hideHint() };
+                },
+            },
+            {
+                name: "new Notify(...)",
+                desc: "title, text and extra_data; shown: the text",
+                exact: true,
+                render: (text) => {
+                    const notify = new Notify({ title: text, text, extra_data: text, type: "info", ms_timeout: 60000 });
+                    const el = notify.elementReference();
+                    el.style.visibility = "hidden";
+                    return {
+                        root: el,
+                        shown: el.querySelector(".text")?.innerText,
+                        check: () => [".title", ".text", ".extra-data"].map((c) => no_children(el.querySelector(c), c)).find((x) => x != undefined),
+                        cleanup: () => notify.destroy(0),
+                    };
+                },
+            },
+            {
+                name: "new MousePopUp(...)",
+                desc: "title, and an action title with an icon; shown: the action's text",
+                exact: true,
+                render: (text) => {
+                    const popup = new MousePopUp({ title: text, action_titles: [text], next: [() => { }], svgs: ["touch_app.svg"], style: "plain", allowMultipleInstances: true });
+                    const el = popup.elementReference();
+                    el.style.visibility = "hidden";
+                    const action = el.querySelector(".template-operations-container")?.lastElementChild;
+                    return {
+                        root: el,
+                        shown: action?.textContent,
+                        check: () => no_children(el.querySelector(".template-title-placeholder"), "title")
+                            ?? ([...(action?.children ?? [])].some((c) => c.tagName != "IMG") || action?.children.length != 1 ? "action: markup created" : undefined),
+                        cleanup: () => popup.destroy(0),
+                    };
+                },
+            },
+            {
+                name: "Insight.show(...)",
+                desc: "coach-mark text",
+                exact: true,
+                render: (text) => {
+                    const insight = Insight.getInstance();
+                    insight.show({ target: insight_target, text, anchor: "bottom" });
+                    const box = insight.elementReference().querySelector(".insight-text")?.firstElementChild;
+                    return { root: box, check: () => no_children(box, ".insight-text"), cleanup: () => insight.hide(true) };
+                },
+            },
+        ];
+    }
+
+    /** true when a descendant of `root` carries a payload as markup (an attribute, or a script's code) */
+    static #hasInjectedMarkup(root) {
+        if (!(root instanceof Element)) return false;
+        return [...root.querySelectorAll("*")].some((el) => (el.tagName == "SCRIPT" && el.textContent.includes(App.#xss_mark))
+            || [...el.attributes].some((a) => a.value.includes(App.#xss_mark)));
+    }
+
+    /**
+     * @param {HTMLElement} sandbox
+     * @param {HTMLElement} summary
+     * @param {HTMLElement} results
+     * @param {HTMLElement} insight_target
+     */
+    async #runSecurityTests(sandbox, summary, results, insight_target) {
+        summary.replaceChildren(UiBuilder.createBadge("running…", { color: "info" }));
+        results.replaceChildren();
+        sandbox.replaceChildren();
+        const hits = new Set();
+        // stays defined: a payload firing after the wait still gets reported in the console
+        window[App.#xss_mark] = (id) => {
+            hits.add(`${id}`);
+            console.error(`Showcase security tests: a payload ran (${id})`);
+        };
+        const rows = [];
+        let n = 0;
+        for (const sink of this.#securitySinks(sandbox, insight_target)) {
+            for (const payload of App.#xss_payloads) {
+                const id = `xss-${n++}`;
+                const text = payload.text.replaceAll("ID", id);
+                const row = { sink, payload, id, text, problems: [], shown: "", skipped: false, cleanup: undefined };
+                rows.push(row);
+                try {
+                    const r = sink.render(text);
+                    if (r == null) {
+                        row.skipped = true;
+                        continue;
+                    }
+                    row.cleanup = r.cleanup;
+                    row.shown = `${r.shown ?? r.root?.textContent ?? ""}`;
+                    if (App.#hasInjectedMarkup(r.root)) row.problems.push("markup carrying the payload");
+                    const problem = r.check?.();
+                    if (problem) row.problems.push(problem);
+                    if (sink.exact && row.shown !== UiBuilder.decodeHTMLEntities(text)) row.problems.push("shown text differs from the decoded data");
+                } catch (error) {
+                    row.problems.push(`error: ${error.message}`);
+                }
+            }
+        }
+        // images fail, iframes load, handlers fire
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        for (const row of rows) {
+            if (hits.has(row.id)) row.problems.unshift("script ran");
+            try {
+                row.cleanup?.();
+            } catch (error) {
+                console.warn(error);
+            }
+        }
+        sandbox.replaceChildren();
+        this.#renderSecurityResults(rows, summary, results);
+    }
+
+    #renderSecurityResults(rows, summary, results) {
+        // control rows: catching a dangerous payload is the expected outcome
+        const verdict = (row) => {
+            if (row.skipped) return { ok: true, label: "n/a" };
+            if (row.sink.control) {
+                if (!row.payload.dangerous) return { ok: true, label: "n/a" };
+                return row.problems.length > 0 ? { ok: true, label: "caught" } : { ok: false, label: "MISSED: detector or payload broken" };
+            }
+            return row.problems.length == 0 ? { ok: true, label: "safe" } : { ok: false, label: row.problems.join(" · ") };
+        };
+        const counted = rows.filter((r) => !r.skipped && (!r.sink.control || r.payload.dangerous));
+        const failed = counted.filter((r) => !verdict(r).ok);
+        summary.replaceChildren(failed.length == 0
+            ? UiBuilder.createBadge(`all ${counted.length} checks passed`, { color: "success" })
+            : UiBuilder.createBadge(`${failed.length} of ${counted.length} checks failed`, { color: "danger" }));
+
+        const table = document.createElement("table");
+        table.className = "security-table";
+        const cell = (tag, content, className) => {
+            const c = document.createElement(tag);
+            if (className) c.className = className;
+            if (content instanceof Node) c.append(content);
+            else c.textContent = content ?? "";
+            return c;
+        };
+        const code = (text) => cell("code", text);
+        const head = document.createElement("tr");
+        head.append(cell("th", "payload"), cell("th", "stored as"), cell("th", "shown"), cell("th", "verdict"));
+        table.append(head);
+        let current_sink = null;
+        for (const row of rows) {
+            if (row.sink != current_sink) {
+                current_sink = row.sink;
+                const tr = document.createElement("tr");
+                tr.className = "security-sink";
+                const td = cell("td", `${row.sink.name}${row.sink.exact ? " (exact)" : ""}`);
+                td.colSpan = 4;
+                td.append(cell("div", row.sink.desc, "security-sink-desc"));
+                tr.append(td);
+                table.append(tr);
+            }
+            const v = verdict(row);
+            const tr = document.createElement("tr");
+            tr.append(cell("td", row.payload.name), cell("td", code(row.text)), cell("td", code(row.shown)),
+                cell("td", v.label, v.ok ? "security-pass" : "security-fail"));
+            table.append(tr);
+        }
+        results.replaceChildren(table);
     }
     //#endregion
 

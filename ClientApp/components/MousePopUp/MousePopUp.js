@@ -34,7 +34,7 @@ class MousePopUp {
      * @param {boolean} [options.reusable] - If true, clicking a selection doesn't close the popup (pair with `options.toggles`); the caller is responsible for eventually calling the instance's `onComplete()` to re-enable the clicked row.
      * @param {Object} [options.toggles] - Renders each selection as a toggle switch instead of a plain row.
      * @param {boolean[]} [options.toggles.statuses] - Initial on/off state per `action_titles` entry.
-     * @param {string} [options.title] - Popup title text (HTML-escaped).
+     * @param {string} [options.title] - Popup title, plain text (tag-like text is stripped, entities decoded).
      * @param {Function} [options.onReady] - Called once the popup has been added to the DOM and faded in.
      * @param {Element} [options.beforeSelectionsRow] - Element inserted right after the title, before the selection rows.
      * @param {Element} [options.afterTitleRow] - Element appended into the content-preview area (below the title, above the selections).
@@ -136,7 +136,10 @@ class MousePopUp {
             });
             if (options.svgs != undefined && options.toggles == undefined) {
                 try {
-                    element.innerHTML = policy.createHTML(`<img loading="lazy" src="/Icons/${UiBuilder.escapeHTML(options.svgs[i])}" onerror="this.onerror=null; this.src='/Icons/touch_app.svg';" alt="image ${UiBuilder.escapeHTML(options.svgs[i].slice(0, options.svgs[i].length - 4))}"/>${UiBuilder.escapeHTML(element.innerText)}`);
+                    const img = MousePopUp.#icon(options.svgs[i]);
+                    img.loading = "lazy";
+                    img.alt = `image ${options.svgs[i].slice(0, options.svgs[i].length - 4)}`;
+                    element.replaceChildren(img, document.createTextNode(UiBuilder.decodeHTMLEntities(options.action_titles[i])));
                 } catch { }
             } else if (options.toggles != undefined && options.toggles.statuses != undefined) {
                 setTimeout(() => {
@@ -146,9 +149,7 @@ class MousePopUp {
                     element.getElementsByClassName("template-toggle")[0].classList.remove("display-none-important");
                 }, 0);
                 if (options.svgs != undefined) {
-                    const img = document.createElement("img");
-                    img.src = `/Icons/${options.svgs[i]}`;
-                    img.onerror = "this.onerror=null; this.src='/Icons/touch_app.svg';"
+                    const img = MousePopUp.#icon(options.svgs[i]);
                     img.classList.add("icon_toggle");
                     element.appendChild(img);
                     element.firstElementChild.style.paddingLeft = "60px";
@@ -423,6 +424,16 @@ class MousePopUp {
                 this.#onClose[i]();
             }, 0);
         }
+    }
+    /**
+     * an icon from `/Icons/`, falling back to `touch_app.svg` when it doesn't exist
+     * @param {string} file_name e.g. "save.svg"
+     */
+    static #icon(file_name) {
+        const img = document.createElement("img");
+        img.addEventListener("error", () => img.src = "/Icons/touch_app.svg", { once: true });
+        img.src = `/Icons/${file_name}`;
+        return img;
     }
     static #disablePointerEvents(target) {
         target.classList.add("disable-pointer-events");

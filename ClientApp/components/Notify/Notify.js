@@ -56,14 +56,6 @@ class Notify extends FrameworkGC(`${injector_html}`) {
          */
         close_svg: null,
     }
-    static convertToPlain(html) {
-        if (html == undefined) {
-            return "";
-        }
-        const tempDivElement = document.createElement("div");
-        tempDivElement.innerHTML = UiBuilder.escapeHTML(html);
-        return tempDivElement.innerText;
-    }
     #initialize(options) {
         const owner = this;
         const color = Notify.switchColor(options.type);
@@ -71,11 +63,12 @@ class Notify extends FrameworkGC(`${injector_html}`) {
         owner.self_ref.style.borderColor = color;
         owner.self_ref.style.display = "flex";
         owner.self_ref.getElementsByClassName("function-svg")[0].style.background = color;
-        owner.self_ref.getElementsByClassName("title")[0].innerText = Notify.convertToPlain(options.title);
+        // plain text: raw or stored escaped, both shown the same (a `<` in a message, e.g. `List<string>` in a server error, stays visible)
+        owner.self_ref.getElementsByClassName("title")[0].innerText = UiBuilder.decodeHTMLEntities(options.title);
         if (options.text != undefined) {
-            owner.self_ref.getElementsByClassName("text")[0].innerText = Notify.convertToPlain(options.text);
+            owner.self_ref.getElementsByClassName("text")[0].innerText = UiBuilder.decodeHTMLEntities(options.text);
         }
-        owner.self_ref.getElementsByClassName("extra-data")[0].innerText = Notify.convertToPlain(options.extra_data);
+        owner.self_ref.getElementsByClassName("extra-data")[0].innerText = UiBuilder.decodeHTMLEntities(options.extra_data);
         owner.elements.generic_icon.onClick = options.next;
         owner.elements.generic_icon.innerHTML = icon_code;
         let close_btn = owner.elements.close_svg;

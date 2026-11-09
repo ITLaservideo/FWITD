@@ -86,7 +86,7 @@ class Insight {
      *
      * @param {Object} options
      * @param {Element} options.target - Element to spotlight and anchor the tooltip to; must already be in the DOM.
-     * @param {string} [options.text] - HTML-escaped and set as the tooltip's content.
+     * @param {string} [options.text] - Plain text (entities decoded: raw or escaped data read the same), set as the tooltip's content.
      * @param {'left'|'top'|'right'|'bottom'} [options.anchor='top'] - Which side of `options.target` the tooltip is placed on.
      * @param {number} [options.padding=4] - Gap in px between `options.target` and both the spotlight cutout and the tooltip.
      * @param {Function} [options.singleShotOnClose] - Called once the next time `hide()` runs without `force`, then discarded.
@@ -101,7 +101,7 @@ class Insight {
             }
             options.target.scrollIntoViewIfNeeded();
             if (options.text != undefined) {
-                owner.#main_text_element.firstElementChild.innerHTML = UiBuilder.escapeHTML(options.text);
+                owner.#main_text_element.firstElementChild.textContent = UiBuilder.decodeHTMLEntities(options.text);
             }
             if (options.padding != undefined) {
                 owner.#padding = options.padding;

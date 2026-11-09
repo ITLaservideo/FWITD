@@ -56,8 +56,7 @@ class Tooltip {
      * 
      * @param {Object} options
      * @param {string} [options.text] plain text (tags are stripped), cut at 500 characters
-     * @param {string} [options.html] trusted HTML, shown as is (escape what isn't yours); not cut
-     * @param {Function<Element>} [options.live_element]
+     * @param {() => Element} [options.live_element] rich content: the caller builds the element (and owns whatever markup went into it); used when `text` is empty
      * @param {Event} [options.event]
      * @param {string} [options.anchor] left|top|right|bottom|cursor ("cursor": beside the pointer, flipped near the window's edges; call `show` again on `mousemove` to follow it)
     */
@@ -65,21 +64,16 @@ class Tooltip {
         const owner = this;
         let tmp_top = 0;
         let tmp_left = 0;
-        const has_html = options.html != undefined && `${options.html}`.trim() != '';
-        const has_text = !has_html && options.text != undefined && `${options.text}`.trim() != '';
+        const has_text = options.text != undefined && `${options.text}`.trim() != '';
         // nothing to show: bail out before the `finally` below, which would reveal the previous hint
-        if (!has_html && !has_text && options.live_element == undefined) {
+        if (!has_text && options.live_element == undefined) {
             return;
         }
         try {
-            if (has_html) {
-                owner.#main_text_element.innerHTML = policy.createHTML(`${options.html}`);
-            } else if (has_text) {
-                if (options.text.length > 500) {
-                    owner.#main_text_element.innerHTML = UiBuilder.parseHTMLToDisplay(`${options.text.substring(0, 500)}...`);
-                } else {
-                    owner.#main_text_element.innerHTML = UiBuilder.parseHTMLToDisplay(options.text);
-                }
+            if (has_text) {
+                const text = `${options.text}`;
+                // textContent, never innerHTML: parseHTMLToDisplay decodes entities, so its output isn't safe to parse again
+                owner.#main_text_element.textContent = UiBuilder.parseHTMLToDisplay(text.length > 500 ? `${text.substring(0, 500)}...` : text);
             } else {
                 owner.#main_text_element.innerText = '';
                 owner.#main_text_element.appendChild(options.live_element());

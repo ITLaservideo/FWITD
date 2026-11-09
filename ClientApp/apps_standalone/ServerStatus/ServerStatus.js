@@ -39,7 +39,7 @@ class App {
         this.servers = (AppStatus.CheckForHealth ?? []).map((server) => ({
             name: server.name,
             url: server.url,
-            status: Locale.at("checking"),
+            status: "checking",
             latencyMs: null,
         }));
         this.#render();
@@ -52,7 +52,7 @@ class App {
     }
     retryAll() {
         this.servers.forEach((server) => {
-            server.status = Locale.at("checking");
+            server.status = "checking";
             server.latencyMs = null;
         });
         this.#render();
@@ -193,7 +193,7 @@ class App {
                 const name = nameInput.value.trim();
                 const url = urlInput.value.trim();
                 if (!name || !url) return;
-                const server = { name, url, status: Locale.at("checking"), latencyMs: null };
+                const server = { name, url, status: "checking", latencyMs: null };
                 owner.servers.push(server);
                 nameInput.value = "";
                 urlInput.value = "";
@@ -260,22 +260,32 @@ class App {
                 : "";
         }
         if (!this.elements.list) return;
+        // DOM nodes and textContent only: name and url are typed in by the user (settings popup)
+        const node = (className, text) => {
+            const el = document.createElement("div");
+            el.className = className;
+            if (text != undefined) {
+                el.textContent = text;
+            }
+            return el;
+        };
         if (!this.servers.length) {
-
-            this.elements.list.innerHTML = `<div class="ss-empty">${Locale.at('No health check targets configured')}.</div>`;
+            this.elements.list.replaceChildren(node("ss-empty", `${Locale.at('No health check targets configured')}.`));
             return;
         }
-        this.elements.list.innerHTML = policy.createHTML(this.servers.map((server) => `
-            <div class="ss-row">
-                <div class="ss-row-info">
-                    <div class="ss-row-name">${UiBuilder.escapeHTML(server.name)}</div>
-                    <div class="ss-row-url">${UiBuilder.escapeHTML(server.url)}</div>
-                </div>
-                <div class="ss-row-status">
-                    <div class="ss-badge ss-badge-${server.status}">${Locale.at(server.status)}</div>
-                    ${server.latencyMs != null ? `<div class="ss-row-latency">${server.latencyMs} ms</div>` : ""}
-                </div>
-            </div>
-        `).join(""));
+        this.elements.list.replaceChildren(...this.servers.map((server) => {
+            const info = node("ss-row-info");
+            info.append(node("ss-row-name", UiBuilder.decodeHTMLEntities(server.name)), node("ss-row-url", UiBuilder.decodeHTMLEntities(server.url)));
+            const status = node("ss-row-status");
+            const badge = node("ss-badge", Locale.at(server.status));
+            badge.classList.add(`ss-badge-${server.status}`);
+            status.append(badge);
+            if (server.latencyMs != null) {
+                status.append(node("ss-row-latency", `${server.latencyMs} ms`));
+            }
+            const row = node("ss-row");
+            row.append(info, status);
+            return row;
+        }));
     }
 }

@@ -241,3 +241,70 @@ body:not([data-showcase-tab="2"])>.sticky-bar:is(.pe-tabs-bar, :has(> .pe-tool-b
     gap: 8px;
     padding: 8px;
 }
+/* Security tab */
+.security-tests {
+    width: min(1200px, 100%);
+    box-sizing: border-box;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.security-intro {
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.4;
+}
+
+/* off-screen, not display:none: images still load there, so an onerror would fire */
+.security-sandbox {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 400px;
+    overflow: hidden;
+}
+
+.security-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+
+    th,
+    td {
+        padding: 4px 8px;
+        border-bottom: 1px solid var(--vscode-tree-tableColumnsBorder);
+        text-align: left;
+        vertical-align: top;
+    }
+
+    th {
+        color: var(--vscode-descriptionForeground);
+    }
+
+    code {
+        font-family: var(--vscode-editor-font-family, monospace);
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    .security-sink td {
+        padding-top: 14px;
+        font-weight: 600;
+    }
+
+    .security-sink-desc {
+        font-weight: normal;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    .security-pass {
+        color: var(--vscode-testing-iconPassed, #388a34);
+    }
+
+    .security-fail {
+        color: var(--vscode-testing-iconFailed, #e51400);
+        font-weight: 600;
+    }
+}
