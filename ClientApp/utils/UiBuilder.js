@@ -1890,18 +1890,23 @@ class UiBuilder {
      * holding a drag knob, a minimize toggle and a close button.
      * Closed by the close button, Escape, or SpaHistory back navigation; double-clicking the
      * top bar restores it when minimized. Overflow is re-checked on window resize.
+     * Resizable from the grip in its bottom right corner: once resized it keeps that size (the content
+     * fills it and scrolls when it doesn't fit), minimizing still collapses it.
      * @param {Element} [html_element_content] content placed inside the container
      * @param {object} [options]
      * @param {'horizontal' | 'vertical'} [options.direction='horizontal'] added as a css class
      * @param {Function} [options.onDestroy] called after the container is closed and removed
-     * @param {string} [options.id] used to store position between pages in localStorage; omit for no persistence
+     * @param {string} [options.id] used to store position (and size, once resized) between pages in localStorage; omit for no persistence
      * @param {{left: string, top: string}} [options.start_location] css `left`/`top` (e.g. "100px") used when no position is saved yet; only applied when `options.id` is set
      * @param {string} [options.style] inline css text assigned to the container
+     * @param {boolean} [options.resizable=true] false hides the resize grip
      * @returns {HTMLDivElement}
      */
     static createFloatingContainer(html_element_content, options = {}) {
         const direction = options?.direction ?? 'horizontal';
         const onDestroy = options?.onDestroy ?? null;
+        const resizable = options?.resizable ?? true;
+        const storage_key = options?.id ? `floating-container:${options.id}` : null;
 
         const container = document.createElement("div");
         container.className = `floating-container ${direction}`;
@@ -1946,6 +1951,54 @@ class UiBuilder {
                 UiBuilder.checkOverflow(container);
             }, 1000);
         };
+        /** position, plus the size once the user resized it */
+        const savePlacement = () => {
+            if (storage_key == null) return;
+            const placement = { left: container.style.left, top: container.style.top };
+            if (container.classList.contains("is-resized")) {
+                placement.width = container.style.width;
+                placement.height = container.style.height;
+            }
+            try { localStorage.setItem(storage_key, JSON.stringify(placement)); } catch (_) { }
+        };
+
+        // --- resize ---
+        if (resizable) {
+            const resizeGrip = document.createElement("div");
+            resizeGrip.className = "floating-container-resize";
+            resizeGrip.addEventListener("pointerdown", (e) => {
+                if (e.button != 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                // border-box from now on, so the measured size is the size set
+                container.classList.add("is-resized");
+                const rect = container.getBoundingClientRect();
+                const computed = getComputedStyle(container);
+                const min_width = parseFloat(computed.minWidth) || 0;
+                const min_height = parseFloat(computed.minHeight) || 0;
+                const start_x = e.clientX, start_y = e.clientY;
+                container.style.width = `${rect.width}px`;
+                container.style.height = `${rect.height}px`;
+                resizeGrip.setPointerCapture(e.pointerId);
+                const onMove = (ev) => {
+                    const width = Math.min(Math.max(min_width, rect.width + ev.clientX - start_x), window.innerWidth - rect.left);
+                    const height = Math.min(Math.max(min_height, rect.height + ev.clientY - start_y), window.innerHeight - rect.top);
+                    container.style.width = `${width}px`;
+                    container.style.height = `${height}px`;
+                };
+                const onUp = () => {
+                    resizeGrip.removeEventListener("pointermove", onMove);
+                    resizeGrip.removeEventListener("pointerup", onUp);
+                    resizeGrip.removeEventListener("pointercancel", onUp);
+                    savePlacement();
+                    scheduleOverflowCheck();
+                };
+                resizeGrip.addEventListener("pointermove", onMove);
+                resizeGrip.addEventListener("pointerup", onUp);
+                resizeGrip.addEventListener("pointercancel", onUp);
+            });
+            container.appendChild(resizeGrip);
+        }
 
         const onMouseMove = (e) => {
             if (!isDragging) return;
@@ -1958,12 +2011,7 @@ class UiBuilder {
             knob.classList.remove("grabbing");
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
-            if (options?.id) {
-                localStorage.setItem(
-                    `floating-container:${options.id}`,
-                    JSON.stringify({ left: container.style.left, top: container.style.top })
-                );
-            }
+            savePlacement();
             scheduleOverflowCheck();
         };
         const onTouchMove = (e) => {
@@ -1979,17 +2027,12 @@ class UiBuilder {
             knob.classList.remove("grabbing");
             document.removeEventListener("touchmove", onTouchMove);
             document.removeEventListener("touchend", onTouchEnd);
-            if (options?.id) {
-                localStorage.setItem(
-                    `floating-container:${options.id}`,
-                    JSON.stringify({ left: container.style.left, top: container.style.top })
-                );
-            }
+            savePlacement();
             scheduleOverflowCheck();
         };
-        if (options?.id) {
+        if (storage_key != null) {
             try {
-                const saved = JSON.parse(localStorage.getItem(`floating-container:${options.id}`));
+                const saved = JSON.parse(localStorage.getItem(storage_key));
                 if (saved?.left) { container.style.left = saved.left }
                 else {
                     if (options.start_location != undefined && options.start_location.left != undefined && options.start_location.top) {
@@ -1998,6 +2041,11 @@ class UiBuilder {
                     }
                 }
                 if (saved?.top) container.style.top = saved.top;
+                if (resizable && saved?.width && saved?.height) {
+                    container.classList.add("is-resized");
+                    container.style.width = saved.width;
+                    container.style.height = saved.height;
+                }
             } catch (_) { }
         }
         const onResizeWindow = () => {
@@ -2075,6 +2123,116 @@ class UiBuilder {
         document.body.appendChild(container);
         scheduleOverflowCheck();
         return container;
+    }
+    /**
+     * small image that, when clicked, opens enlarged in a centered `BottomSheet` (click anywhere or `Escape` closes it).
+     * the pin button (top right corner of the enlarged image) moves it into a `createFloatingContainer`
+     * (draggable, resizable) that stays open until closed.
+     * `Escape` closes the enlarged image first, then the pinned one.
+     * the click doesn't propagate: safe inside clickable parents (e.g. tab buttons, even with pointer-events:none)
+     * @param {Object} options
+     * @param {string} options.src
+     * @param {string} [options.big_src] enlarged image, defaults to `src`
+     * @param {string} [options.height] thumbnail height
+     * @param {string} [options.style] extra css for the thumbnail
+     * @param {string} [options.hint] hint of the thumbnail
+     * @returns {HTMLImageElement & {closeZoom: () => void, closePinned: () => void, setVisible: (visible: boolean) => void}} `setVisible(false)` also closes the enlarged image (not the pinned one)
+     */
+    static createThumb({ src, big_src = src, height = "28px", style = "", hint = "" }) {
+        const thumb = document.createElement("img");
+        thumb.src = src;
+        thumb.draggable = false;
+        thumb.style.cssText = `height:${height};cursor:zoom-in;pointer-events:auto;border:1px solid var(--vscode-widget-border);border-radius:2px;${style}`;
+        if (hint) {
+            UiBuilder.addHint({ hint, target: thumb, anchor: "top" });
+        }
+        /** @type {BottomSheet|null} */
+        let zoom = null;
+        /** @type {HTMLDivElement|null} */
+        let pinned = null;
+        /**
+         * capture phase on `document`: runs before the floating container's own `Escape` listener
+         * (on `document.body`) and stops it, so only the enlarged image closes
+         */
+        const onKeyUp = (event) => {
+            if (event.key != "Escape" || zoom == null) { return; }
+            event.stopPropagation();
+            closeZoom();
+        };
+        /** the sheet is gone (or going): drop the reference, idempotent */
+        const forgetZoom = () => {
+            zoom = null;
+            document.removeEventListener("keyup", onKeyUp, true);
+        };
+        const closeZoom = () => {
+            const instance = zoom;
+            if (instance == null) { return; }
+            forgetZoom();
+            instance.destroy();
+            // the pin button's hint is shown on mouseup, after its click: hide it once the sheet is removed
+            setTimeout(() => UiBuilder.hideHint(), 0);
+        };
+        const closePinned = () => {
+            pinned?.querySelector(".floating-container-close")?.click();
+        };
+        const openPinned = () => {
+            if (pinned != null) {
+                document.body.appendChild(pinned);// bring to front
+                return;
+            }
+            const img = document.createElement("img");
+            img.src = big_src;
+            img.draggable = false;
+            img.style.cssText = "flex:1 1 auto;min-width:0;min-height:0;width:100%;object-fit:contain;";
+            const width = Math.min(250, window.innerWidth * 0.9);
+            const height = Math.min(340, window.innerHeight * 0.8);
+            pinned = UiBuilder.createFloatingContainer(img, {
+                direction: "vertical",
+                style: `left:${Math.max(1, window.innerWidth - width - 16)}px;top:16px;width:${width}px;height:${height}px;`,
+                onDestroy: () => { pinned = null; },
+            });
+            // explicit size from the start: behave as already resized (content fills it, minimizing collapses it)
+            pinned.classList.add("is-resized");
+        };
+        thumb.addEventListener("click", (event) => {
+            event.stopPropagation();
+            if (zoom != null) { return; }
+            const frame = document.createElement("div");
+            frame.style.cssText = "position:relative;display:flex;";
+            const big = document.createElement("img");
+            big.src = big_src;
+            big.draggable = false;
+            big.style.cssText = "max-width:90vw;max-height:85vh;cursor:zoom-out;border-radius:2px;";
+            big.addEventListener("click", closeZoom);
+            const btn_pin = UiBuilder.createButton({
+                icon_code: "f10d",// push_pin
+                hint: Locale.at("Pin"),
+                anchor: "left",
+                theme: "text",
+                style: "position:absolute;top:8px;right:8px;border-radius:50%;background:var(--vscode-editorWidget-background);box-shadow:var(--vscode-widget-shadow);",
+                onClick: () => {
+                    closeZoom();
+                    openPinned();
+                },
+            });
+            frame.appendChild(big);
+            frame.appendChild(btn_pin);
+            // closed by its ✕, a click outside or back navigation: onClose runs a tick later, skip it if already replaced
+            const instance = new BottomSheet({
+                element: frame,
+                centered: true,
+                onClose: () => { if (zoom === instance) { forgetZoom(); } },
+            });
+            zoom = instance;
+            document.addEventListener("keyup", onKeyUp, true);
+        });
+        thumb.closeZoom = closeZoom;
+        thumb.closePinned = closePinned;
+        thumb.setVisible = (visible) => {
+            thumb.style.display = visible ? "" : "none";
+            if (!visible) { closeZoom(); }
+        };
+        return thumb;
     }
     //#region "new implementation"
 
