@@ -1,5 +1,5 @@
 /**
- * @version 1.3
+ * @version 1.4
  */
 class SpeedActions extends FrameworkGC(`${injector_html}`) {
     /**
@@ -14,6 +14,7 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
      * @param {boolean} [options.non_relative=false] - if true, don't add the `sa-target-active`/`sta-relative` classes to the target while shown (use when forcing `position: relative` on the target would break its layout)
      * @param {boolean} [options.unpinnable=false] - if true, the "pin" button (prevent auto-closing) is not shown for this instance
      * @param {() => boolean} [options.conditionsMet] - evaluated on every hover of `target`, before the popup opens; if it returns a falsy value the popup is not shown for that hover
+     * @param {() => void} [options.onHide] - called when the popup stops being shown for this instance: closed, or taken over by another target
      * @param {Function|Array<Function>} [options.onClose] - callback(s) on destroy
      * @param {Function} [options.onReady] - callback when component is ready
      */
@@ -162,6 +163,9 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
         if (SpeedActions.#current_instance && SpeedActions.#current_instance !== instance) {
             SpeedActions.#current_instance.#target.classList.remove('sa-target-active', 'sta-relative');
             SpeedActions.pinned.toggle(false);
+            if (SpeedActions.#is_visible) {
+                SpeedActions.#current_instance.options.onHide?.();
+            }
         }
         // console.error(instance.options);
         if (!SpeedActions.#is_visible || SpeedActions.#current_instance !== instance) {
@@ -294,9 +298,13 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
         }
         if (!one || !SpeedActions.#is_visible) return;
         SpeedActions.#is_visible = false;
-        SpeedActions.#current_instance.#target.classList.remove('sa-target-active');
+        const hidden_instance = SpeedActions.#current_instance;
+        if (hidden_instance != null) {
+            hidden_instance.#target.classList.remove('sa-target-active');
+        }
         SpeedActions.#current_instance = null;
         one.self_ref.classList.remove('sa-visible');
+        hidden_instance?.options.onHide?.();
     }
 
     /**
@@ -305,6 +313,16 @@ class SpeedActions extends FrameworkGC(`${injector_html}`) {
     hide() {
         if (SpeedActions.#current_instance === this) {
             SpeedActions.#hide();
+        }
+    }
+
+    /**
+     * like `hide()` but without the mouseleave debounce and ignoring the pinned state: closes the popup
+     * right away if this instance is the one currently shown (no-op otherwise)
+     */
+    hideNow() {
+        if (SpeedActions.#current_instance === this) {
+            SpeedActions.#hideNow();
         }
     }
 

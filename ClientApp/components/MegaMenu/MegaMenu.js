@@ -27,7 +27,7 @@
  * Panels are `SpeedActions` popups anchored to their entry: they open on hover and close on leave or
  * after a link is activated. In horizontal orientation the bar stays on one line: the trailing entries that
  * don't fit are packed into a "more" entry (recomputed on window/container resize).
- * @version 1.3
+ * @version 1.4
  */
 class MegaMenu extends FrameworkGC(`${injector_html}`) {
     /**
@@ -190,6 +190,14 @@ class MegaMenu extends FrameworkGC(`${injector_html}`) {
             side: "bottom",
             side_strict: true,
             unpinnable: true,
+            // reopening the panel shows every section expanded again
+            onHide: () => {
+                const sections = panel.querySelectorAll(".mm-overflow-section.mm-collapsed");
+                for (let i = 0; i < sections.length; i++) {
+                    sections[i].classList.remove("mm-collapsed");
+                    sections[i].querySelector(".mm-overflow-label")?.setAttribute("aria-expanded", "true");
+                }
+            },
         });
         return { li, panel, speed_actions };
     }
@@ -221,6 +229,20 @@ class MegaMenu extends FrameworkGC(`${injector_html}`) {
             const text = document.createElement("span");
             text.innerText = item.label ?? "";
             heading.appendChild(text);
+            heading.setAttribute("role", "button");
+            heading.setAttribute("tabindex", "0");
+            heading.setAttribute("aria-expanded", "true");
+            const toggle = () => {
+                const collapsed = section.classList.toggle("mm-collapsed");
+                heading.setAttribute("aria-expanded", collapsed ? "false" : "true");
+            };
+            heading.addEventListener("click", toggle);
+            heading.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggle();
+                }
+            });
             section.appendChild(heading);
             for (let c = 0; c < item.items.length; c++) {
                 const groups = item.items[c] ?? [];
@@ -363,6 +385,8 @@ class MegaMenu extends FrameworkGC(`${injector_html}`) {
         link.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
+                // the popup's own keydown listener would pin it again right after #hidePanel closed it
+                event.stopPropagation();
                 activate(event);
             }
         });
@@ -401,9 +425,10 @@ class MegaMenu extends FrameworkGC(`${injector_html}`) {
      * @param {SpeedActions} speed_actions
      */
     #hidePanel(speed_actions) {
-        // any key pressed inside the popup pins it, and a pinned popup only dims on hide
+        // a link was activated: close right away, not after the mouseleave debounce.
+        // Any key pressed inside the popup pins it: reset it, so the next hover doesn't start pinned
         SpeedActions.pinned.toggle(false);
-        speed_actions.hide();
+        speed_actions.hideNow();
     }
 }
 

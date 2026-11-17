@@ -207,12 +207,28 @@
         font-size: 0.9rem;
         font-weight: 600;
         border-bottom: 1px solid var(--vscode-widget-border);
+        cursor: pointer;
         color: var(--vscode-descriptionForeground);
-        opacity: 0.5;
 
         .f-icon-i {
             font-size: 1.2rem;
             line-height: 1;
+        }
+    }
+
+    .mm-overflow-label:focus-visible {
+        outline: 1px solid var(--vscode-focusBorder);
+        outline-offset: -1px;
+    }
+
+    /* toggled by clicking the section's '.mm-overflow-label' */
+    .mm-overflow-section.mm-collapsed {
+        .mm-overflow-label {
+            border-bottom: none;
+        }
+
+        .mm-group {
+            display: none;
         }
     }
 }
