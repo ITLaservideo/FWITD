@@ -1335,7 +1335,7 @@ html {
     }
 }
 
-/* bottom right corner grip (UiBuilder.createFloatingContainer, `options.resizable`) */
+/* bottom right corner grip (UiBuilder.createFloatingContainer, 'options.resizable') */
 .floating-container-resize {
     position: absolute;
     right: 0;

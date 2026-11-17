@@ -42,49 +42,36 @@ class App {
         // this.elements.floating_container.classList.add("themain-floating-container");
         const owner = this;
         const some_style = "white-space:nowrap;font-size: 15px;height: fit-content;";
+        // the account id in the dash urls depends on the logged-in account: cache it if not known yet
+        App.#getAccountId();
         const btn = UiBuilder.createButton({
-            onClick: async () => {
-                document.getElementById("email").focus();
-                await wait100ms();
-                await Lobby.postAsync("Windows/TypeKey", {
-                    key: "cf-the-email"
+            onClick: async (event) => {
+                // accounts = appsettings.json "PublicTypeWriter.accounts" (labels only, values stay in C#)
+                const rsp = await Lobby.postAsync("Windows/GetTypeWriterAccounts", {});
+                const labels = rsp.error == undefined ? (rsp.data ?? []) : [];
+                if (labels.length === 0) {
+                    UiBuilder.Notify("nessun account in PublicTypeWriter.accounts", event, 4000);
+                    return;
+                }
+                if (labels.length === 1) {
+                    await App.#typeLogin(0);
+                    return;
+                }
+                new MousePopUp({
+                    title: "type login",
+                    action_titles: labels,
+                    next: labels.map((_, index) => () => { App.#typeLogin(index); }),
+                    event: event,
+                    style: 'plain'
                 });
-                await wait100ms();
-                document.getElementById("password").focus();
-                await wait100ms();
-                await Lobby.postAsync("Windows/TypeKey", {
-                    key: "cf-the-password"
-                });
-                try {
-                    // const captha_iframe_container = document.querySelector("[data-testid='challenge-widget-container']");
-                    // const rect_captcha = captha_iframe_container.getBoundingClientRect();
-                    // await Lobby.postAsync("Windows/MoveMouseAt", {
-                    //     x: Math.floor(rect_captcha.x + 20),
-                    //     y: Math.floor(rect_captcha.y + 67)
-                    // });
-                    // await wait100ms();
-                    // await Lobby.postAsync("Windows/ClickAt", {
-                    //     x: Math.floor(rect_captcha.x + 20),
-                    //     y: Math.floor(rect_captcha.y + 67)
-                    // });
-                    const button_confirm = document.querySelector('[name="login-submit-button"]');
-                    const rect_button_confirm = button_confirm.getBoundingClientRect();
-                    const max_iter = 10;
-                    await wait100ms();
-                    await wait100ms();
-                    await Lobby.postAsync("Windows/ClickAt", {
-                        x: Math.floor(rect_button_confirm.x + 80),
-                        y: Math.floor(rect_button_confirm.y + 20)
-                    });
-                } catch (e) { console.log("couldn't find btn-login-submit"); console.log(e); }
             },
             title: "type login"
             , style: some_style,
             icon_code: "f524"
         });
         const btn2 = UiBuilder.createButton({
-            onClick: async () => {
-                window.location.href = AppStatus.CF_URL_NEW_TUNNEL;
+            onClick: async (event) => {
+                App.#navigateWithAccountId(AppStatus.CF_URL_NEW_TUNNEL, event);
             },
             title: "++tunnel"
             , style: some_style
@@ -227,8 +214,8 @@ class App {
             icon_code: "f3d8"
         });
         const btnx = UiBuilder.createButton({
-            onClick: async () => {
-                window.location.href = AppStatus.CF_URL_DeleteURL;
+            onClick: async (event) => {
+                App.#navigateWithAccountId(AppStatus.CF_URL_DeleteURL, event);
             },
             title: "-- url"
             , style: some_style
@@ -249,11 +236,46 @@ class App {
         // });
         // btn5_container.appendChild(btn2);
         // btn5_container.appendChild(btnx);
+        const deprecated_container = document.createElement("div");
+        deprecated_container.style.display = "flex";
+        deprecated_container.style.flexDirection = "column";
+        deprecated_container.style.gap = "4px";
+        deprecated_container.appendChild(btn3);
+        deprecated_container.appendChild(btn2);
+        const btn_reload = UiBuilder.createButton({
+            onClick: async () => {
+                window.location.href = 'https://dash.cloudflare.com';
+            },
+            title: "reload"
+            , style: some_style,
+            icon_code: "e5d5"
+        });
+        deprecated_container.appendChild(btn_reload);
+        const deprecated_accordion = UiBuilder.createAccordion({
+            titles: ["deprecated"],
+            content: [deprecated_container],
+            id: "section_deprecated"
+        });
         owner.elements.floating_container.appendChild(btn);
-        owner.elements.floating_container.appendChild(btn3);
         // owner.elements.floating_container.appendChild(btn5);
-        owner.elements.floating_container.appendChild(btn2);
         owner.elements.floating_container.appendChild(btnx);
+        const btn_tunnels = UiBuilder.createButton({
+            onClick: async (event) => {
+                App.#navigateWithAccountId("/{account_id}/tunnels", event);
+            },
+            title: "tunnels"
+            , style: some_style
+        });
+        owner.elements.floating_container.appendChild(btn_tunnels);
+        const btn_api_tokens = UiBuilder.createButton({
+            onClick: async () => {
+                window.location.href = 'https://dash.cloudflare.com/profile/api-tokens';
+            },
+            title: "api tokens"
+            , style: some_style
+        });
+        owner.elements.floating_container.appendChild(btn_api_tokens);
+        owner.elements.floating_container.appendChild(deprecated_accordion);
         const the_intervall = setInterval(() => {
             try {
                 if (document.body.innerText.includes("cloudflared.exe service install")) {
@@ -269,6 +291,100 @@ class App {
 
             }
         }, 1000);
+    }
+    static #ACCOUNT_ID_KEY = "fw_cf_account_id";
+    static #REGEX_ACCOUNT_ID = /^\/([0-9a-f]{32})(\/|$)/i;
+    /**
+     * The 32-hex Cloudflare account id used in dash urls (`/<id>/tunnels`). Looked up, in order, in:
+     * Cloudflare's `bootstrap-cache` (`data.user.primary_account_tag`), the current url, the page links
+     * (e.g. the sidebar `href="/<id>/tunnels"`), and last the copy saved in localStorage by a previous lookup.
+     * A live hit refreshes that saved copy.
+     * @returns {string|null}
+     */
+    static #getAccountId() {
+        let account_id = null;
+        // Cloudflare's own cache of the logged-in user
+        try {
+            const tag = JSON.parse(localStorage.getItem("bootstrap-cache"))?.data?.user?.primary_account_tag;
+            if (typeof tag === "string" && /^[0-9a-f]{32}$/i.test(tag)) {
+                account_id = tag;
+            }
+        } catch { }
+        account_id ??= window.location.pathname.match(App.#REGEX_ACCOUNT_ID)?.[1] ?? null;
+        if (!account_id) {
+            for (const a of document.querySelectorAll("a[href]")) {
+                const match = (a.getAttribute("href") ?? "").match(App.#REGEX_ACCOUNT_ID);
+                if (match) {
+                    account_id = match[1];
+                    break;
+                }
+            }
+        }
+        if (account_id) {
+            try { localStorage.setItem(App.#ACCOUNT_ID_KEY, account_id); } catch { }
+            return account_id;
+        }
+        try {
+            return localStorage.getItem(App.#ACCOUNT_ID_KEY);
+        } catch {
+            return null;
+        }
+    }
+    /**
+     * Navigates to `url` with its `{account_id}` placeholder filled with the current account's id;
+     * when the id can't be found, notifies instead of navigating.
+     * @param {string} url e.g. appsettings.json "Cloudflare.URL_NEW_TUNNEL"
+     * @param {{clientX: number, clientY: number}} event where to show the notification
+     */
+    static #navigateWithAccountId(url, event) {
+        const account_id = App.#getAccountId();
+        if (!account_id) {
+            UiBuilder.Notify("account id non trovato (fare prima il login)", event, 4000);
+            return;
+        }
+        window.location.href = url.replaceAll("{account_id}", account_id);
+    }
+    /**
+     * Types email + password of the given "PublicTypeWriter.accounts" entry, then clicks the login submit button.
+     * @param {number} account index into appsettings.json "PublicTypeWriter.accounts"
+     */
+    static async #typeLogin(account) {
+        // a different account may log in: forget the cached account id, it's found again after login
+        try { localStorage.removeItem(App.#ACCOUNT_ID_KEY); } catch { }
+        document.getElementById("email").focus();
+        await wait100ms();
+        await Lobby.postAsync("Windows/TypeKey", {
+            key: "cf-the-email",
+            account: account
+        });
+        await wait100ms();
+        document.getElementById("password").focus();
+        await wait100ms();
+        await Lobby.postAsync("Windows/TypeKey", {
+            key: "cf-the-password",
+            account: account
+        });
+        try {
+            // const captha_iframe_container = document.querySelector("[data-testid='challenge-widget-container']");
+            // const rect_captcha = captha_iframe_container.getBoundingClientRect();
+            // await Lobby.postAsync("Windows/MoveMouseAt", {
+            //     x: Math.floor(rect_captcha.x + 20),
+            //     y: Math.floor(rect_captcha.y + 67)
+            // });
+            // await wait100ms();
+            // await Lobby.postAsync("Windows/ClickAt", {
+            //     x: Math.floor(rect_captcha.x + 20),
+            //     y: Math.floor(rect_captcha.y + 67)
+            // });
+            const button_confirm = document.querySelector('[name="login-submit-button"]');
+            const rect_button_confirm = button_confirm.getBoundingClientRect();
+            await wait100ms();
+            await wait100ms();
+            await Lobby.postAsync("Windows/ClickAt", {
+                x: Math.floor(rect_button_confirm.x + 80),
+                y: Math.floor(rect_button_confirm.y + 20)
+            });
+        } catch (e) { console.log("couldn't find btn-login-submit"); console.log(e); }
     }
     static scrollBot() {
         const footers = document.getElementsByTagName("footer");

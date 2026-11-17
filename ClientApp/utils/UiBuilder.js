@@ -1899,13 +1899,13 @@ class UiBuilder {
      * @param {string} [options.id] used to store position (and size, once resized) between pages in localStorage; omit for no persistence
      * @param {{left: string, top: string}} [options.start_location] css `left`/`top` (e.g. "100px") used when no position is saved yet; only applied when `options.id` is set
      * @param {string} [options.style] inline css text assigned to the container
-     * @param {boolean} [options.resizable=true] false hides the resize grip
+     * @param {boolean} [options.resizable=false] false hides the resize grip
      * @returns {HTMLDivElement}
      */
     static createFloatingContainer(html_element_content, options = {}) {
         const direction = options?.direction ?? 'horizontal';
         const onDestroy = options?.onDestroy ?? null;
-        const resizable = options?.resizable ?? true;
+        const resizable = options?.resizable ?? false;
         const storage_key = options?.id ? `floating-container:${options.id}` : null;
 
         const container = document.createElement("div");
