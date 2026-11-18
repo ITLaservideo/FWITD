@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <script>(() => { document.addEventListener("contextmenu", function (e) { e.preventDefault(); }); document.addEventListener("wheel", function (e) { if (e.ctrlKey) { e.preventDefault(); } }, { passive: false }); document.addEventListener("keydown", function (e) { if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '0')) { e.preventDefault(); } }); })();</script>
+    <title>Canvas Showcase</title>
+</head>
+
+<body>
+    <div id="app-main-content" class="cs-layout">
+        <aside class="cs-explorer">
+            <div class="cs-explorer-tree" id="cs-explorer-tree"></div>
+            <div class="cs-explorer-footer" id="cs-explorer-footer"></div>
+        </aside>
+        <div class="cs-resizer" id="cs-resizer" title="drag to resize, double click to reset"></div>
+        <main class="cs-content">
+            <header class="cs-content-header">
+                <div class="cs-content-title" id="cs-content-title"></div>
+                <div class="cs-content-hint" id="cs-content-hint"></div>
+            </header>
+            <div class="cs-content-body" id="cs-content-body"></div>
+        </main>
+    </div>
+</body>
+
+</html>

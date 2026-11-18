@@ -29,7 +29,8 @@ $shortcuts = @(
     @{ Name = "_AdminSettings.lnk"; Args = "--start-app 9001"; Icon = "demo.ico" },
     @{ Name = "_PDFEditor.lnk"; Args = "--start-app 9002"; Icon = "demo.ico" },
     @{ Name = "_DataCruncher.lnk"; Args = "--start-app 9004"; Icon = "demo.ico" },
-    @{ Name = "_VehicleMaintenance.lnk"; Args = "--start-app 9006"; Icon = "demo.ico" }
+    @{ Name = "_VehicleMaintenance.lnk"; Args = "--start-app 9006"; Icon = "demo.ico" },
+    @{ Name = "_CanvasShowcase.lnk"; Args = "--start-app 9007"; Icon = "demo.ico" }
 )
 
 foreach ($s in $shortcuts) {

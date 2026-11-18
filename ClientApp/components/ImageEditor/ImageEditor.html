@@ -1,70 +1,76 @@
 <div class="ie-container">
     <div class="ie-close" (click)="onClickCancel">✕</div>
-    <div class="ie-instructions">{{Drag the circles at the corners to crop the image}},&nbsp;
+    <div class="ie-instructions" fw-id="instructions">{{Drag the circles at the corners to crop the image}},&nbsp;
         {{use the slider to straighten it}}</div>
     <div class="ie-workspace">
         <div class="ie-toolbox ie-labels-compact" fw-id="toolbox">
             <div class="ez-button ie-tool-button" fw-id="btn_toggle_labels" (click)="onClickToggleLabels">
                 <div class="f-icon-i" fw-id="toggle_labels_icon">&#xf1c0;</div>
-                <span>{{Etichette}}</span>
+                <span>{{Labels}}</span>
             </div>
             <div class="ez-button ie-tool-button" fw-id="btn_color_key" (click)="onClickRemoveBackground">
                 <div class="f-icon-i">&#xf20a;</div>
-                <span>{{Rimuovi sfondo}}</span>
+                <span>{{Remove background}}</span>
             </div>
             <div class="ez-button ie-tool-button" fw-id="btn_erase" (click)="onClickErase">
                 <div class="f-icon-i">&#xe6d0;</div>
-                <span>{{Cancella}}</span>
+                <span>{{Erase}}</span>
             </div>
             <div class="ez-button ie-tool-button" fw-id="btn_restore" (click)="onClickRestore">
                 <div class="f-icon-i">&#xe3f3;</div>
-                <span>{{Ripristina}}</span>
+                <span>{{Restore}}</span>
             </div>
             <div class="ez-button ie-tool-button" fw-id="btn_add_text" (click)="onClickAddText">
                 <div class="f-icon-i">&#xe9f1;</div>
-                <span>{{add text}}</span>
+                <span>{{Add text}}</span>
             </div>
             <div class="ez-button ie-tool-button" fw-id="btn_draw" (click)="onClickDraw">
                 <div class="f-icon-i">&#xe3c9;</div>
-                <span>{{draw}}</span>
+                <span>{{Draw}}</span>
             </div>
         </div>
         <div class="ie-main-column">
             <div class="ie-toolbox-top ie-labels-compact" fw-id="toolbox_top">
-                <div class="ez-button ie-tool-button" (click)="onClickReset">
+                <div class="ez-button ie-tool-button" fw-id="btn_reset" (click)="onClickReset">
                     <div class="f-icon-i">&#xf053;</div>
                     <span displ>{{Reset}}</span>
                 </div>
                 <div class="ez-button ie-tool-button" fw-id="btn_undo" (click)="onClickUndo">
                     <div class="f-icon-i">&#xe166;</div>
-                    <span style="display: none;">{{Annulla}} (CTRL + Z)</span>
+                    <span style="display: none;">{{Undo}}</span>
                 </div>
                 <div class="ez-button ie-tool-button" fw-id="btn_redo" (click)="onClickRedo">
                     <div class="f-icon-i">&#xe15a;</div>
-                    <span style="display: none;">{{Ripeti}} (CTRL + Y)</span>
+                    <span style="display: none;">{{Redo}}</span>
                 </div>
                 <div class="ez-button ie-tool-button" fw-id="btn_flip_h" (click)="onClickFlipHorizontal">
                     <div class="f-icon-i">&#xe41e;</div>
-                    <span>{{Rifletti orizz.}}</span>
+                    <span>{{Flip horizontally}}</span>
                 </div>
                 <div class="ez-button ie-tool-button" fw-id="btn_flip_v" (click)="onClickFlipVertical">
                     <div class="f-icon-i">&#xea38;</div>
-                    <span>{{Rifletti vert.}}</span>
+                    <span>{{Flip vertically}}</span>
+                </div>
+                <div class="ez-button ie-tool-button" fw-id="btn_scale" (click)="onClickScale">
+                    <div class="f-icon-i">&#xe85b;</div>
+                    <span>{{Scale}}</span>
                 </div>
                 <div class="ez-button ie-tool-button" fw-id="btn_smoothing">
                     <div class="f-icon-i">&#xf50c;</div>
-                    <span>{{Levigatura}}</span>
+                    <span>{{Smoothing}}</span>
                 </div>
             </div>
-            <div class="ie-crop-wrapper" fw-id="crop_wrapper">
-                <div class="ie-crop-area" fw-id="crop_area">
-                    <div class="ie-image-clip">
-                        <img class="ie-image" fw-id="img_to_crop" draggable="false" alt="" />
+            <div class="ie-viewport" fw-id="viewport">
+                <div class="ie-crop-wrapper" fw-id="crop_wrapper">
+                    <div class="ie-crop-area" fw-id="crop_area">
+                        <div class="ie-image-clip">
+                            <img class="ie-image" fw-id="img_to_crop" draggable="false" alt="" />
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="ie-rotation" fw-id="rotation_area">
-                <span class="ie-rotation-label">{{Ruota}}</span>
+                <span class="ie-rotation-label">{{Rotate}}</span>
                 <span class="ie-rotation-step" (click)="onClickRotationReset">↺</span>
                 <span class="ie-rotation-step" (click)="onClickRotationStepDown">−</span>
                 <input type="range" class="ie-rotation-slider" fw-id="rotation_slider" min="-90" max="90" value="0"
@@ -73,13 +79,24 @@
                 <span class="ie-rotation-value" fw-id="rotation_value">0°</span>
             </div>
             <div class="ie-actions">
+                <div class="ie-zoom" fw-id="zoom_area">
+                    <div class="ez-button ie-tool-button" fw-id="btn_zoom_out" (click)="onClickZoomOut">
+                        <div class="f-icon-i">&#xe900;</div>
+                        <span style="display: none;">{{Zoom out}}</span>
+                    </div>
+                    <span class="ie-zoom-value" fw-id="zoom_value" (click)="onClickZoomReset">100%</span>
+                    <div class="ez-button ie-tool-button" fw-id="btn_zoom_in" (click)="onClickZoomIn">
+                        <div class="f-icon-i">&#xe8ff;</div>
+                        <span style="display: none;">{{Zoom in}}</span>
+                    </div>
+                </div>
                 <div class="ez-button ie-tool-button" fw-id="export_button" style="opacity: 0;">
                     <div class="f-icon-i">&#xf090;</div>
-                    <span>{{Esporta}}</span>
+                    <span>{{Export}}</span>
                 </div>
                 <div class="ez-button" (click)="onClickConfirm">
                     <div class="f-icon-i">&#xe5ca;</div>
-                    <span>{{Conferma}}</span>
+                    <span>{{Confirm}}</span>
                 </div>
             </div>
         </div>

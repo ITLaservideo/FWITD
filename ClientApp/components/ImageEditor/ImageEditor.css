@@ -61,6 +61,19 @@
         }
     }
 
+    /* zoom != 100%: keeps the size of the 100% image (set inline by ImageEditor.js #applyZoomSize), so the
+       controls around it never move; a bigger image scrolls inside it, a smaller one is centered.
+       The padding (cancelled by the negative margin) leaves room for the knobs, centered on the image corners */
+    .ie-viewport.ie-viewport-zoomed {
+        --ie-viewport-pad: 14px;
+        display: grid;
+        place-items: safe center;
+        overflow: auto;
+        padding: var(--ie-viewport-pad);
+        margin: calc(-1 * var(--ie-viewport-pad));
+        box-sizing: content-box;
+    }
+
     .ie-crop-wrapper {
         position: relative;
         display: inline-block;
@@ -123,12 +136,20 @@
             max-width: min(500px, 90vw);
             max-height: min(500px, 60vh);
             user-select: none;
+
+            /* zoom != 100%: the size is set inline by ImageEditor.js #applyZoomSize, from the fitted size above (inside .ie-viewport-zoomed) */
+            &.ie-zoomed {
+                max-width: none;
+                max-height: none;
+            }
         }
 
         .ie-crop-frame {
             position: absolute;
-            box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55); /* theme-independent: dims the photo outside the crop */
-            border: 1px dashed #fff; /* theme-independent: crop frame drawn over the photo */
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, .55);
+            /* theme-independent: dims the photo outside the crop */
+            border: 1px dashed #fff;
+            /* theme-independent: crop frame drawn over the photo */
             pointer-events: none;
         }
 
@@ -210,7 +231,7 @@
         flex-wrap: wrap;
         flex-direction: column;
         flex-shrink: 0;
-        justify-content: center;
+        justify-content: flex-start;
         gap: 8px;
         height: 100%;
         width: 130px;
@@ -229,6 +250,26 @@
         display: flex;
         justify-content: flex-end;
         width: 100%;
+    }
+
+    .ie-zoom {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-right: auto;
+
+        .ie-zoom-value {
+            min-width: 44px;
+            text-align: center;
+            font-size: 13px;
+            opacity: .8;
+            cursor: pointer;
+            user-select: none;
+
+            &:hover {
+                opacity: 1;
+            }
+        }
     }
 
     .ie-color-pick-cursor {
@@ -269,7 +310,8 @@
         height: 40px;
         border-radius: 50%;
         border: 2px dashed var(--vscode-button-background);
-        background: rgba(255, 255, 255, .15); /* theme-independent: brush cursor drawn over the photo */
+        background: rgba(255, 255, 255, .15);
+        /* theme-independent: brush cursor drawn over the photo */
         transform: translate(-50%, -50%);
         pointer-events: none;
         display: none;
@@ -334,13 +376,14 @@
     }
 }
 
+/* the active tool's floating panel: an .ie-hint (same layout as the tooltips, see below) with some padding */
 .ie-mode-instructions-content {
     display: flex;
     flex-direction: column;
     gap: 4px;
     padding: 4px 10px 10px;
-    font-size: 12px;
-    line-height: 1.5;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .ie-mode-instructions-swatches {
@@ -389,8 +432,10 @@
    transparent background instead of pe's black text on a translucent white one */
 .ie-text-overlay {
     position: absolute;
-    color: #fff; /* theme-independent: previews the white text baked onto the photo */
-    text-shadow: 0 1px 4px rgba(0, 0, 0, .7); /* theme-independent: previews the white text baked onto the photo */
+    color: #fff;
+    /* theme-independent: previews the white text baked onto the photo */
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .7);
+    /* theme-independent: previews the white text baked onto the photo */
     user-select: none;
     cursor: default;
     z-index: 10000;
@@ -455,7 +500,8 @@
     top: unset;
 }
 
-.ie-text-overlay-confirm {
+.ie-text-overlay-confirm,
+.ie-text-overlay-cancel {
     position: absolute;
     cursor: pointer;
     opacity: .85;
@@ -467,6 +513,12 @@
     &:hover {
         opacity: 1;
     }
+}
+
+/* top-left corner of the controls box (confirm is bottom-left, the handles are on the right) */
+.ie-text-overlay-cancel {
+    top: unset;
+    bottom: 100%;
 }
 
 /* recent-texts list prepended to the #promptAddText MousePopUp (body-level, like the popup
@@ -481,11 +533,14 @@
     overflow-y: auto;
 }
 
+/* no padding and no gap on the row: that space belongs to the children instead (same overall shape),
+   so every point of a highlighted row is a click target - no dead strips around/between them.
+   The numbers below are the former row padding (4px 6px) and gap (8px, half to each neighbor) */
 .ie-recent-text-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 6px;
+    gap: 0;
+    padding: 0;
     border-radius: 4px;
 
     &:hover {
@@ -500,6 +555,12 @@
     white-space: nowrap;
     font-size: 13px;
     cursor: pointer;
+    /* row padding 4px 6px + half the gap on the right */
+    padding: 4px 4px 4px 6px;
+    /* as tall as the row (the icons make it taller than the text), text still centered: a block, not a
+       flex box, so the ellipsis keeps working */
+    align-self: stretch;
+    align-content: center;
 }
 
 .ie-recent-text-pin,
@@ -507,9 +568,133 @@
     cursor: pointer;
     opacity: .6;
     font-size: 12px;
-    padding: 2px 4px;
+    /* own 2px 4px + row padding 4px vertically + half the gap on each side; full row height */
+    padding: 6px 8px;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
         opacity: 1;
+    }
+}
+
+.ie-recent-text-remove {
+    /* + the row padding on the right edge */
+    padding-right: 10px;
+}
+/* preview inside the "paste the image?" dialog (UiBuilder.mockDialog, outside .ie-container) */
+.ie-paste-preview {
+    display: block;
+    max-width: min(320px, 80vw);
+    max-height: 40vh;
+    margin: 8px auto;
+    border-radius: 6px;
+}
+
+/* "Scala" dialog body (UiBuilder.mockDialog, outside .ie-container) */
+.ie-scale-dialog {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+
+    .ie-scale-current {
+        font-size: 13px;
+        opacity: .8;
+    }
+
+    .ie-scale-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        input {
+            width: 80px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+            border-radius: 4px;
+            padding: 3px 6px;
+        }
+    }
+
+    .ie-scale-lock {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+    }
+
+    .ie-scale-presets {
+        display: flex;
+        gap: 6px;
+
+        button {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+            border: 1px solid var(--vscode-panel-border);
+            border-radius: 6px;
+            padding: 3px 10px;
+            cursor: pointer;
+
+            &:hover {
+                background: var(--vscode-button-secondaryHoverBackground);
+            }
+        }
+    }
+}
+
+/* hint content (UiBuilder.addHint html, shown in the shared tooltip outside .ie-container):
+   title, what it does, then one row per shortcut: keys | what they do */
+.ie-hint {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 360px;
+    text-align: left;
+    white-space: normal;
+
+    .ie-hint-title {
+        font-weight: 600;
+    }
+
+    .ie-hint-text {
+        opacity: .85;
+    }
+
+    .ie-hint-keys {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 4px 10px;
+        margin-top: 2px;
+        font-size: .92em;
+    }
+
+    .ie-hint-combo {
+        white-space: nowrap;
+    }
+
+    kbd {
+        display: inline-block;
+        min-width: 1.2em;
+        padding: 0 5px;
+        border: 1px solid currentColor;
+        border-bottom-width: 2px;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: .95em;
+        line-height: 1.5;
+        text-align: center;
+        opacity: .9;
     }
 }

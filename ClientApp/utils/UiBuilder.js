@@ -1352,6 +1352,7 @@ class UiBuilder {
                 // Toggle this one
                 if (!isOpen) {
                     header.setAttribute("aria-expanded", "true");
+                    body.classList.add("ui-accordion-opening"); // the fade-in plays on display none -> shown
                     body.style.display = "";
                     if (onOpen[i]) {
                         onOpen[i]({ index: i, event });
@@ -1445,6 +1446,7 @@ class UiBuilder {
 
                 if (!isOpen) {
                     header.setAttribute("aria-expanded", "true");
+                    body.classList.add("ui-accordion-opening"); // the fade-in plays on display none -> shown
                     body.style.display = "";
                     if (onOpen[i]) {
                         onOpen[i]({ index: i, event });

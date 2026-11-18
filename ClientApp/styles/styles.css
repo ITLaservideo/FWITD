@@ -1509,6 +1509,10 @@ html {
     padding: 3px 2px;
     background: var(--vscode-editorWidget-background);
     transition: all 0.3s ease;
+}
+
+/* fade only when the user opens a section, not when the accordion is (re)built already open */
+.ui-accordion-body.ui-accordion-opening {
     animation: fadeIn 0.2s ease-in-out;
 }
 

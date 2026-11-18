@@ -1,0 +1,558 @@
+/* only this stylesheet is bundled with the page: the styles of the demos in the subfolders live here too, scoped under their root class */
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+body {
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-font-family, system-ui, sans-serif);
+}
+
+/* ---------------------------------------------------------------
+   layout: explorer | resizer | content
+   --------------------------------------------------------------- */
+
+.cs-layout {
+    /* overridden inline by the resizer */
+    --cs-explorer-width: 240px;
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+}
+
+.cs-explorer {
+    flex: 0 0 var(--cs-explorer-width);
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    border-right: 1px solid var(--vscode-sideBar-border, var(--vscode-panel-border));
+}
+
+.cs-explorer-tree {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.cs-explorer-footer {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 6px;
+    border-top: 1px solid var(--vscode-panel-border);
+}
+
+.cs-resizer {
+    flex: 0 0 4px;
+    cursor: col-resize;
+    touch-action: none;
+    user-select: none;
+    background: transparent;
+    transition: background-color .1s;
+
+    &:hover,
+    &.is-dragging {
+        background: var(--vscode-focusBorder);
+    }
+}
+
+.cs-content {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.cs-content-header {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.cs-content-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.cs-content-hint {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.cs-content-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    /* safe: a demo wider than the pane stays scrollable instead of being cut on the left */
+    align-items: safe center;
+}
+
+.cs-demo:focus {
+    outline: none;
+}
+
+.cs-error {
+    padding: 16px;
+    color: var(--vscode-errorForeground);
+}
+
+/* ---------------------------------------------------------------
+   ImageEditor result
+   --------------------------------------------------------------- */
+
+.cs-image-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+
+    img {
+        max-width: 100%;
+        max-height: 60vh;
+    }
+}
+
+.cs-image-result-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ---------------------------------------------------------------
+   balls/ (BouncingBallsDemo)
+   --------------------------------------------------------------- */
+
+.cs-balls-views {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+
+    h3 {
+        margin: 0 0 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--vscode-descriptionForeground);
+    }
+
+    canvas,
+    svg {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        background: #ffffff;
+        border: 1px solid #000000;
+        cursor: pointer;
+    }
+}
+
+/* ---------------------------------------------------------------
+   moles/ (WhackAMoleDemo)
+   --------------------------------------------------------------- */
+
+.cs-moles {
+    width: min(100%, 560px);
+    box-sizing: border-box;
+    padding: 16px;
+    border-radius: 12px;
+    /* dirt */
+    background: #6b4f2a;
+    color: #ffffff;
+    font-family: system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    user-select: none;
+
+    button {
+        font-size: 1.1rem;
+        padding: 8px 24px;
+        border: none;
+        border-radius: 8px;
+        background: #ffd166;
+        color: #333333;
+        cursor: pointer;
+
+        &:hover {
+            background: #ffe199;
+        }
+
+        &[hidden] {
+            display: none;
+        }
+    }
+
+    progress {
+        width: 260px;
+        max-width: 100%;
+        height: 14px;
+        accent-color: #9be564;
+    }
+}
+
+.cs-moles-header {
+    text-align: center;
+    margin-bottom: 12px;
+
+    h1 {
+        margin: 0 0 6px;
+        font-size: 1.8rem;
+
+        &.win {
+            color: #9be564;
+        }
+
+        &.lose {
+            color: #ff6b6b;
+        }
+    }
+
+    p {
+        margin: 8px 0;
+        min-height: 1.3em;
+    }
+}
+
+.cs-moles-grid {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+
+    &.over {
+        opacity: 0.6;
+    }
+}
+
+.cs-moles-cell {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 12px;
+    background: #4f8a3a;
+    overflow: visible;
+    cursor: pointer;
+    transition: transform 0.1s;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        pointer-events: none;
+    }
+
+    &.up img {
+        animation: cs-moles-pop-up 0.15s ease-out;
+    }
+
+    &.hit-good {
+        background: #9be564;
+        transform: scale(0.9);
+    }
+
+    &.hit-bad {
+        background: #ff6b6b;
+        transform: scale(0.9);
+    }
+}
+
+@keyframes cs-moles-pop-up {
+    from {
+        transform: translateY(40%) scale(0.6);
+    }
+
+    to {
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* "+100" / "-200" floating up and fading out */
+.cs-moles-points {
+    position: absolute;
+    left: 50%;
+    top: 30%;
+    transform: translateX(-50%);
+    font-weight: bold;
+    font-size: 1.4rem;
+    text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6);
+    pointer-events: none;
+    animation: cs-moles-float-up 0.8s ease-out forwards;
+
+    &.good {
+        color: #9be564;
+    }
+
+    &.bad {
+        color: #ff6b6b;
+    }
+}
+
+@keyframes cs-moles-float-up {
+    from {
+        opacity: 1;
+        top: 30%;
+    }
+
+    to {
+        opacity: 0;
+        top: -20%;
+    }
+}
+
+/* ---------------------------------------------------------------
+   shapes/ (ShapePainterDemo)
+   --------------------------------------------------------------- */
+
+.cs-shapes {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+
+    * {
+        box-sizing: border-box;
+    }
+
+    button {
+        background: var(--vscode-button-secondaryBackground);
+        color: var(--vscode-button-secondaryForeground);
+        /* the dark theme's secondary background is transparent: the border keeps it looking like a button */
+        border: 2px solid var(--vscode-panel-border);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        cursor: pointer;
+
+        &:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        &.active {
+            border-color: var(--vscode-focusBorder);
+        }
+
+        &:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+    }
+
+    label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+    }
+
+    canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        background: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 6px 20px var(--vscode-widget-shadow, rgba(0, 0, 0, 0.4));
+        cursor: crosshair;
+        /* so finger drags draw instead of scrolling */
+        touch-action: none;
+    }
+}
+
+.cs-shapes-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    max-width: 820px;
+}
+
+.cs-shapes-sep {
+    width: 1px;
+    height: 28px;
+    background: var(--vscode-panel-border);
+}
+
+.cs-shapes-status {
+    min-height: 1.6em;
+    font-size: 1.1rem;
+    text-align: center;
+
+    b {
+        color: var(--vscode-charts-yellow, #ffd166);
+    }
+}
+
+.cs-shapes-help {
+    font-size: 0.8rem;
+    color: var(--vscode-descriptionForeground);
+    text-align: center;
+}
+
+/* ---------------------------------------------------------------
+   uptrend/ (UptrendShapeDemo)
+   --------------------------------------------------------------- */
+
+.cs-uptrend {
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+
+        &[hidden] {
+            display: none;
+        }
+    }
+
+    input[type="number"] {
+        width: 90px;
+        background: var(--vscode-input-background);
+        color: var(--vscode-input-foreground);
+        border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+        border-radius: 4px;
+        padding: 3px 6px;
+        font-family: inherit;
+    }
+
+    button {
+        background: var(--vscode-button-secondaryBackground);
+        color: var(--vscode-button-secondaryForeground);
+        border: 1px solid var(--vscode-panel-border);
+        border-radius: 6px;
+        padding: 4px 12px;
+        font-family: inherit;
+        cursor: pointer;
+
+        &:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+    }
+}
+
+.cs-uptrend-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+/* one group of inputs per shape, edged with the shape's color */
+.cs-uptrend-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0 2px 8px;
+    border-left: 3px solid var(--cs-uptrend-group-color);
+
+    &[hidden] {
+        display: none;
+    }
+
+    &.cs-uptrend-group-up {
+        --cs-uptrend-group-color: #3d8bfd;
+    }
+
+    &.cs-uptrend-group-down {
+        --cs-uptrend-group-color: #f5a623;
+    }
+}
+
+.cs-uptrend-group-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+/* angle lock toggle: highlighted while locked */
+.cs-uptrend .cs-uptrend-lock {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+
+    &.active {
+        background: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
+    }
+}
+
+/* Up | Down | Both segmented toggle */
+.cs-uptrend .cs-uptrend-mode {
+    display: flex;
+
+    button {
+        border-radius: 0;
+
+        &:first-child {
+            border-radius: 6px 0 0 6px;
+        }
+
+        &:last-child {
+            border-radius: 0 6px 6px 0;
+        }
+
+        &+button {
+            border-left-width: 0;
+        }
+
+        &.active {
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+        }
+    }
+}
+
+.cs-uptrend-readout {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+
+    b {
+        color: var(--vscode-editor-foreground);
+    }
+}
+
+.cs-uptrend-points {
+    font-family: var(--vscode-editor-font-family, monospace);
+    white-space: pre-wrap;
+}
+
+.cs-uptrend-locked {
+    white-space: nowrap;
+}
+
+.cs-uptrend-stage {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 300px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000000;
+
+    canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        cursor: grab;
+    }
+}

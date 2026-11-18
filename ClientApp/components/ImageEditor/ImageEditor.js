@@ -1,6 +1,14 @@
 /**
  * Crop/straighten an already-acquired image. This component does NOT gather/capture an image
  * (no camera, no file picker) - a valid image source must be provided via `options.image_src`.
+ *
+ * Translations: every user-facing text is an English key written literally where it's used, either
+ * between double curly braces in ImageEditor.html or as the string literal passed to Locale.at here -
+ * never a variable passed to Locale.at - so all of them can be extracted for the files in
+ * utils/translations with two regexes, no refactoring: `\{\{(.*?)\}\}` (html) and
+ * `Locale\.at\("((?:[^"\\]|\\.)*)"\)` (js). (This note avoids writing those two patterns out as
+ * examples, or the extraction would pick the examples up.) Keys don't exist in the translation
+ * files yet, so they show as they are (English)
  * @version 1.0
  * @example
  *      const editor = new ImageEditor({
@@ -75,6 +83,20 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         btn_add_text: null,
         /** @type {HTMLElement} */
         btn_draw: null,
+        /** @type {HTMLElement} */
+        btn_scale: null,
+        /** @type {HTMLElement} */
+        instructions: null,
+        /** @type {HTMLElement} */
+        viewport: null,
+        /** @type {HTMLElement} */
+        zoom_area: null,
+        /** @type {HTMLElement} */
+        zoom_value: null,
+        /** @type {HTMLElement} */
+        btn_zoom_in: null,
+        /** @type {HTMLElement} */
+        btn_zoom_out: null,
     }
     /** @type {SpeedActions} */
     #export_speed_actions = null;
@@ -91,6 +113,8 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         erase_radius: 20,
         knob_dragging: false,
         labels_compact: true,
+        /** display size multiplier of the image (1 = fitted size); a view setting, not part of undo/redo */
+        zoom: 1,
         undo_stack: [],
         redo_stack: [],
         /** @type Element */
@@ -107,9 +131,13 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         owner.elements.erase_cursor.classList.add("ie-erase-cursor");
         owner.elements.self_ref.appendChild(owner.elements.erase_cursor);
         owner.#updateEraseCursorSize();
-        owner.#addButtonHints(owner.elements.toolbox, () => owner.status.labels_compact);
-        owner.#addButtonHints(owner.elements.toolbox_top, undefined);
+        owner.#applyLabelsCompact(owner.#loadLabelsCompact());
+        owner.#addButtonHints(owner.elements.toolbox);
+        owner.#addButtonHints(owner.elements.toolbox_top);
+        owner.#addButtonHints(owner.elements.zoom_area);
+        owner.#addAreaHints();
         owner.#updateUndoRedoButtonsUI();
+        owner.#updateZoomUI();
         owner.#loadImage(owner.options.image_src, () => owner.#createKnobsAndFrame());
         owner.#addExportSpeedDial();
         owner.#addSmoothingSpeedActions();
@@ -121,17 +149,22 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             side: "bottom",
             createButtons: [
                 {
-                    title: Locale.at("Salva") + " .png",
+                    title: Locale.at("Copy"),
+                    icon_code: "e14d",
+                    onClick: () => owner.#copyToClipboard(),
+                },
+                {
+                    title: Locale.at("Save") + " .png",
                     icon_code: "e410",
                     onClick: () => owner.#downloadDataUrl(owner.#cropAndExport(), `cropped-image-${Date.now()}.png`),
                 },
                 {
-                    title: Locale.at("Salva") + " .ico",
+                    title: Locale.at("Save") + " .ico",
                     icon_code: "efa2",
                     onClick: () => owner.#downloadBlob(owner.#buildIco(owner.#cropAndExportCanvas()), `icon-${Date.now()}.ico`),
                 },
                 {
-                    title: Locale.at("Salva") + " .svg",
+                    title: Locale.at("Save") + " .svg",
                     icon_code: "ebbb",
                     onClick: () => owner.#downloadBlob(owner.#buildSvg(owner.#cropAndExportCanvas()), `image-${Date.now()}.svg`),
                 },
@@ -148,13 +181,13 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
     #addSmoothingSpeedActions() {
         const owner = this;
         owner.#smoothing_speed_actions = new SpeedActions({
-            label: Locale.at("Levigatura"),
+            label: Locale.at("Smoothing"),
             target: owner.elements.btn_smoothing,
             side: "right",
             createButtons: [
                 {
-                    title: "Supersampling (SSAA)",
-                    hint: "Rendering/elaborazione a risoluzione 2-4x, poi downsample: la riduzione media i pixel dei bordi ottenendo una sfumatura naturale.",
+                    title: Locale.at("Supersampling (SSAA)"),
+                    hint: Locale.at("Renders/processes at 2-4x the resolution, then downsamples: the reduction averages the edge pixels into a natural blend."),
                     icon_code: "e3f4",
                     anchor: "bot",
                     onClick: () => {
@@ -163,8 +196,8 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
                     },
                 },
                 {
-                    title: "FXAA / MLAA / SMAA",
-                    hint: "Anti-aliasing in post-processing: rileva i bordi ad alto contrasto e li sfuma; veloce, ideale per transizioni di colore nette.",
+                    title: Locale.at("FXAA / MLAA / SMAA"),
+                    hint: Locale.at("Post-processing anti-aliasing: finds the high-contrast edges and blends them; fast, ideal for sharp color transitions."),
                     icon_code: "e3f4",
                     anchor: "bot",
                     onClick: () => {
@@ -173,8 +206,8 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
                     },
                 },
                 {
-                    title: "Sfocatura selettiva sui bordi",
-                    hint: "Rileva il bordo del ritaglio (dove lo sfondo è stato rimosso), lo dilata in una maschera e sfoca solo quella regione: non tocca il resto dell'immagine.",
+                    title: Locale.at("Selective edge blur"),
+                    hint: Locale.at("Finds the edge of the cutout (where the background was removed), grows it into a mask and blurs only that area: the rest of the image is untouched."),
                     icon_code: "e3f4",
                     anchor: "bot",
                     onClick: () => {
@@ -186,39 +219,188 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         });
     }
     /**
-     * adds a hover hint to each `.ie-tool-button` inside `container`, using its own (localized) label
-     * text; `conditionsMet` (if given) gates when the hint is allowed to show - e.g. the sidebar
-     * toolbox only needs it while `.ie-labels-compact` hides the label, but `.ie-toolbox-top`
-     * buttons never show their label at all, so their hint should always be available
-     * @param {Element} container
-     * @param {Function} [conditionsMet]
+     * what each button's hint adds to its label: what it does and its shortcuts, so the shortcuts can be
+     * learned while using the editor; also the content of each tool's floating panel (`#showModeInstructions`).
+     * `keys`: one row per shortcut, `combo` = alternatives (shown as "A / B"), each a list of keys pressed
+     * together (shown as "Ctrl + Z"). Keyed by the button's fw-id.
+     * A method, not a static field: the texts are translated when it's called, and every one of them is a
+     * string literal passed to Locale.at right here (see the translation note at the top of the class)
+     * @returns {Object<string, {text: string, keys?: Array<{combo: Array<Array<string>>, text?: string}>}>}
      */
-    #addButtonHints(container, conditionsMet) {
-        for (const button of container.querySelectorAll(".ie-tool-button")) {
-            const label = button.querySelector("span:last-child")?.innerText;
-            if (label) {
-                UiBuilder.addHint({ hint: label, target: button, anchor: button.parentElement?.classList.contains("ie-toolbox-top") ? "top" : "left", conditionsMet });
+    static #hints() {
+        const ctrl = Locale.at("Ctrl"), shift = Locale.at("Shift"), esc = Locale.at("Esc");
+        const wheel = Locale.at("Wheel"), click = Locale.at("Click");
+        const brush_keys = [
+            { combo: [[wheel]], text: Locale.at("brush size") },
+            { combo: [[shift]], text: Locale.at("hold to lock the axis") },
+            { combo: [[esc]], text: Locale.at("exit") },
+        ];
+        return {
+            btn_toggle_labels: { text: Locale.at("Shows or hides the button names; the choice is remembered") },
+            btn_color_key: {
+                text: Locale.at("Makes the color you click on the image transparent"),
+                keys: [{ combo: [[click]], text: Locale.at("on the color to remove") }, { combo: [[esc]], text: Locale.at("cancel") }],
+            },
+            btn_erase: { text: Locale.at("Erases the pixels where you drag on the image"), keys: brush_keys },
+            btn_restore: { text: Locale.at("Brings back the original pixels where you drag"), keys: brush_keys },
+            btn_add_text: {
+                text: Locale.at("Adds a text over the image: drag the small squares to move, resize and rotate it"),
+                keys: [
+                    { combo: [[click]], text: Locale.at("on the check mark: confirm") },
+                    { combo: [[Locale.at("Double click")]], text: Locale.at("on the handle: initial size and rotation") },
+                    { combo: [[esc], ["✕"]], text: Locale.at("cancel") },
+                ],
+            },
+            btn_draw: { text: Locale.at("Draws freehand on the image"), keys: brush_keys },
+            btn_reset: { text: Locale.at("Undoes every change and goes back to the starting image") },
+            btn_undo: { text: Locale.at("Undoes the last change"), keys: [{ combo: [[ctrl, "Z"]] }] },
+            btn_redo: { text: Locale.at("Redoes the undone change"), keys: [{ combo: [[ctrl, "Y"]] }] },
+            btn_flip_h: { text: Locale.at("Mirrors the image left to right"), keys: [{ combo: [["←"], ["→"]], text: Locale.at("with the rotation slider selected") }] },
+            btn_flip_v: { text: Locale.at("Mirrors the image top to bottom"), keys: [{ combo: [["↑"], ["↓"]], text: Locale.at("with the rotation slider selected") }] },
+            btn_scale: { text: Locale.at("Changes the pixel size of the image (zoom only changes the view)") },
+            btn_smoothing: { text: Locale.at("Softens jagged edges: hover to pick the method") },
+            btn_zoom_out: { text: Locale.at("Zooms the view out, the pixels don't change"), keys: [{ combo: [["-"], [ctrl, `${wheel} ↓`]] }] },
+            btn_zoom_in: { text: Locale.at("Zooms the view in, the pixels don't change"), keys: [{ combo: [["+"], [ctrl, `${wheel} ↑`]] }] },
+        };
+    }
+    /**
+     * the hint layout shared by the tooltips and the tool panels: title, what it does, then one row per
+     * shortcut (keys | what they do). Built as DOM (textContent only), so nothing in it is parsed as HTML.
+     * Takes texts already translated: they're translated where they're written (`#hints`, `#addAreaHints`)
+     * @param {string} title
+     * @param {{text: string, keys?: Array<{combo: Array<Array<string>>, text?: string}>}} info
+     * @returns {HTMLElement}
+     */
+    static #hintElement(title, info) {
+        const create = (tag, class_name, text) => {
+            const element = document.createElement(tag);
+            if (class_name) element.className = class_name;
+            if (text != undefined) element.textContent = text;
+            return element;
+        };
+        const hint = create("div", "ie-hint");
+        if (title) {
+            hint.appendChild(create("div", "ie-hint-title", title));
+        }
+        hint.appendChild(create("div", "ie-hint-text", info.text));
+        if (info.keys?.length) {
+            const rows = create("div", "ie-hint-keys");
+            for (const { combo, text } of info.keys) {
+                const keys = create("span", "ie-hint-combo");
+                combo.forEach((keys_together, alternative) => {
+                    if (alternative > 0) keys.append(" / ");
+                    keys_together.forEach((key, index) => {
+                        if (index > 0) keys.append(" + ");
+                        keys.appendChild(create("kbd", null, key));
+                    });
+                });
+                rows.append(keys, create("span", null, text ?? ""));
             }
+            hint.appendChild(rows);
+        }
+        return hint;
+    }
+    /**
+     * @param {string} title
+     * @param {{text: string, keys?: Array<{combo: Array<Array<string>>, text?: string}>}} info
+     * @returns {string} HTML for `UiBuilder.addHint({ html: true })`, safe: built by `#hintElement`
+     */
+    static #hintHtml(title, info) {
+        return ImageEditor.#hintElement(title, info).outerHTML;
+    }
+    /**
+     * @param {string} fw_id of a tool button
+     * @returns {string} its (localized) label
+     */
+    #buttonLabel(fw_id) {
+        return this.self_ref.querySelector(`[fw-id="${fw_id}"] span:last-child`)?.innerText.trim() ?? "";
+    }
+    /**
+     * adds a hover hint to each `.ie-tool-button` inside `container`: its (localized) label, plus what it does
+     * and its shortcuts from `#hints`; shown even when the labels are visible, for the extra details
+     * @param {Element} container
+     */
+    #addButtonHints(container) {
+        const hints = ImageEditor.#hints();
+        for (const button of container.querySelectorAll(".ie-tool-button")) {
+            const label = button.querySelector("span:last-child")?.innerText.trim();
+            if (!label) {
+                continue;
+            }
+            const info = hints[button.getAttribute("fw-id")];
+            const horizontal_row = button.parentElement?.classList.contains("ie-toolbox-top") || button.parentElement?.classList.contains("ie-zoom");
+            UiBuilder.addHint({
+                hint: info ? ImageEditor.#hintHtml(label, info) : label,
+                html: info != undefined,
+                target: button,
+                anchor: horizontal_row ? "top" : "left",
+                // an active tool already shows the same content in its floating panel
+                conditionsMet: () => !button.classList.contains("ie-tool-active"),
+            });
         }
     }
     /**
-     * opens a UiBuilder floating panel (draggable, minimizable, closable) listing the given
-     * instruction lines for the active tool; closing it (✕ button or Escape) calls `on_close`.
-     * `colorOptions`, when given, renders a row of clickable color swatch buttons below the lines
-     * (used by the draw tool to pick its ink color)
-     * @param {string[]} lines
-     * @param {Function} on_close
-     * @param {HTMLElement} extra
+     * hints on the parts that aren't buttons: the zoom value, the rotation row, and the instructions line
+     * (the shortcuts that work anywhere in the editor)
      */
-    #showModeInstructions(lines, on_close, extra) {
+    #addAreaHints() {
         const owner = this;
-        const content = document.createElement("div");
+        const ctrl = Locale.at("Ctrl"), wheel = Locale.at("Wheel");
+        UiBuilder.addHint({
+            target: owner.elements.zoom_value,
+            anchor: "top",
+            html: true,
+            hint: ImageEditor.#hintHtml(Locale.at("Zoom"), {
+                text: Locale.at("Click to go back to 100%"),
+                keys: [
+                    { combo: [["+"], ["-"]], text: Locale.at("zoom in / out") },
+                    { combo: [[ctrl, wheel]], text: Locale.at("over the image") },
+                ],
+            }),
+        });
+        UiBuilder.addHint({
+            target: owner.elements.rotation_area,
+            anchor: "top",
+            html: true,
+            hint: ImageEditor.#hintHtml(Locale.at("Rotate"), {
+                text: Locale.at("Straightens the image; ↺ brings it back to 0°"),
+                keys: [
+                    { combo: [[wheel]], text: Locale.at("rotate by 1°") },
+                    { combo: [["←"], ["→"]], text: Locale.at("mirror horizontally (slider selected)") },
+                    { combo: [["↑"], ["↓"]], text: Locale.at("mirror vertically (slider selected)") },
+                ],
+            }),
+        });
+        UiBuilder.addHint({
+            target: owner.elements.instructions,
+            anchor: "bottom",
+            html: true,
+            hint: ImageEditor.#hintHtml(Locale.at("Shortcuts"), {
+                text: Locale.at("They work anywhere in the editor"),
+                keys: [
+                    { combo: [[ctrl, "V"]], text: Locale.at("paste an image from the clipboard") },
+                    { combo: [[Locale.at("Drag a file")]], text: Locale.at("open another image") },
+                    { combo: [[ctrl, "Z"], [ctrl, "Y"]], text: Locale.at("undo / redo") },
+                    { combo: [["+"], ["-"]], text: Locale.at("zoom the view in / out") },
+                ],
+            }),
+        });
+    }
+    /**
+     * opens a UiBuilder floating panel (draggable, minimizable, closable) with the active tool's
+     * instructions - the same content and layout as its button's hint (`#hints`), so a shortcut reads
+     * the same everywhere; closing it (✕ button or Escape) calls `on_close`.
+     * `extra`, when given, is appended below (the draw tool's color swatches)
+     * @param {string} tool_id fw-id of the tool's button, key of `#hints`
+     * @param {Function} on_close
+     * @param {HTMLElement} [extra]
+     */
+    #showModeInstructions(tool_id, on_close, extra) {
+        const owner = this;
+        const content = ImageEditor.#hintElement(owner.#buttonLabel(tool_id), ImageEditor.#hints()[tool_id]);
         content.classList.add("ie-mode-instructions-content");
-        for (const line of lines) {
-            const row = document.createElement("div");
-            row.innerText = Locale.at(line);
-            content.appendChild(row);
-        }
+        // the button's tooltip (shown by the click that opened this) would repeat the panel
+        UiBuilder.hideHint();
         if (extra) {
             content.appendChild(extra);
         }
@@ -319,14 +501,411 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             if (file == undefined) {
                 return;
             }
-            owner.#pushHistory();
-            const reader = new FileReader();
-            reader.onload = () => {
-                owner.#loadImage(String(reader.result), () => owner.#resetAll());
-            };
-            reader.readAsDataURL(file);
+            ImageEditor.#readAsDataUrl(file, (data_url) => owner.#replaceImage(data_url));
+        });
+        // a new src (new image, or an edit baked into a data URL) may have other dimensions: refit the zoomed size
+        owner.elements.img_to_crop.addEventListener("load", () => owner.#applyZoomSize());
+        // + / - (also = and the numpad ones) zoom; like the undo/redo keys, the listener is on `document`
+        owner.status.zoom_key_handler = (event) => {
+            if (!owner.self_ref.isConnected || event.ctrlKey || event.altKey || event.metaKey) {
+                return;
+            }
+            // only when the focus is in the editor or nowhere in particular: keys typed in another widget
+            // (a tree's type-to-find, a list, ...) belong to it; and never while typing in a field
+            const target = event.target;
+            const unfocused = target === document.body || target === document.documentElement;
+            if (!unfocused && !(target instanceof Node && owner.self_ref.contains(target))) {
+                return;
+            }
+            if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select") != null)) {
+                return;
+            }
+            if (event.key === "+" || event.key === "=") {
+                event.preventDefault();
+                owner.#stepZoom(1);
+            } else if (event.key === "-") {
+                event.preventDefault();
+                owner.#stepZoom(-1);
+            }
+        };
+        document.addEventListener("keydown", owner.status.zoom_key_handler);
+        // zoomed in, the viewport grows into the free space: refit it when the window changes size
+        owner.status.resize_handler = () => {
+            if (owner.status.zoom !== 1 && owner.self_ref.isConnected) {
+                owner.#applyZoomSize();
+            }
+        };
+        window.addEventListener("resize", owner.status.resize_handler);
+        // Ctrl + wheel over the image zooms; capture phase + stopPropagation so the brush tools' own
+        // wheel handlers on the image (brush size) only get the plain wheel
+        owner.elements.viewport.addEventListener("wheel", (event) => {
+            if (!event.ctrlKey) {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            owner.#stepZoom(event.deltaY < 0 ? 1 : -1);
+        }, { passive: false, capture: true });
+        // pasting an image anywhere (not into a text field) offers to edit it instead of the current one
+        owner.status.paste_handler = (event) => {
+            // the listener is on `document`: skip while this editor isn't shown (e.g. detached in an inactive tab)
+            if (!owner.self_ref.isConnected || owner.status.adding_text) {
+                return;
+            }
+            const target = event.target;
+            if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea") != null)) {
+                return;
+            }
+            const file = Array.from(event.clipboardData?.items ?? [])
+                .find((item) => item.kind === "file" && item.type.startsWith("image/"))
+                ?.getAsFile();
+            if (file == undefined) {
+                return;
+            }
+            event.preventDefault();
+            ImageEditor.#readAsDataUrl(file, (data_url) => owner.#askToEditPastedImage(data_url));
+        };
+        document.addEventListener("paste", owner.status.paste_handler);
+    }
+    /**
+     * @param {Blob} file
+     * @param {(data_url: string) => void} on_read
+     */
+    static #readAsDataUrl(file, on_read) {
+        const reader = new FileReader();
+        reader.onload = () => on_read(String(reader.result));
+        reader.readAsDataURL(file);
+    }
+    /**
+     * swaps the edited image for a new one (dropped or pasted): undoable, and it becomes the "Reset" target
+     * @param {string} data_url
+     */
+    #replaceImage(data_url) {
+        const owner = this;
+        owner.#pushHistory();
+        owner.#loadImage(data_url, () => owner.#resetAll());
+    }
+    /**
+     * asks, showing a preview, whether the image just pasted should replace the one being edited
+     * @param {string} data_url
+     */
+    #askToEditPastedImage(data_url) {
+        const owner = this;
+        const preview = document.createElement("img");
+        preview.className = "ie-paste-preview";
+        preview.src = data_url;
+        preview.alt = "";
+        UiBuilder.mockDialog({
+            text1: Locale.at("Paste the image from the clipboard and edit it?"),
+            body: preview,
+            onConfirmText: Locale.at("Paste and edit"),
+            onDenyText: Locale.at("Cancel"),
+            onConfirm: () => {
+                if (owner.self_ref.isConnected) {
+                    owner.#replaceImage(data_url);
+                }
+            },
         });
     }
+    /**
+     * puts the cropped image on the clipboard as a PNG
+     */
+    async #copyToClipboard() {
+        const owner = this;
+        try {
+            const canvas = owner.#cropAndExportCanvas();
+            // handed over as a promise: the clipboard write starts right away, inside the click's user activation
+            const blob = new Promise((resolve, reject) => {
+                canvas.toBlob((result) => (result ? resolve(result) : reject(new Error("toBlob returned null"))), "image/png");
+            });
+            await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+            new Notify({ text: Locale.at("Image copied to the clipboard"), type: "ok" });
+        } catch (error) {
+            console.error(error);
+            new Notify({ text: `${Locale.at("Couldn't copy the image")}: ${error.message}`, type: "error", ms_timeout: 3000 });
+        }
+    }
+    //#region labels
+    static #LABELS_COMPACT_STORAGE_KEY = "image-editor-labels-compact";
+    /** @returns {boolean} the last choice of the labels toggle, compact (labels hidden) when never set */
+    #loadLabelsCompact() {
+        try {
+            const saved = localStorage.getItem(ImageEditor.#LABELS_COMPACT_STORAGE_KEY);
+            return saved == null ? true : saved === "true";
+        } catch (e) {
+            return true;
+        }
+    }
+    /** @param {boolean} compact true = labels hidden */
+    #applyLabelsCompact(compact) {
+        const owner = this;
+        owner.status.labels_compact = compact;
+        owner.elements.toolbox.classList.toggle("ie-labels-compact", compact);
+        owner.elements.toolbox_top.classList.toggle("ie-labels-compact", compact);
+        owner.elements.toggle_labels_icon.innerText = String.fromCodePoint(compact ? 0xf1c0 : 0xf8ab);
+    }
+    /** @param {boolean} compact */
+    #saveLabelsCompact(compact) {
+        try {
+            localStorage.setItem(ImageEditor.#LABELS_COMPACT_STORAGE_KEY, String(compact));
+        } catch (e) {
+            console.warn(`Failed to save the labels setting to localStorage: ${e.message}`);
+        }
+    }
+    //#endregion
+    //#region zoom
+    /** zoom steps of the −/+ buttons */
+    static #ZOOM_LEVELS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4];
+    /**
+     * changes the displayed size of the image; the crop knobs are stored in displayed pixels,
+     * so they're rescaled by the same ratio to keep framing the same part of the image
+     * @param {number} zoom
+     */
+    #setZoom(zoom) {
+        const owner = this;
+        // the text overlay is positioned over the image as it's shown now
+        if (owner.status.adding_text) {
+            return;
+        }
+        const levels = ImageEditor.#ZOOM_LEVELS;
+        zoom = Math.max(levels[0], Math.min(levels[levels.length - 1], zoom));
+        if (zoom === owner.status.zoom) {
+            return;
+        }
+        const img = owner.elements.img_to_crop;
+        const viewport = owner.elements.viewport;
+        const old_width = img.clientWidth;
+        const old_height = img.clientHeight;
+        // the point of the image at the center of the viewport stays there
+        const was_zoomed = viewport.classList.contains("ie-viewport-zoomed");
+        const center_x = was_zoomed ? (viewport.scrollLeft + viewport.clientWidth / 2) / viewport.scrollWidth : 0.5;
+        const center_y = was_zoomed ? (viewport.scrollTop + viewport.clientHeight / 2) / viewport.scrollHeight : 0.5;
+        owner.status.zoom = zoom;
+        owner.#applyZoomSize();
+        if (old_width > 0 && old_height > 0) {
+            owner.#rescaleKnobs(img.clientWidth / old_width, img.clientHeight / old_height);
+        }
+        viewport.scrollLeft = center_x * viewport.scrollWidth - viewport.clientWidth / 2;
+        viewport.scrollTop = center_y * viewport.scrollHeight - viewport.clientHeight / 2;
+        owner.#updateZoomUI();
+    }
+    /** @param {1|-1} direction */
+    #stepZoom(direction) {
+        const owner = this;
+        const levels = ImageEditor.#ZOOM_LEVELS;
+        const current = owner.status.zoom;
+        const next = direction > 0
+            ? levels.find((level) => level > current + 1e-9)
+            : [...levels].reverse().find((level) => level < current - 1e-9);
+        if (next != undefined) {
+            owner.#setZoom(next);
+        }
+    }
+    /**
+     * sizes the image to its fitted size (the CSS max-width/max-height) times the zoom, inside a viewport
+     * that grows with it while there's room (see `#availableViewportSize`), then scrolls; it never gets
+     * smaller than the 100% box, so zooming out just centers a smaller image.
+     * The fitted size is measured with the inline sizes removed, so the CSS limits stay the only source;
+     * the scroll position is kept (an edit re-sets the src and lands here with the same size)
+     */
+    #applyZoomSize() {
+        const owner = this;
+        const img = owner.elements.img_to_crop;
+        const viewport = owner.elements.viewport;
+        const scroll_left = viewport.scrollLeft;
+        const scroll_top = viewport.scrollTop;
+        img.classList.remove("ie-zoomed");
+        img.style.width = "";
+        img.style.height = "";
+        viewport.classList.remove("ie-viewport-zoomed");
+        viewport.style.width = "";
+        viewport.style.height = "";
+        if (owner.status.zoom === 1 || img.naturalWidth === 0) {
+            return;
+        }
+        // fractional sizes (an 800x500 image fits as 500x312.5): rounded ones would nudge the controls.
+        // The viewport copies its own 100% box, which also holds the inline-block baseline gap under the image
+        const fitted_width = parseFloat(getComputedStyle(img).width);
+        const fitted_height = parseFloat(getComputedStyle(img).height);
+        const box = viewport.getBoundingClientRect();
+        const available = owner.#availableViewportSize(box);
+        const needed_width = box.width + fitted_width * (owner.status.zoom - 1);
+        const needed_height = box.height + fitted_height * (owner.status.zoom - 1);
+        viewport.style.width = `${Math.max(box.width, Math.min(needed_width, available.width))}px`;
+        viewport.style.height = `${Math.max(box.height, Math.min(needed_height, available.height))}px`;
+        viewport.classList.add("ie-viewport-zoomed");
+        img.classList.add("ie-zoomed");
+        img.style.width = `${fitted_width * owner.status.zoom}px`;
+        img.style.height = `${fitted_height * owner.status.zoom}px`;
+        viewport.scrollLeft = scroll_left;
+        viewport.scrollTop = scroll_top;
+    }
+    /**
+     * largest viewport that keeps the whole editor inside the space it's shown in: the content box of the
+     * nearest scrolling ancestor (e.g. a scrollable page area or sheet), else the window; minus what the
+     * editor has around the viewport (side toolbox, toolbars, rotation, actions, paddings).
+     * Measured while the viewport has its 100% size
+     * @param {DOMRect} box the viewport's 100% box
+     * @returns {{width: number, height: number}}
+     */
+    #availableViewportSize(box) {
+        const owner = this;
+        const container = owner.self_ref.getBoundingClientRect();
+        const column = owner.elements.viewport.parentElement.getBoundingClientRect();
+        // the column is as wide as its widest row: the viewport grows into it, the rest is fixed chrome
+        const chrome_width = container.width - column.width;
+        const chrome_height = container.height - box.height;
+        const scroller = ImageEditor.#scrollParent(owner.self_ref);
+        let area_width, area_height;
+        if (scroller != null) {
+            const style = getComputedStyle(scroller);
+            area_width = scroller.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            area_height = scroller.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+        } else {
+            area_width = document.documentElement.clientWidth;
+            area_height = window.innerHeight - Math.max(0, container.top);
+        }
+        // a couple of px of slack against rounding, so growing never makes the host scroll
+        return {
+            width: Math.floor(area_width - chrome_width) - 2,
+            height: Math.floor(area_height - chrome_height) - 2,
+        };
+    }
+    /**
+     * @param {Element} element
+     * @returns {HTMLElement|null} nearest ancestor that clips/scrolls its content, null when it's the page itself
+     */
+    static #scrollParent(element) {
+        for (let node = element.parentElement; node != null && node !== document.body && node !== document.documentElement; node = node.parentElement) {
+            const style = getComputedStyle(node);
+            if (/(auto|scroll|hidden|overlay)/.test(style.overflowY + style.overflowX)) {
+                return node;
+            }
+        }
+        return null;
+    }
+    /**
+     * scales both knobs' offsets (and so the crop rectangle) after the displayed image size changed
+     * @param {number} ratio_x
+     * @param {number} ratio_y
+     */
+    #rescaleKnobs(ratio_x, ratio_y) {
+        const owner = this;
+        if (owner.status.knob_top_left == undefined) {
+            return;
+        }
+        for (const knob of [owner.status.knob_top_left, owner.status.knob_bottom_right]) {
+            const reading = knob.coordinates_reading;
+            reading.diff_x = (reading.diff_x ?? 0) * ratio_x;
+            reading.diff_y = (reading.diff_y ?? 0) * ratio_y;
+            knob.style.transform = `translate(${-reading.diff_x}px, ${-reading.diff_y}px)`;
+        }
+        owner.#updateCropFrame();
+    }
+    #updateZoomUI() {
+        const owner = this;
+        const levels = ImageEditor.#ZOOM_LEVELS;
+        owner.elements.zoom_value.innerText = `${Math.round(owner.status.zoom * 100)}%`;
+        owner.elements.btn_zoom_out.classList.toggle("ie-tool-disabled", owner.status.zoom <= levels[0]);
+        owner.elements.btn_zoom_in.classList.toggle("ie-tool-disabled", owner.status.zoom >= levels[levels.length - 1]);
+    }
+    //#endregion
+    //#region scale (resize the pixels)
+    /** largest side, in px, the image can be scaled to (keeps canvas memory reasonable) */
+    static #SCALE_MAX_SIDE = 8192;
+    static #SCALE_PRESETS = [25, 50, 75, 150, 200];
+    /**
+     * asks for the new pixel size of the image: width/height, proportions lock, % presets
+     */
+    #showScaleDialog() {
+        const owner = this;
+        const img = owner.elements.img_to_crop;
+        const width0 = img.naturalWidth, height0 = img.naturalHeight;
+        if (width0 === 0 || height0 === 0) {
+            return;
+        }
+        const max = ImageEditor.#SCALE_MAX_SIDE;
+        const body = document.createElement("div");
+        body.className = "ie-scale-dialog";
+        body.innerHTML = `
+            <div class="ie-scale-current">${Locale.at("Current size")}: ${width0} × ${height0} px</div>
+            <div class="ie-scale-row">
+                <label>${Locale.at("Width")} <input type="number" data-ref="width" min="1" max="${max}" step="1" value="${width0}"></label>
+                <span>×</span>
+                <label>${Locale.at("Height")} <input type="number" data-ref="height" min="1" max="${max}" step="1" value="${height0}"></label>
+                <span>px</span>
+            </div>
+            <label class="ie-scale-lock"><input type="checkbox" data-ref="lock" checked> ${Locale.at("Keep proportions")}</label>
+            <div class="ie-scale-presets">
+                ${ImageEditor.#SCALE_PRESETS.map((percent) => `<button type="button" data-percent="${percent}">${percent}%</button>`).join("")}
+            </div>`;
+        const width_input = body.querySelector('[data-ref="width"]');
+        const height_input = body.querySelector('[data-ref="height"]');
+        const lock = body.querySelector('[data-ref="lock"]');
+        const clamp = (value) => Math.max(1, Math.min(max, Math.round(value)));
+        width_input.addEventListener("input", () => {
+            if (lock.checked && Number(width_input.value) > 0) {
+                height_input.value = clamp(Number(width_input.value) * height0 / width0);
+            }
+        });
+        height_input.addEventListener("input", () => {
+            if (lock.checked && Number(height_input.value) > 0) {
+                width_input.value = clamp(Number(height_input.value) * width0 / height0);
+            }
+        });
+        body.querySelector(".ie-scale-presets").addEventListener("click", (event) => {
+            const percent = Number(event.target.closest("[data-percent]")?.dataset.percent);
+            if (percent > 0) {
+                width_input.value = clamp(width0 * percent / 100);
+                height_input.value = clamp(height0 * percent / 100);
+            }
+        });
+        UiBuilder.mockDialog({
+            text1: Locale.at("Scale the image"),
+            body,
+            onConfirmText: Locale.at("Scale"),
+            onDenyText: Locale.at("Cancel"),
+            onConfirm: () => {
+                const width = Number(width_input.value), height = Number(height_input.value);
+                if (!(width > 0 && height > 0) || !owner.self_ref.isConnected) {
+                    return;
+                }
+                owner.#scaleImage(clamp(width), clamp(height));
+            },
+        });
+    }
+    /**
+     * resizes the image's pixels (not its zoom): undoable, and "Reset" goes back to the original size
+     * like for every other pixel edit
+     * @param {number} width
+     * @param {number} height
+     */
+    #scaleImage(width, height) {
+        const owner = this;
+        const img = owner.elements.img_to_crop;
+        if (width === img.naturalWidth && height === img.naturalHeight) {
+            return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, width, height);
+        owner.#pushHistory();
+        // the knobs are in displayed px: if the new size shows smaller/bigger (e.g. scaled below the fitted size),
+        // move them by the same ratio; runs after the zoom refit, which listens to "load" too
+        const old_width = img.clientWidth, old_height = img.clientHeight;
+        img.addEventListener("load", () => {
+            if (old_width > 0 && old_height > 0 && (img.clientWidth !== old_width || img.clientHeight !== old_height)) {
+                owner.#rescaleKnobs(img.clientWidth / old_width, img.clientHeight / old_height);
+            }
+        }, { once: true });
+        img.src = canvas.toDataURL("image/png");
+        new Notify({ text: `${Locale.at("Image scaled to")} ${width} × ${height} px`, type: "ok" });
+    }
+    //#endregion
     /**
      * (re)applies rotation + flip as CSS individual transform properties on the preview image
      */
@@ -748,6 +1327,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             flip_v: owner.status.flip_v,
             knob_top_left: { ...owner.status.knob_top_left.coordinates_reading },
             knob_bottom_right: { ...owner.status.knob_bottom_right.coordinates_reading },
+            // the knob offsets are displayed pixels: remember the size they refer to, the zoom may change before a restore
+            display_width: owner.elements.img_to_crop.clientWidth,
+            display_height: owner.elements.img_to_crop.clientHeight,
         };
     }
     /**
@@ -797,6 +1379,11 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         kbr.coordinates_reading.diff_y = snapshot.knob_bottom_right.diff_y ?? 0;
         kbr.style.transform = `translate(${-kbr.coordinates_reading.diff_x}px, ${-kbr.coordinates_reading.diff_y}px)`;
         owner.#updateCropFrame();
+        const img = owner.elements.img_to_crop;
+        if (snapshot.display_width > 0 && snapshot.display_height > 0
+            && (img.clientWidth !== snapshot.display_width || img.clientHeight !== snapshot.display_height)) {
+            owner.#rescaleKnobs(img.clientWidth / snapshot.display_width, img.clientHeight / snapshot.display_height);
+        }
     }
     #undo() {
         const owner = this;
@@ -876,10 +1463,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         owner.status.stop_color_picking = stop_picking;
         document.addEventListener("mousemove", move_handler);
         owner.elements.img_to_crop.addEventListener("click", click_handler, { once: true });
-        owner.#showModeInstructions([
-            Locale.at("Clicca sull'immagine per selezionare il colore da rimuovere"),
-            Locale.at("Esc per annullare"),
-        ], stop_picking);
+        owner.#showModeInstructions("btn_color_key", stop_picking);
     }
     /**
      * radius, in source-image px, sampled around the clicked point to determine the key color
@@ -1457,12 +2041,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         document.addEventListener("mouseup", mouseup_handler);
         img.addEventListener("wheel", wheel_handler, { passive: false });
         img.addEventListener("mousedown", mousedown_handler);
-        owner.#showModeInstructions([
-            Locale.at("Trascina per cancellare"),
-            Locale.at("Rotellina del mouse per ridimensionare il pennello"),
-            Locale.at("Tieni premuto Shift per bloccare l'asse"),
-            Locale.at("Esc per uscire"),
-        ], stop_erasing);
+        owner.#showModeInstructions("btn_erase", stop_erasing);
     }
     /**
      * scratch canvas reused by `#restoreAt` to build an alpha-correct circular patch before
@@ -1641,12 +2220,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         document.addEventListener("mouseup", mouseup_handler);
         img.addEventListener("wheel", wheel_handler, { passive: false });
         img.addEventListener("mousedown", mousedown_handler);
-        owner.#showModeInstructions([
-            Locale.at("Trascina per ripristinare l'originale"),
-            Locale.at("Rotellina del mouse per ridimensionare il pennello"),
-            Locale.at("Tieni premuto Shift per bloccare l'asse"),
-            Locale.at("Esc per uscire"),
-        ], stop_restoring);
+        owner.#showModeInstructions("btn_restore", stop_restoring);
     }
     /**
      * ink color swatches offered in the draw tool's mode-instructions panel (see `#startDrawing`);
@@ -1843,7 +2417,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             }
             const enlarge_button = Icons.create("e147");
             enlarge_button.classList.add("ie-brush-size-button");
-            UiBuilder.addHint({ hint: Locale.at("Pennello più grande"), target: enlarge_button, anchor: "top" });
+            UiBuilder.addHint({ hint: Locale.at("Bigger brush"), target: enlarge_button, anchor: "top" });
             enlarge_button.addEventListener("click", () => {
                 owner.status.erase_radius = Math.max(
                     ImageEditor.#ERASE_RADIUS_MIN,
@@ -1853,7 +2427,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             });
             const shrink_button = Icons.create("e644");
             shrink_button.classList.add("ie-brush-size-button");
-            UiBuilder.addHint({ hint: Locale.at("Pennello più piccolo"), target: shrink_button, anchor: "top" });
+            UiBuilder.addHint({ hint: Locale.at("Smaller brush"), target: shrink_button, anchor: "top" });
             shrink_button.addEventListener("click", () => {
                 owner.status.erase_radius = Math.max(
                     ImageEditor.#ERASE_RADIUS_MIN,
@@ -1865,12 +2439,7 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             swatch_row.appendChild(shrink_button);
             return swatch_row;
         }
-        owner.#showModeInstructions([
-            Locale.at("Trascina per disegnare"),
-            Locale.at("Rotellina del mouse per ridimensionare il pennello"),
-            Locale.at("Tieni premuto Shift per bloccare l'asse"),
-            Locale.at("Esc per uscire"),
-        ], stop_drawing, createSwatch({
+        owner.#showModeInstructions("btn_draw", stop_drawing, createSwatch({
             colors: ImageEditor.#DRAW_COLORS,
             selected: owner.status.draw_color,
             onSelect: (color) => {
@@ -1964,8 +2533,8 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
                 owner.#startAddingText(user_input);
             },
             onCancel: () => closePopup(),
-            title: Locale.at("Inserisci il testo da aggiungere"),
-            title_cancel: Locale.at("annulla"),
+            title: Locale.at("Enter the text to add"),
+            title_cancel: Locale.at("cancel"),
             title_confirm: Locale.at("ok"),
         }));
         // `MousePopUp` calls `afterTitleRow.focus()` on ready - delegate to the text-input overlay's
@@ -2151,6 +2720,11 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
         confirm_button.classList.add("ie-text-overlay-confirm");
         controls.appendChild(confirm_button);
 
+        // top-left corner, the one free corner: drops the text without baking it (same as Esc)
+        const cancel_button = Icons.create("e5cd");
+        cancel_button.classList.add("ie-text-overlay-cancel");
+        controls.appendChild(cancel_button);
+
         document.body.appendChild(overlay);
 
         const state = { x: 0, y: 0, scale: 1, rotation: 0 };
@@ -2212,12 +2786,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
             owner.#bakeTextOverlay(overlay, text, state);
             stop_adding_text();
         });
+        cancel_button.addEventListener("click", () => stop_adding_text());
 
-        owner.#showModeInstructions([
-            Locale.at("Trascina i quadratini per spostare, ridimensionare e ruotare il testo"),
-            Locale.at("Clicca sul segno di spunta per confermare"),
-            Locale.at("Esc per annullare"),
-        ], stop_adding_text);
+        owner.#showModeInstructions("btn_add_text", stop_adding_text);
     }
     /**
      * bakes the floating text overlay (see `#startAddingText`) into the image's pixels, following
@@ -2304,6 +2875,9 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
     destroy(timeout_ms = 0) {
         const owner = this;
         document.removeEventListener("keydown", owner.status.undo_redo_key_handler);
+        document.removeEventListener("paste", owner.status.paste_handler);
+        document.removeEventListener("keydown", owner.status.zoom_key_handler);
+        window.removeEventListener("resize", owner.status.resize_handler);
         owner.#export_speed_actions?.destroy();
         owner.#smoothing_speed_actions?.destroy();
         super.destroy(timeout_ms);
@@ -2371,11 +2945,36 @@ class ImageEditor extends FrameworkGC(`${injector_html}`) {
          * @type ImageEditor
          */
         const owner = this.fwInstanceReference;
-        owner.status.labels_compact = !owner.status.labels_compact;
-        owner.elements.toolbox.classList.toggle("ie-labels-compact", owner.status.labels_compact);
-        owner.elements.toolbox_top.classList.toggle("ie-labels-compact", owner.status.labels_compact);
-        // owner.elements.btn_toggle_labels.classList.toggle("ie-tool-active", owner.status.labels_compact);
-        owner.elements.toggle_labels_icon.innerText = String.fromCodePoint(owner.status.labels_compact ? 0xf1c0 : 0xf8ab);
+        owner.#applyLabelsCompact(!owner.status.labels_compact);
+        owner.#saveLabelsCompact(owner.status.labels_compact);// remembered for the next time the editor opens
+    }
+    async onClickZoomIn() {
+        /**
+         * @type ImageEditor
+         */
+        const owner = this.fwInstanceReference;
+        owner.#stepZoom(1);
+    }
+    async onClickZoomOut() {
+        /**
+         * @type ImageEditor
+         */
+        const owner = this.fwInstanceReference;
+        owner.#stepZoom(-1);
+    }
+    async onClickScale() {
+        /**
+         * @type ImageEditor
+         */
+        const owner = this.fwInstanceReference;
+        owner.#showScaleDialog();
+    }
+    async onClickZoomReset() {
+        /**
+         * @type ImageEditor
+         */
+        const owner = this.fwInstanceReference;
+        owner.#setZoom(1);
     }
     async onClickFlipHorizontal() {
         /**

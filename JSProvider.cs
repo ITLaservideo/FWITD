@@ -240,7 +240,7 @@ namespace FWITD {
                 { components.InstallationSecureMessaging, Array.Empty<components>() },
                 { components.Settings, Array.Empty<components>() },
             };
-            internal enum pages { AdminSettings, AndroidAppDemo, AndroidLogin, DashboardLayout1, DashboardLettoreBarcode, DataCruncher, DCVAC, ImageEditor, left_panel, PDFEditor, ServerStatus, Showcase, some_page, test_page, VehicleMaintenance }
+            internal enum pages { AdminSettings, AndroidAppDemo, AndroidLogin, CanvasShowcase, DashboardLayout1, DashboardLettoreBarcode, DataCruncher, DCVAC, ImageEditor, left_panel, PDFEditor, ServerStatus, Showcase, some_page, test_page, VehicleMaintenance }
             internal enum injectable_apps { cloudflared, GestionaleDistributore, GoogleDocs, TemplateJobs, TemplateTools, YouTube }
             internal enum components { AndroidVeiwStatoMotori, AndroidViewAccount, AndroidViewAnalytics, AndroidViewHome, AndroidViewInventory, AndroidViewLogin, AndroidViewSalesDrivenRestock, AndroidViewSettings, AndroidViewTasks, BottomNavBar, BottomSheet, BreadCrumbs, CardRefillmentSuggestions, DataAnalizis1, DataCruncher, DatePicker, DCSVAC, DockWindow, DragAndDrop, EmptyState, ExportDataButton, FrameworkTestComponent, GeneralChart, ImageEditor, Insight, InstallationSecureMessaging, KeyBoard, ListBox, MegaMenu, MousePopUp, Notify, OTPComponent, PDFEditor, PosizioneMotore, Settings, SideBarLeft, SkeletonLoader, SpeedActions, SpeedDial, StickyBar, Table, Table2, TaskItem, ThemeSelector, Tooltip, TreeMenu, VehicleDashboard, WizardStepper }
             internal enum utils { AppRouter, Icons, LiveLogger, Lobby, Locale, Logger, MovableUtil, SpaHistory, UiBuilder }
