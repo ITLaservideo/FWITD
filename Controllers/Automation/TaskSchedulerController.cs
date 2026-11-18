@@ -35,6 +35,20 @@ namespace FWITD.Controllers.Automation {
             _job.Progress = Math.Clamp(percent, 0, 100);
             TaskSchedulerController.PersistJobProgress(_job);
         }
+
+        public string JobId => _job.Id;
+
+        /// <summary>
+        /// The job's own state (e.g. JSON), stored in TS_Jobs.Result and written on every set, so a job relaunched
+        /// after a host restart (<see cref="TaskSchedulerController.Relaunch"/>) can resume where it was.
+        /// </summary>
+        public string? State {
+            get => _job.Result;
+            set {
+                _job.Result = value;
+                TaskSchedulerController.PersistJobResult(_job);
+            }
+        }
     }
 
     internal sealed class JobInfo {
@@ -59,7 +73,8 @@ namespace FWITD.Controllers.Automation {
 
     /// <summary>
     /// Task-scheduler controller — routes as TaskScheduler/&lt;Method&gt;.
-    /// Job state is persisted to TS_Jobs (SQL Server); on startup interrupted jobs are
+    /// Job state is persisted to TS_Jobs (SQL Server or PostgreSQL, per QStorage's SQL.Provider;
+    /// each host ships the table in its own Assets/DBUpdate/001_TaskScheduler.sql); on startup interrupted jobs are
     /// recovered and their status is reset to Interrupted so the client can react.
     ///
     /// Register job delegates in application startup:
@@ -102,6 +117,9 @@ namespace FWITD.Controllers.Automation {
         private const string SQL_DELETE = @"
             DELETE FROM TS_Jobs WHERE Id=@0;";
 
+        private const string SQL_UPDATE_RESULT = @"
+            UPDATE TS_Jobs SET Result=@0 WHERE Id=@1;";
+
         // ── Static state ──────────────────────────────────────────────────────────
 
         private static readonly ConcurrentDictionary<string, JobInfo> _jobs;
@@ -119,6 +137,41 @@ namespace FWITD.Controllers.Automation {
 
         public static void RegisterAction(string name, Action<JobContext> action) =>
             _actions[name] = ctx => Task.Run(() => action(ctx), ctx.CancellationToken);
+
+        // ── Server-side API (for C# features that own their jobs) ─────────────────
+
+        /// <summary>Creates a job with an initial <see cref="JobContext.State"/> and starts it at once.</summary>
+        internal static JobInfo CreateAndStart(string name, string action, string? description = null, string? state = null) {
+            var job = new JobInfo {
+                Id          = Guid.NewGuid().ToString("N")[..8],
+                Name        = name,
+                Description = description,
+                ActionName  = action,
+                CreatedAt   = DateTime.UtcNow,
+                Result      = state,
+            };
+            _jobs[job.Id] = job;
+            SQL.ExecuteNonQuery(SQL_INSERT, [job.Id, job.Name, (object?)job.Description, (object?)job.ActionName,
+                                             job.Status.ToString(), job.Progress, job.CreatedAt]);
+            if (state is not null)
+                PersistJobResult(job);
+            _ = LaunchAsync(job);
+            return job;
+        }
+
+        /// <summary>Snapshot of the jobs matching <paramref name="filter"/>, oldest first.</summary>
+        internal static IReadOnlyList<JobInfo> FindJobs(Func<JobInfo, bool> filter) =>
+            _jobs.Values.Where(filter).OrderBy(j => j.CreatedAt).ToList();
+
+        internal static JobInfo? FindJob(string id) => _jobs.TryGetValue(id, out var job) ? job : null;
+
+        /// <summary>Relaunches an Interrupted or Failed job (e.g. after a host restart); its State is kept.</summary>
+        internal static void Relaunch(JobInfo job) {
+            if (job.Status is not (JobStatus.Interrupted or JobStatus.Failed))
+                throw new InvalidOperationException($"Job '{job.Id}' cannot be relaunched from {job.Status}");
+            job.Error = null;
+            _ = LaunchAsync(job);
+        }
 
         // ── Controller endpoints ──────────────────────────────────────────────────
 
@@ -304,6 +357,9 @@ namespace FWITD.Controllers.Automation {
             SQL.ExecuteNonQuery(SQL_UPDATE_PROGRESS, [job.Progress, job.Id]);
             job._lastPersistedProgress = job.Progress;
         }
+
+        internal static void PersistJobResult(JobInfo job) =>
+            SQL.ExecuteNonQuery(SQL_UPDATE_RESULT, [(object?)job.Result, job.Id]);
 
         private static void PersistState(JobInfo job) {
             SQL.ExecuteNonQuery(SQL_UPDATE_STATE, [
