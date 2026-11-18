@@ -7,6 +7,8 @@ body {
     background-color: var(--vscode-editor-background);
     font-family: var(--vscode-font-family);
     margin-top: 0;
+    /* body is 100% tall: a bottom margin would make the page itself scroll (the dashboard scrolls inside #app-main-content) */
+    margin-bottom: 0;
     color: var(--vscode-input-foreground);
 }
 

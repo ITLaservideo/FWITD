@@ -1887,6 +1887,8 @@ html {
 
 .simple-text-input-title {
     padding-bottom: 4px;
+    margin-left: 8px;
+    margin-right: 8px;
 }
 
 .simple-text-input-description {

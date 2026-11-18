@@ -69,14 +69,28 @@ class App {
     }
 
     /**
+     * Display name of a vehicle: its model (or its type when it has none), with the plate in parentheses when known.
+     * @param {{type: string, model?: string, plate?: string}} info - as returned by `VehicleMaintenance/GetInfo`
+     * @returns {string}
+     */
+    static vehicleLabel(info) {
+        const name = info.model || App.vehicleTypeInfo(info.type).title;
+        return info.plate ? `${name} (${info.plate})` : name;
+    }
+
+    /**
      * Always asks the current mileage on load, prefilled with the last known value.
+     * The title names the vehicle (the current profile) the mileage is saved to.
      * @returns {Promise<void>}
      */
     static async askMileage() {
-        const { currentMileageKm } = await Lobby.postAsync('VehicleMaintenance/GetCurrentMileage');
+        const [{ currentMileageKm }, info] = await Promise.all([
+            Lobby.postAsync('VehicleMaintenance/GetCurrentMileage'),
+            Lobby.postAsync('VehicleMaintenance/GetInfo'),
+        ]);
         return new Promise((resolve) => {
             UiBuilder.askNumberInput({
-                title: Locale.at('Update current mileage'),
+                title: `${Locale.at('Update current mileage')}: ${App.vehicleLabel(info)}`,
                 description: Locale.at('Current mileage (km)'),
                 value: currentMileageKm ?? undefined,
                 min: 0,

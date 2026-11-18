@@ -227,6 +227,62 @@ namespace FWITD.Controllers.VehicleMaintenance {
             return BuildDashboard(id);
         }
 
+        private static string BuyPath(VehicleType type, string suffix) => $"{Root}.BuyChecklist.{type}.{suffix}";
+
+        private static VehicleType ParseBuyType(JsonNode req) =>
+            Enum.TryParse<VehicleType>(req["type"]?.GetValue<string>(), out var t) ? t : VehicleType.Car;
+
+        /// <summary>
+        /// Check keys become a segment of a settings path: letters and digits only, so a key can't reach outside <c>Items</c>.
+        /// </summary>
+        private static bool IsValidBuyKey(string? key) =>
+            !string.IsNullOrEmpty(key) && key.Length <= 64 && key.All(char.IsAsciiLetterOrDigit);
+
+        /// <summary>
+        /// Stored state of the "I want to buy one" checklist for <c>type</c> (defaults to Car): <c>states</c> maps each
+        /// check key to <c>"ok"</c> or <c>"issue"</c> (unchecked keys are absent), plus the free-text notes.
+        /// The checks themselves (keys, labels, hints) live on the client (<c>VehicleBuyChecklist.CATALOGS</c>), where they're localized.
+        /// </summary>
+        public object GetBuyChecklist(JsonNode req) {
+            var type = ParseBuyType(req);
+            // an empty object as default (persisted when missing) so SetBuyCheck can add keys under it
+            var states = UserSettings.Get<Dictionary<string, string?>?>(BuyPath(type, "Items"), new()) ?? new();
+            var notes = UserSettings.Get<string?>(BuyPath(type, "Notes"), null);
+            return new {
+                type = type.ToString(),
+                states = states.Where(kv => kv.Value is "ok" or "issue").ToDictionary(kv => kv.Key, kv => kv.Value),
+                notes,
+            };
+        }
+
+        public object SetBuyCheck(JsonNode req) {
+            var type = ParseBuyType(req);
+            string? key = req["key"]?.GetValue<string>();
+            if (!IsValidBuyKey(key)) return new { ok = false };
+            var state = req["state"]?.GetValue<string>();
+            if (state is "ok" or "issue") {
+                UserSettings.Set(BuyPath(type, $"Items.{key}"), state);
+            } else {
+                UserSettings.Remove(BuyPath(type, $"Items.{key}"));
+            }
+            return new { ok = true };
+        }
+
+        public object SaveBuyNotes(JsonNode req) {
+            var type = ParseBuyType(req);
+            var notes = req["notes"]?.GetValue<string>();
+            UserSettings.Set(BuyPath(type, "Notes"), string.IsNullOrWhiteSpace(notes) ? null : notes);
+            return new { ok = true };
+        }
+
+        /// <summary>
+        /// Clears every check and the notes for <c>type</c>, to start over on the next candidate vehicle.
+        /// </summary>
+        public object ResetBuyChecklist(JsonNode req) {
+            UserSettings.Remove($"{Root}.BuyChecklist.{ParseBuyType(req)}");
+            return new { ok = true };
+        }
+
         private static object BuildDashboard(string profileId) {
             int currentKm = UserSettings.Get<int?>(ProfilePath(profileId, "CurrentMileageKm"), null) ?? 0;
             int? firstKm = UserSettings.Get<int?>(ProfilePath(profileId, "FirstSeenMileageKm"), null);

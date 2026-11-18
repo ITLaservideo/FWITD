@@ -49,6 +49,56 @@
     gap: 20px;
 }
 
+/* wide screens: sections side by side (matches VehicleDashboard.#wide_media) */
+@media (min-width: 900px) {
+    .vd-sections {
+        flex-direction: row;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .vd-sections>.vd-section {
+        flex: 0 1 640px;
+        min-width: 0;
+    }
+}
+
+/* narrow screens: one tab per section (UiBuilder.createTabs); the dashboard fills the page and only the tab content scrolls */
+.vd-dashboard.vd-dashboard-tabbed {
+    height: 100%;
+}
+
+.vd-dashboard-tabbed>.vd-header {
+    flex-shrink: 0;
+}
+
+.vd-dashboard-tabbed>.vd-sections {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.vd-dashboard-tabbed .tabs-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.vd-dashboard-tabbed .tabs-container>.tabs-header {
+    flex-shrink: 0;
+}
+
+/* the tabs' content container (createTabs gives it no class) */
+.vd-dashboard-tabbed .tabs-container>div:last-child {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* the tab already shows the section title */
+.vd-dashboard-tabbed .vd-section-title {
+    display: none;
+}
+
 .vd-section-title {
     font-size: 13px;
     font-weight: 600;
@@ -202,8 +252,14 @@
     color: #e05252;
 }
 
-.vd-profile-add {
+.vd-profile-add-row {
+    display: flex;
+    gap: 6px;
     margin-top: 6px;
+}
+
+.vd-profile-add {
+    flex: 1 1 0;
     border: 1px dashed var(--vscode-input-border, #3c3c3c);
     background-color: transparent;
     color: var(--vscode-input-foreground);

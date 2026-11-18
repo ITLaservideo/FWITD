@@ -30,8 +30,15 @@ class VehicleDashboard extends FrameworkGC(`${injector_html}`) {
         /** @type {HTMLElement} */
         sections_container: null,
     }
+    status = {
+        /** @type {{title: string, element: HTMLElement}[]} rendered sections, re-laid out (row or tabs) on width change */
+        sections: [],
+    }
+    /** wide screens show the sections side by side, narrow ones one tab per section */
+    #wide_media = window.matchMedia('(min-width: 900px)');
     async #initialize() {
         const owner = this;
+        owner.#wide_media.addEventListener('change', () => owner.#layoutSections());
         owner.elements.btn_change_profile.addEventListener('click', () => owner.#openProfileSwitcher());
         owner.elements.btn_edit_info.addEventListener('click', async () => {
             await App.askVehicleInfo(true);
@@ -84,17 +91,27 @@ class VehicleDashboard extends FrameworkGC(`${injector_html}`) {
                 row.appendChild(UiBuilder.createButton({
                     title: Locale.at('Delete'),
                     class: 'vd-profile-action vd-profile-delete',
-                    onClick: async () => {
-                        await Lobby.postAsync('VehicleMaintenance/DeleteProfile', { id: p.id });
-                        sheet.destroy();
-                        await owner.#openProfileSwitcher();
-                        await owner.#reload();
+                    onClick: () => {
+                        // opens on top of the vehicles list, which stays open if the user changes their mind
+                        UiBuilder.mockDialog({
+                            text1: `${Locale.at('Delete')} ${App.vehicleLabel(p)}? ${Locale.at('Its mileage and maintenance history will be lost.')}`,
+                            hideOnDeny: true,
+                            onConfirmText: Locale.at('Delete'),
+                            onConfirm: async () => {
+                                await Lobby.postAsync('VehicleMaintenance/DeleteProfile', { id: p.id });
+                                sheet.destroy();
+                                await owner.#openProfileSwitcher();
+                                await owner.#reload();
+                            },
+                        });
                     },
                 }));
             }
             body.appendChild(row);
         }
-        body.appendChild(UiBuilder.createButton({
+        const add_row = document.createElement('div');
+        add_row.className = 'vd-profile-add-row';
+        add_row.appendChild(UiBuilder.createButton({
             title: Locale.at('Add vehicle'),
             class: 'vd-profile-add',
             onClick: async () => {
@@ -105,6 +122,17 @@ class VehicleDashboard extends FrameworkGC(`${injector_html}`) {
                 await owner.#reload();
             },
         }));
+        add_row.appendChild(UiBuilder.createButton({
+            title: Locale.at('I want to buy one'),
+            class: 'vd-profile-add',
+            onClick: () => {
+                sheet.destroy();
+                const current = profiles.find(p => p.isCurrent);
+                const checklist = new VehicleBuyChecklist({ type: current?.type });
+                document.body.appendChild(checklist.elementReference());
+            },
+        }));
+        body.appendChild(add_row);
         const sheet = UiBuilder.mockDialog({
             text1: Locale.at('Your vehicles'),
             body,
@@ -126,12 +154,11 @@ class VehicleDashboard extends FrameworkGC(`${injector_html}`) {
     }
     #renderSections(items) {
         const owner = this;
-        const container = owner.elements.sections_container;
-        container.innerHTML = '';
         const categories = [
             { key: 'Ordinary', title: Locale.at('Ordinary maintenance') },
             { key: 'Extraordinary', title: Locale.at('Extraordinary maintenance') },
         ];
+        owner.status.sections = [];
         for (const { key, title } of categories) {
             const group = items.filter(i => i.category === key);
             if (group.length === 0) continue;
@@ -147,8 +174,34 @@ class VehicleDashboard extends FrameworkGC(`${injector_html}`) {
                 list.appendChild(owner.#buildRow(item));
             }
             section.appendChild(list);
-            container.appendChild(section);
+            owner.status.sections.push({ title, element: section });
         }
+        owner.#layoutSections();
+    }
+    /**
+     * Places the built sections: side by side in a centered row when the screen is wide, otherwise one tab per
+     * section where only the tab content scrolls (header and tab bar stay put). The selected tab and the tab
+     * content's scroll position survive a re-render (e.g. after "Mark done").
+     */
+    #layoutSections() {
+        const owner = this;
+        const container = owner.elements.sections_container;
+        const sections = owner.status.sections;
+        const tabbed = !owner.#wide_media.matches && sections.length > 0;
+        const previous_scroll = container.querySelector('.tabs-container > div:last-child')?.scrollTop ?? 0;
+        owner.self_ref.classList.toggle('vd-dashboard-tabbed', tabbed);
+        if (!tabbed) {
+            container.replaceChildren(...sections.map(s => s.element));
+            return;
+        }
+        const tabs = UiBuilder.createTabs({
+            titles: sections.map(s => s.title),
+            content: sections.map(s => s.element),
+            id_sync: 'VehicleDashboard',
+            onViewChange: () => { tabs.lastElementChild.scrollTop = 0; },
+        });
+        container.replaceChildren(tabs);
+        tabs.lastElementChild.scrollTop = previous_scroll;
     }
     #buildRow(item) {
         const owner = this;
