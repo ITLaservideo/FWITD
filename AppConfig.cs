@@ -48,7 +48,7 @@ namespace FWITD {
             [StartApp.Cloudflared]              = ( main: (JSProvider.JS.injectable_apps.cloudflared, AppSettings.Get<string>("Cloudflare.URL_LOGIN")),
                                                   extra: (null, null)),
 #endif
-            [StartApp.GestionaleDistributore]   = ( main: (JSProvider.JS.injectable_apps.cloudflared,   AppSettings.Get<string>("Urls.DebugWebsite")),
+            [StartApp.GestionaleDistributore]   = ( main: (JSProvider.JS.injectable_apps.GestionaleDistributore, AppSettings.Get<string>("Urls.GestionaleDistributore")),
                                                   extra: (null, null)),
             [StartApp.GoogleDocs]               = ( main: (JSProvider.JS.injectable_apps.GoogleDocs,    AppSettings.Get<string>("Google.URL_ListaMacchineConfigurateCloudflare")),
                                                   extra: (null, null)),

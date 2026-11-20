@@ -96,7 +96,7 @@ namespace FWITD {
             return [.. result];
         }
         private static async Task<(string cssThemeVars, string cssAnimations, string sharedAllCss, string jsFrameworkGC, KeyValuePair<string, string> jsCss)> loadSharedAssets(object[] js_components, int id_webview) {
-            var cssThemeVars = (await AssetLoader.LoadAssetFileAsync($"{path_App}styles/themes/vars_{current_css_theme}{minimized_folder_extension}css")).Replace("\\", "\\\\"); //2026_06_08 escape `\`
+            var cssThemeVars = (await AssetLoader.LoadAssetFileAsync($"{path_App}styles/themes/vars_{current_css_theme}{minimized_folder_extension}css"));
             var cssAnimations = await AssetLoader.LoadAssetFileAsync($"{path_App}styles/animations{minimized_folder_extension}css");
             var sharedAllCss = await AssetLoader.LoadAssetFileAsync($"{path_App}styles/styles{minimized_folder_extension}css");
             sharedAllCss = sharedAllCss.Replace("@BASE64FrameworkIcons", await AssetLoader.LoadAssetFileAsBase64Async($"{path_App}utils\\frameworks\\google3.woff2"));
@@ -192,14 +192,9 @@ namespace FWITD {
             p_script = await JS.getJSExternalLibs(p_script) + Environment.NewLine + p_script;
             var p_css = (await AssetLoader.LoadAssetFileAsyncIfExists($"{path_script_apps_injectable}/{file_name}/{file_name}{minimized_folder_extension}css"));
             string the_css = css_theme_vars + shared_all_css + css_animations + js_css.Value + (p_css ?? ""); //+ js_css_r_c.Value;
-            if (the_css.Contains("`")) {
-#if DEBUG
-                throw new Exception("using ` character inside a css file breaks textContent = `{the_css}`");
-#else
-                the_css = the_css.Replace("`", "'");
-#endif
-            }
-            string injectCss = $"(()=>{{const stylex_1 = document.createElement('style');stylex_1.textContent  = `{the_css}`;setTimeout(() => {{ document.head.appendChild(stylex_1); }}, 0);}})();";
+            // the css goes into a template literal: CSS escapes (`content: "\25CF"`) would otherwise be read as JS escapes
+            // (octal = SyntaxError), and ` / ${ would end the literal or start an interpolation
+            string injectCss = $"(()=>{{const stylex_1 = document.createElement('style');stylex_1.textContent  = `{JS.escapeForTemplateLiteral(the_css)}`;setTimeout(() => {{ document.head.appendChild(stylex_1); }}, 0);}})();";
 
             string the_js = $"{fw_bridge_shim};{injectCss};{Environment.NewLine}{p_script};{Environment.NewLine}\n{app_constructor_initialization};";
 
@@ -271,7 +266,7 @@ namespace FWITD {
                 // no worker file can be served to the webview: pdf.js starts it as a Web Worker from a Blob URL of this source
                 { external_libs.pdf, [("${injector_pdf_worker}", "pdf.worker")] },
             };
-            private static string escapeForTemplateLiteral(string js) => js.Replace("\\", "\\\\").Replace("`", "\\`").Replace("${", "\\${");
+            internal static string escapeForTemplateLiteral(string js) => js.Replace("\\", "\\\\").Replace("`", "\\`").Replace("${", "\\${");
             private static Dictionary<JS.pages, string> cache_path_files = new Dictionary<pages, string>();
 
             private static readonly Dictionary<components, string> component_name_to_js = new Dictionary<components, string>();
@@ -557,7 +552,7 @@ namespace FWITD {
                         } catch (Exception) { }
                     } else {
                         if (component == utils.Lobby) {
-                            var res_js = js.Replace("{{@HttpImagesAddress}}", $"{RemoteServer.HttpVirtualCoversAddress}/");
+                            var res_js = js.Replace("{{@HttpImagesAddress}}", $"{AppSettings.Get<string>("RemoteServer.HttpVirtualCoversAddress", "http://192.168.1.217:16895")}/");
                             component_name_to_js_util.TryAdd(component, res_js);
                         } else {
                             component_name_to_js_util.TryAdd(component, js);

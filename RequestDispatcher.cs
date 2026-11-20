@@ -40,7 +40,14 @@ namespace FWITD {
         internal static void Register(WebView2 webView, int id_webview) {
             webviews.Add(id_webview, webView);
             webView.CoreWebView2.WebMessageReceived += async (_, args) => {
-                string jsonMessage = args.TryGetWebMessageAsString();
+                string jsonMessage;
+                try {
+                    // throws ArgumentException when the page posted an object instead of a string (postMessage({...})),
+                    // e.g. the GestionaleDistributore host-bridge messages: only Lobby.post (a JSON string) is a request
+                    jsonMessage = args.TryGetWebMessageAsString();
+                } catch (ArgumentException) {
+                    return;
+                }
                 int index__owner_id = jsonMessage.IndexOf("__owner_id");
                 if (index__owner_id == -1) {//{\"x\":734,\"y\":361,\"__reqId\":1,\"__owner_id\":1,\"__url\":\"Windows/ClickAt\"}
                     return;//invalid request completely ignore it
@@ -65,8 +72,16 @@ namespace FWITD {
             void attachBridge(object? _, EventArgs __) {
                 if (webView.Handler?.PlatformView is not Microsoft.UI.Xaml.Controls.WebView2 winWebView) return;
                 void setupCore() {
-                    winWebView.CoreWebView2.WebMessageReceived += async (_, args) =>
-                        await HandleMessageAsync(args.TryGetWebMessageAsString());
+                    winWebView.CoreWebView2.WebMessageReceived += async (_, args) => {
+                        string jsonMessage;
+                        try {
+                            // throws ArgumentException when the page posted an object instead of a string: not a Lobby.post request
+                            jsonMessage = args.TryGetWebMessageAsString();
+                        } catch (ArgumentException) {
+                            return;
+                        }
+                        await HandleMessageAsync(jsonMessage);
+                    };
                 }
                 if (winWebView.CoreWebView2 != null)
                     setupCore();

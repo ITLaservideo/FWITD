@@ -55,7 +55,12 @@ namespace FWITD.Controllers.Sicurezza {
                         {"RememberThisDevice", remember_this_device.ToString() }
                     };
                     var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-                    HttpResponseMessage response = await client.PostAsync(RemoteServer.HTTP_AUTH, content);
+#if WINDOWS && DEBUG
+                    string base_address = AppSettings.Get<string>("RemoteServer.HttpBaseAddressDebug", "https://localhost:7130/");
+#else
+                    string base_address = AppSettings.Get<string>("RemoteServer.HttpBaseAddress", "http://192.168.1.217:8701");
+#endif
+                    HttpResponseMessage response = await client.PostAsync(base_address.TrimEnd('/') + "/User/LogIn", content);
                     if (response.IsSuccessStatusCode) {
                         string responseJson = await response.Content.ReadAsStringAsync();
                         try {

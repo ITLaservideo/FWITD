@@ -18,7 +18,6 @@ A shared git submodule that bridges a JavaScript/CSS/HTML frontend with a .NET h
 | `AssetLoader.cs` | Loads frontend files from disk (Windows) or MAUI bundle (mobile) |
 | `JSProvider.cs` | Builds and serves compiled HTML+JS+CSS pages/scripts to the WebView (`JS.pages`, `JS.injectable_apps` enums) |
 | `RequestDispatcher.cs` | Registers a webview and routes its `Lobby.post()` messages to the matching `Controller` method by reflection |
-| `RemoteServer.cs` | Central place for remote server base URLs |
 | `CloudflareCidrs.cs` / `UtilsWeb.cs` | Server-side only: verifies a request's `CF-Connecting-IP` came from Cloudflare's published ranges |
 | `Services/SystemSettings.cs` | Typed app settings backed by `QStorage`'s `AppSettings` / `TG_LocalSettings` |
 | `Services/SystemSettingsAegisGate.cs` | AegisGate-specific variant of the above |
