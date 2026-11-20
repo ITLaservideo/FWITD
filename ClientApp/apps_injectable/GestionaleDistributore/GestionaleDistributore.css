@@ -1,9 +1,5 @@
-/*
- #container-router-outlet {
-    --top-bar-height: 88px;
+/* TreeMenu is virtualized: it needs a host with a definite height */
+.gd-menu {
+    width: 400px;
+    height: 500px;
 }
-*/
-/* body {
-    padding-top: 5%;
-    padding-bottom: 5%;
-} */
