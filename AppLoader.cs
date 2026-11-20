@@ -94,23 +94,31 @@ namespace FWITD {
             string script) {
             string b64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(script));
             const int chunkSize = 4_500_000;//4.5 MB
+            int chunkCount = (b64.Length + chunkSize - 1) / chunkSize;
+            // A buffer of its own per call: Android raises Navigated (OnPageFinished) more than once per load
+            // (redirects, service worker...), and the async handlers interleave. With one shared window.__fw_chunks
+            // a call reset, merged (atob: "not correctly encoded") or deleted (undefined.join) the other's chunks.
+            string buffer = $"window['__fw_chunks_{Guid.NewGuid():N}']";
+
+            await EvalAsync($"{buffer}=[];");
+            for (int i = 0; i < b64.Length; i += chunkSize) {
+                string chunk = b64.Substring(i, Math.Min(chunkSize, b64.Length - i));
+                // the page may have navigated mid-transfer: the buffer is gone, don't throw
+                await EvalAsync($"{buffer}&&{buffer}.push('{chunk}');");
+            }
+            await EvalAsync(
+                $"(() => {{ const chunks = {buffer}; delete {buffer};" +
+                // incomplete = a new document arrived mid-transfer: its own Navigated injects again
+                $" if (!chunks || chunks.length !== {chunkCount}) return;" +
+                // once per document: a second Navigated for the same page would build a second App
+                " if (window.__fw_app_injected) return; window.__fw_app_injected = true;" +
+                // indirect eval: global scope, like the former top-level eval
+                " try { (0, eval)(new TextDecoder().decode(Uint8Array.from(atob(chunks.join('')), c => c.charCodeAt(0)))) } catch (e) { alert(e); console.error(e) } })();");
 
 #if WPF && WINDOWS
-            await webView.CoreWebView2.ExecuteScriptAsync("window.__fw_chunks=[];");
-            for (int i = 0; i < b64.Length; i += chunkSize) {
-                string chunk = b64.Substring(i, Math.Min(chunkSize, b64.Length - i));
-                await webView.CoreWebView2.ExecuteScriptAsync($"window.__fw_chunks.push('{chunk}');");
-            }
-            await webView.CoreWebView2.ExecuteScriptAsync(
-                "try { eval(new TextDecoder().decode(Uint8Array.from(atob(window.__fw_chunks.join('')), c => c.charCodeAt(0)))) } catch (e) { alert(e); console.error(e) } finally { delete window.__fw_chunks }");
+            Task EvalAsync(string js) => webView.CoreWebView2.ExecuteScriptAsync(js);
 #else
-            await webView.EvaluateJavaScriptAsync("window.__fw_chunks=[];");
-            for (int i = 0; i < b64.Length; i += chunkSize) {
-                string chunk = b64.Substring(i, Math.Min(chunkSize, b64.Length - i));
-                await webView.EvaluateJavaScriptAsync($"window.__fw_chunks.push('{chunk}');");
-            }
-            await webView.EvaluateJavaScriptAsync(
-                "try { eval(new TextDecoder().decode(Uint8Array.from(atob(window.__fw_chunks.join('')), c => c.charCodeAt(0)))) } catch (e) { alert(e); console.error(e) } finally { delete window.__fw_chunks }");
+            Task EvalAsync(string js) => webView.EvaluateJavaScriptAsync(js);
 #endif
         }
     }
