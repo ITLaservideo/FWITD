@@ -81,23 +81,40 @@ bind this to save with the **Run on Save** extension
 `.min.js` directly, or a non-JS/CSS/HTML file matched by accident) is a no-op
 (prints `Skipped: ...`, exit code 0) - it won't error or write anything.
 
-## CreateComponent.bat / CreatePage.bat / UpdateJSEnums.bat
+## UpdateJSEnums.bat / CreatePage.bat / CreateComponent.bat / CreateInjectable.bat
 
-⚠️ **Currently broken / stale.** These (and everything they call - `scripts\A_CreateNewComponent.ps1`,
-`A_CreateNewComponent2.ps1`, `A_CreateNewPage.ps1`, and all five
-`SS_UpdateJSEnum_*.ps1` / `SS_UpdateJSDict_page_to_components.ps1`) still
-target a project layout from before the `ClientApp` reorganization:
-`FWITD\Resources\Raw\ui\App\...` and `FWITD\Utils\UtilsUi.cs`. Neither path
-exists anymore - running any of them today fails at the first
-`Resolve-Path` call. `A_CreateNewPage.ps1` additionally points at template
-files (`data\test_page.css/html/js`) that were never checked in (only
-`data\template_page.*` exists).
+Scaffolding and enum maintenance for `ClientApp`, the script equivalent of
+UiBuilder's *Add FW JS Component* form (`Helpers\addFWJSComponent.cs`,
+`Lib\UpdaterEnums.cs`) - keep the two in sync.
 
-They're left in place as-is since fixing them wasn't part of this pass - just
-be aware "create a new component/page" and "update the JS enums" don't
-currently work via these entry points. (`ClientApp/readme.md` documents how
-components/pages/enums are actually wired today if you need to do this by
-hand.)
+Every path is resolved from the scripts' own location inside this submodule
+(`FWITD\...`), never from the host project, so they work the same in every
+project that includes `FWITD`. Shared logic lives in `scripts\_FWCommon.ps1`.
+
+| .bat | script | does |
+|---|---|---|
+| `UpdateJSEnums.bat` | `A_UpdateJSEnums.ps1` | regenerates, in `JSProvider.cs`, the enums `pages` / `utils` / `components` / `frameworks` / `injectable_apps` and the dictionaries `page_to_components` / `components_views` from the `ClientApp` folders, and syncs `external_libs` / `external_libs_info` with `utils\external_libs` (see below) |
+| `CreatePage.bat` | `A_CreateNewPage.ps1` | `apps_standalone\<Name>\` from `data\template_page.*` + `jsconfig.json` + `components\`; then (asked) updates the enums and adds `StartApp.<Name>` + its `_scripts` entry to `AppConfig.cs` |
+| `CreateComponent.bat` | `A_CreateNewComponent.ps1` | a component from `data\js_component_v2.js`: global (`components\`), child of a page / ComponentView (`...\<Parent>\components\`) or a new ComponentView (`apps_standalone_components\`); then (asked) updates the enums |
+| `CreateInjectable.bat` | `A_CreateNewInjectable.ps1` | `apps_injectable\<Name>\` (`.js`, optional `.html` / `.css`, `jsconfig.json`); then (asked) updates the enums. Its `StartApp` / `_scripts` entry is left to you: it needs the url to inject into |
+
+Arguments after the `.bat` are passed to the script: `-Name <Name>` skips the
+name prompt, `-NoPause` skips the final "Press ENTER" (used by the VS Code
+tasks).
+
+- Enum files are rewritten keeping their encoding (BOM or not) and line
+  endings; a file whose content doesn't change isn't touched.
+- Folder names that aren't valid C# identifiers are skipped with a warning.
+- A component name present in two folders (e.g. `components\TaskItem` and
+  `apps_standalone_components\AndroidViewTasks\components\TaskItem`) is listed
+  once in the `components` enum and reported: only one of them can be loaded.
+- `external_libs` is synced, not regenerated: its order is the load order and
+  each lib's triggers (the globals it exposes) can't be derived from the file.
+  Existing libs keep their position and `external_libs_info` entry; a new
+  `utils\external_libs\<name>.js` is appended with the trigger
+  `//keep <name>` only (add its global to the triggers by hand); a lib whose
+  file is gone is removed with its entry. Files inlined through
+  `external_libs_inlined` (`pdf.worker`) are not libs of their own.
 
 ## CreateShortcut.ps1
 
@@ -115,5 +132,5 @@ workspace opens. Whether it also auto-launches Chrome is controlled by
 
 ## data/
 
-Template source files consumed by the (currently broken, see above)
-component/page scaffolding scripts - not otherwise used by `MinifyClientApp`.
+Template source files consumed by the page / component / injectable
+scaffolding scripts (and UiBuilder) - not used by `MinifyClientApp`.

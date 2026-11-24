@@ -1,3 +1,4 @@
+param([switch]$NoPause)  # skip the "Press ENTER" (VS Code tasks)
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BuildingProcessDir = Join-Path $ScriptDir ".."
 
@@ -5,8 +6,8 @@ Write-Host "=== ClientApp Minifier ==="
 
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host "ERROR: Node.js is required but was not found on PATH." -ForegroundColor Red
-    Read-Host "Press ENTER to exit"
-    exit
+    if (-not $NoPause) { Read-Host "Press ENTER to exit" | Out-Null }
+    exit 1
 }
 
 Push-Location $BuildingProcessDir
@@ -16,8 +17,8 @@ try {
         npm install
         if ($LASTEXITCODE -ne 0) {
             Write-Host "ERROR: npm install failed." -ForegroundColor Red
-            Read-Host "Press ENTER to exit"
-            exit
+            if (-not $NoPause) { Read-Host "Press ENTER to exit" | Out-Null }
+            exit 1
         }
     }
 
@@ -32,4 +33,4 @@ try {
 }
 
 Write-Host ""
-Read-Host "Press ENTER to exit"
+if (-not $NoPause) { Read-Host "Press ENTER to exit" | Out-Null }

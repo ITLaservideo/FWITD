@@ -62,6 +62,20 @@ body {
     }
 }
 
+/* explorer hidden from the header toggle: a collapsed StickyBar brings it back */
+.cs-layout.cs-explorer-hidden {
+
+    & > .cs-explorer,
+    & > .cs-resizer {
+        display: none;
+    }
+}
+
+.cs-explorer-toggle {
+    align-self: center;
+    display: flex;
+}
+
 .cs-content {
     flex: 1 1 auto;
     min-width: 0;

@@ -1,1 +1,3 @@
-powershell -ExecutionPolicy Bypass -File "%~dp0\scripts\A_CreateNewPage.ps1"
+@echo off
+rem extra arguments are passed to the script, e.g. -NoPause / -Name <Name>
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\A_CreateNewPage.ps1" %*

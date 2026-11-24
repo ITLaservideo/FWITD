@@ -243,7 +243,7 @@ namespace FWITD {
             /// <summary>
             /// third-party libraries in `utils/external_libs/`; declaration order = load order
             /// </summary>
-            internal enum external_libs { XLSX, html2canvas, jsPDF, pdf_lib, pdf, JsBarcode }
+            internal enum external_libs { XLSX, html2canvas, jsPDF, pdf_lib, pdf, JsBarcode, three }
             /// <summary>
             /// a library is bundled when the app's assembled script (page/injectable + its components)
             /// contains any of its <c>triggers</c> - the globals it exposes, so plain usage (`XLSX.read(...)`)
@@ -257,6 +257,8 @@ namespace FWITD {
                 { external_libs.pdf, ("pdf", ["pdfjsLib"], []) },
                 // UiBuilder (always bundled) wraps it, so its own global can't be the trigger: only its callers' `UiBuilder.toEanElement` (Table2, ...) is
                 { external_libs.JsBarcode, ("JsBarcode", ["UiBuilder.toEanElement", "//keep JsBarcode"], []) },
+                // UMD build, exposes the global `THREE` (CanvasShowcase/balls/BallsThreeRenderer)
+                { external_libs.three, ("three", ["THREE.", "//keep THREE"], []) },
             };
             /// <summary>
             /// files in `utils/external_libs/` that are not loaded as a script of their own, but inlined

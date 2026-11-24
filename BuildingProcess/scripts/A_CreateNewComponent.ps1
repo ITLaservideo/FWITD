@@ -1,90 +1,61 @@
-# Hard‑coded paths relative to the script location
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ListOfDirectories = Join-Path $ScriptDir "..\..\Resources\Raw\ui\App\components"
+# Creates a component (Name.css/html/js, the js from data\js_component_v2.js) in one of:
+#   - ClientApp\components\                                   global component
+#   - ClientApp\apps_standalone\<Page>\components\            child component of a page
+#   - ClientApp\apps_standalone_components\<View>\components\ child component of a ComponentView
+#   - ClientApp\apps_standalone_components\                   a new ComponentView
+# then optionally updates JSProvider.cs (UiBuilder: addFWJSComponent.createTheComponent).
+#   -Name <Name>   don't ask for the name
+#   -NoPause       skip the final "Press ENTER"
+param([string]$Name, [switch]$NoPause)
+. (Join-Path $PSScriptRoot "_FWCommon.ps1")
 
-Write-Host "=== Component Creator ==="
+Invoke-FWMain "Component Creator" $NoPause {
+    $template = Join-Path $FW.Templates "js_component_v2.js"
+    Assert-FWFiles @($template)
 
-# Load JS template from external file
-$TemplatePath = Join-Path $ScriptDir "..\data\js_component_v2.js"
+    $componentName = Read-FWName "New component name" $Name $null
 
-if (!(Test-Path $TemplatePath)) {
-    Write-Host "ERROR: Template file not found at $TemplatePath" -ForegroundColor Red
-    Read-Host "Press ENTER to exit"
-    exit
-}
-
-$jsTemplate = Get-Content $TemplatePath -Raw
-
-# Loop until valid input
-while ($true) {
-    $inputName = Read-Host "Insert new component name"
-
-    if ([string]::IsNullOrWhiteSpace($inputName)) {
-        Write-Host "Name cannot be empty." -ForegroundColor Red
-        continue
+    # destinations
+    $destinations = New-Object 'System.Collections.Generic.List[object]'
+    $destinations.Add([pscustomobject]@{ Label = "Global component            -> components\"; Folder = $FW.GlobalComponents; View = $false })
+    foreach ($p in (Get-FWFolderNames $FW.StandalonePages "apps_standalone")) {
+        $destinations.Add([pscustomobject]@{ Label = "Child of page $p -> apps_standalone\$p\components\"; Folder = Join-Path (Join-Path $FW.StandalonePages $p) "components"; View = $false })
     }
-
-    # Validate: must start with a letter and contain only letters, numbers, underscores
-    if ($inputName -notmatch '^[a-zA-Z][a-zA-Z0-9_]*$') {
-        Write-Host "Invalid name. Must start with a letter and contain only letters, numbers, and underscores." -ForegroundColor Red
-        continue
+    foreach ($v in (Get-FWFolderNames $FW.StandaloneComponents "apps_standalone_components")) {
+        $destinations.Add([pscustomobject]@{ Label = "Child of ComponentView $v -> apps_standalone_components\$v\components\"; Folder = Join-Path (Join-Path $FW.StandaloneComponents $v) "components"; View = $false })
     }
+    $destinations.Add([pscustomobject]@{ Label = "New ComponentView           -> apps_standalone_components\"; Folder = $FW.StandaloneComponents; View = $true })
 
-    break
-}
-
-# Capitalize first letter for class name
-$ClassName = $inputName.Substring(0,1).ToUpper() + $inputName.Substring(1)
-
-# Target folder
-$TargetFolder = Join-Path $ListOfDirectories $inputName
-
-# Check if exists
-if (Test-Path $TargetFolder) {
-    Write-Host "Component already exists: $inputName" -ForegroundColor Yellow
-    Read-Host "Press ENTER to exit"
-    exit
-}
-
-# Create folder
-New-Item -ItemType Directory -Path $TargetFolder | Out-Null
-
-# Create files
-$cssPath  = Join-Path $TargetFolder "$inputName.css"
-$htmlPath = Join-Path $TargetFolder "$inputName.html"
-$jsPath   = Join-Path $TargetFolder "$inputName.js"
-
-New-Item -ItemType File -Path $cssPath  | Out-Null
-New-Item -ItemType File -Path $htmlPath | Out-Null
-
-# Replace class name in JS template
-$finalJs = $jsTemplate.Replace("ComponentTemplate", $ClassName)
-$finalJs = $finalJs.Replace("__CLASSNAME__", $ClassName)
-
-# Write file
-Set-Content -Path $jsPath -Value $finalJs -Encoding UTF8
-Set-Content -Path $htmlPath -Value "<div>$ClassName works!</div>" -Encoding UTF8
-
-Write-Host "Component '$inputName' created successfully!" -ForegroundColor Green
-Write-Host "Folder: $TargetFolder"
-
-Write-Host ""
-
-# Ask user if they want to update the JS enum
-$choice = Read-Host "Do you want to update the JS enum now? (y/n)"
-
-if ($choice -match '^[Yy]$') {
-    $enumScript = Join-Path $ScriptDir "SS_UpdateJSEnum_components.ps1"
-
-    if (Test-Path $enumScript) {
-        Write-Host "Running enum update script..." -ForegroundColor Cyan
-        powershell -ExecutionPolicy Bypass -File $enumScript
+    Write-Host ""
+    Write-Host "Where do you want to create '$componentName'?" -ForegroundColor Cyan
+    for ($i = 1; $i -lt $destinations.Count; $i++) { Write-Host ("{0,3}) {1}" -f $i, $destinations[$i].Label) }
+    # the default last, right above the prompt
+    if ($destinations.Count -gt 0) {
+        Write-Host ("{0,3}) {1}" -f 0, $destinations[0].Label)
     }
-    else {
-        Write-Host "Enum update script not found at: $enumScript" -ForegroundColor Red
+    $last = $destinations.Count - 1
+    while ($true) {
+        $choice = (Read-Host "Select destination (0-$last, default 0)").Trim()
+        if ($choice -eq "") { $choice = "0" }
+        if ($choice -match '^\d+$' -and [int]$choice -le $last) { break }
+        Write-FWErr "Invalid selection."
+    }
+    $destination = $destinations[[int]$choice]
+    $folder = Join-Path $destination.Folder $componentName
+    if (Test-Path -LiteralPath $folder) { throw "Component already exists: $folder" }
+
+    $className = $componentName.Substring(0, 1).ToUpper() + $componentName.Substring(1)
+    $js = [System.IO.File]::ReadAllText($template).Replace("ComponentTemplate", $className).Replace("__CLASSNAME__", $className)
+
+    New-Item -ItemType Directory -Path $folder -Force | Out-Null
+    Write-FWNewFile (Join-Path $folder "$componentName.css") ""
+    Write-FWNewFile (Join-Path $folder "$componentName.html") "<div>$className works!</div>"
+    Write-FWNewFile (Join-Path $folder "$componentName.js") $js
+
+    $kind = if ($destination.View) { "ComponentView" } else { "Component" }
+    Write-FWOk "$kind '$componentName' created: $folder"
+
+    if (Read-FWYesNo "Update JSProvider.cs enums?" $true) {
+        Update-FWJSEnums
     }
 }
-
-# Always wait before exiting
-Write-Host ""
-Read-Host "Press ENTER to exit"

@@ -1,5 +1,5 @@
 /**
- * Runs the BallsPhysics simulation and draws the same World both on a <canvas> and on an <svg>
+ * Runs the BallsPhysics simulation and draws the same World on a <canvas>, on an <svg> and in 3D with three.js
  * (migrated from AlwaysLearn/JavaScript/0_testing.js/balls, 19_eseguibile.js).
  * Mount with `new BouncingBallsDemo(container)`, unmount with `destroy()`.
  *
@@ -33,11 +33,23 @@ class BouncingBallsDemo {
                     <h3>SVG (same world)</h3>
                     <svg data-ref="svg" width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg"></svg>
                 </div>
+                <div>
+                    <h3>three.js (same world, WebGL)</h3>
+                    <canvas data-ref="three" width="${WIDTH}" height="${HEIGHT}"></canvas>
+                </div>
             </div>
         `;
         this.canvas = this.root.querySelector('[data-ref="canvas"]');
         this.g = this.canvas.getContext("2d");
         this.svgRenderer = new BallsSvgRenderer(this.root.querySelector('[data-ref="svg"]'));
+        const threeCanvas = this.root.querySelector('[data-ref="three"]');
+        try {
+            this.threeRenderer = new BallsThreeRenderer(threeCanvas, WIDTH, HEIGHT);
+        } catch (error) {// e.g. WebGL disabled / unavailable: the other two views keep working
+            console.error("BouncingBallsDemo: three.js view not available", error);
+            this.threeRenderer = null;
+            threeCanvas.replaceWith(Object.assign(document.createElement("p"), { textContent: `three.js view not available: ${error.message}` }));
+        }
         this.world = new BallsPhysics.World(WIDTH, HEIGHT);
 
         // click on the canvas or on the svg = new ball at that point
@@ -49,6 +61,7 @@ class BouncingBallsDemo {
         };
         this.canvas.addEventListener("click", addBallAtClick);
         this.svgRenderer.svg.addEventListener("click", addBallAtClick);
+        this.threeRenderer?.canvas.addEventListener("click", addBallAtClick);// same mapping: the camera frames the z = 0 plane exactly
 
         this.root.addEventListener("keydown", event => {
             if (event.key === "r" || event.key === "R") this.reset();
@@ -68,6 +81,8 @@ class BouncingBallsDemo {
     destroy() {
         cancelAnimationFrame(this.#rafId);
         this.#rafId = 0;
+        this.threeRenderer?.dispose();
+        this.threeRenderer = null;
         this.root.remove();
     }
 
@@ -89,6 +104,7 @@ class BouncingBallsDemo {
     reset() {
         this.world.clear();
         this.svgRenderer.clear();
+        this.threeRenderer?.clear();
         for (let i = 0; i < 8; i++) this.addRandomBall();
     }
 
@@ -114,6 +130,7 @@ class BouncingBallsDemo {
         this.world.step(dt);
         this.drawCanvas();
         this.svgRenderer.renderAll(this.world.balls);
+        this.threeRenderer?.renderAll(this.world.balls);
         this.#rafId = requestAnimationFrame(t => this.#loop(t));
     }
 }

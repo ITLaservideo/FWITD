@@ -213,7 +213,7 @@ const result = await Lobby.post("MyFeature/GetData");
 
 ## Adding a new page or injectable app
 
-1. Add the JS/HTML/CSS files under `ClientApp/apps_standalone/<Name>/` (full page) or `ClientApp/apps_injectable/<Name>/` (script injected into an existing page) — see `BuildingProcess/CreatePage.bat` / `CreateComponent.bat` for scaffolding.
+1. Add the JS/HTML/CSS files under `ClientApp/apps_standalone/<Name>/` (full page) or `ClientApp/apps_injectable/<Name>/` (script injected into an existing page) — `BuildingProcess/CreatePage.bat` / `CreateInjectable.bat` / `CreateComponent.bat` scaffold them; `CreatePage.bat` can also do steps 2-3 for you, `CreateInjectable.bat` step 2 (see `BuildingProcess/readme.md`).
 2. Add the corresponding entry to `JSProvider.JS.pages` or `JSProvider.JS.injectable_apps`.
 3. Add a `StartApp` enum value and its `AppConfig._scripts` entry so `AppLoader` knows how to load it.
 

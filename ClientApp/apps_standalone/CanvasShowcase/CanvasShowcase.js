@@ -11,6 +11,8 @@ const debug = false;
 class App {
     static #STORAGE_LAST_OPENED = "canvas-showcase-last-opened";
     static #STORAGE_EXPLORER_WIDTH = "canvas-showcase-explorer-width";
+    static #STORAGE_EXPLORER_HIDDEN = "canvas-showcase-explorer-hidden";
+    static #ICON_EXPLORER = "e9bd";// menu_open
     static #EXPLORER_MIN_WIDTH = 160;
     static #EXPLORER_MAX_WIDTH = 480;
 
@@ -19,6 +21,7 @@ class App {
         explorer_tree: document.getElementById("cs-explorer-tree"),
         explorer_footer: document.getElementById("cs-explorer-footer"),
         resizer: document.getElementById("cs-resizer"),
+        explorer_toggle: document.getElementById("cs-explorer-toggle"),
         content_title: document.getElementById("cs-content-title"),
         content_hint: document.getElementById("cs-content-hint"),
         content_body: document.getElementById("cs-content-body"),
@@ -27,6 +30,8 @@ class App {
     #tree = null;
     /** @type {{id: string, view: {destroy: Function}|null}|null} */
     #opened = null;
+    /** @type {StickyBar|null} shown, collapsed, only while the explorer is hidden */
+    #explorer_bar = null;
     /** explorer entries, in display order; `icon` = code point from https://fonts.google.com/icons */
     #entries = [
         {
@@ -35,7 +40,7 @@ class App {
             mount: (container) => this.#mountImageEditor(container),
         },
         {
-            id: "balls", label: "balls", description: "canvas + svg physics", icon: "e6dd",
+            id: "balls", label: "balls", description: "canvas + svg + three.js physics", icon: "e6dd",
             hint: "Click = new ball · R = reset · Space = flip gravity",
             mount: (container) => new BouncingBallsDemo(container),
         },
@@ -56,7 +61,16 @@ class App {
         },
     ];
 
-    constructor() {
+    constructor() {        
+        document.body.addEventListener("keydown", (e) => {
+            if (e.ctrlKey && e.key == "r") {
+                e.stopPropagation();
+                e.preventDefault();
+                Lobby.post("AppRouter/Navigate", { where: "CanvasShowcase" }, (rsp) => {
+                    resolve();
+                });
+            }
+        })
         this.#init();
         this.#asyncInit();
     }
@@ -73,6 +87,7 @@ class App {
 
         owner.#initExplorer();
         owner.#initResizer();
+        owner.#initExplorerToggle();
 
         let last_opened = null;
         try { last_opened = localStorage.getItem(App.#STORAGE_LAST_OPENED); } catch (e) { /* storage blocked */ }
@@ -143,6 +158,60 @@ class App {
             app_main_content.style.removeProperty("--cs-explorer-width");
             try { localStorage.removeItem(App.#STORAGE_EXPLORER_WIDTH); } catch (e) { /* ignore */ }
         });
+    }
+
+    /** the button before the title hides/shows the explorer; the choice is remembered */
+    #initExplorerToggle() {
+        const owner = this;
+        const btn_toggle = UiBuilder.createButton({
+            icon_code: App.#ICON_EXPLORER,
+            theme: "text",
+            hint: Locale.at("hide/show explorer"),
+            anchor: "bottom",
+            onClick: () => owner.#setExplorerHidden(!owner.elements.app_main_content.classList.contains("cs-explorer-hidden")),
+        });
+        owner.elements.explorer_toggle.appendChild(btn_toggle);
+        let hidden = false;
+        try { hidden = localStorage.getItem(App.#STORAGE_EXPLORER_HIDDEN) === "1"; } catch (e) { /* storage blocked */ }
+        owner.#setExplorerHidden(hidden);
+    }
+    /**
+     * while hidden, a collapsed StickyBar on the left edge offers to bring the explorer back
+     * @param {boolean} hidden
+     */
+    #setExplorerHidden(hidden) {
+        const owner = this;
+        owner.elements.app_main_content.classList.toggle("cs-explorer-hidden", hidden);
+        try { localStorage.setItem(App.#STORAGE_EXPLORER_HIDDEN, hidden ? "1" : "0"); } catch (e) { /* ignore */ }
+        if (!hidden) {
+            owner.#explorer_bar?.destroy();
+            owner.#explorer_bar = null;
+            return;
+        }
+        if (owner.#explorer_bar != null) {
+            return;
+        }
+        try {
+            owner.#explorer_bar = new StickyBar({
+                id: "canvas-showcase-explorer-bar",
+                anchor: "left-top",
+                buttons: { title: Locale.at("explorer"), icon_code: App.#ICON_EXPLORER, onClick: () => owner.#setExplorerHidden(false) },
+            });
+            // a stored full/concise phase would win over `options.phase`: always start collapsed
+            owner.#explorer_bar.setPhase("collapsed");
+            // a click on the collapsed bar shows the explorer straight away instead of expanding the bar
+            // (capture: runs before StickyBar's own click handler). The click that follows the toggle's
+            // mouseup collapse lands on `.sb-toggle`: let it through, or collapsing would reopen the explorer
+            owner.#explorer_bar.elementReference().addEventListener("click", (event) => {
+                if (owner.#explorer_bar?.getPhase() !== "collapsed" || event.target.closest(".sb-toggle") != null) {
+                    return;
+                }
+                event.stopImmediatePropagation();
+                owner.#setExplorerHidden(false);
+            }, { capture: true });
+        } catch (error) {// no free spot left along that side: the header toggle still brings it back
+            console.error(error);
+        }
     }
 
     /** unmounts the current entry and mounts `id` in the content area */
