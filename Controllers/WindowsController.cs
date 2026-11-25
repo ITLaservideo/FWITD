@@ -1,4 +1,5 @@
 using QStorage;
+using System.IO;
 using System.Text.Json.Nodes;
 
 namespace FWITD.Controllers {
@@ -42,6 +43,44 @@ namespace FWITD.Controllers {
         private static List<Dictionary<string, string>> GetAccounts() {
             return AppSettings.Get("PublicTypeWriter.accounts", new List<Dictionary<string, string>>())
                 ?? new List<Dictionary<string, string>>();
+        }
+
+        // Opens `url` in the user's default browser (outside the WebView). Only absolute http/https URLs are accepted,
+        // so JS can't use this to shell-execute local files or other protocol handlers.
+        // JS usage: await Lobby.postAsync("Windows/OpenInBrowser", { url: "https://example.com" });
+        public void OpenInBrowser(JsonNode req) {
+            var url = req["url"]?.GetValue<string>()
+                ?? throw new ArgumentException("Missing 'url'");
+            if (!Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                throw new ArgumentException("Only absolute http/https URLs can be opened");
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+        }
+
+        // Opens appsettings.json in its associated editor (Notepad when .json has no association).
+        // DEBUG: the project's own copy (the source the build copies next to the exe), found by walking up from the exe
+        // to the folder holding the .csproj; otherwise the file QStorage.AppSettings reads (next to the exe).
+        // JS usage: await Lobby.postAsync("Windows/OpenAppSettings", {});
+        public void OpenAppSettings() {
+            var path = Path.Combine(AppContext.BaseDirectory, "appsettings.json");
+#if DEBUG
+            for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent) {
+                var candidate = Path.Combine(dir.FullName, "appsettings.json");
+                if (dir.EnumerateFiles("*.csproj").Any() && File.Exists(candidate)) {
+                    path = candidate;
+                    break;
+                }
+            }
+#endif
+            if (!File.Exists(path))
+                throw new FileNotFoundException($"appsettings.json not found: {path}");
+
+            try {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            } catch (System.ComponentModel.Win32Exception) {
+                System.Diagnostics.Process.Start("notepad.exe", $"\"{path}\"");
+            }
         }
 
         // JS usage: await Lobby.postAsync("Windows/Type", { text: "hello world" });

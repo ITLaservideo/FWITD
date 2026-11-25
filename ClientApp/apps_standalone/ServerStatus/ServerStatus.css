@@ -101,11 +101,33 @@ body {
 }
 
 .ss-row-url {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
     font-size: 10px;
     color: var(--vscode-descriptionForeground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    cursor: pointer;
+
+    >.ss-row-url-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    >.f-icon-i {
+        flex-shrink: 0;
+        font-size: 12px;
+    }
+}
+
+.ss-row-url:hover {
+    color: var(--vscode-textLink-foreground, #3794ff);
+
+    >.ss-row-url-text {
+        text-decoration: underline;
+    }
 }
 
 .ss-row-status {
@@ -237,6 +259,53 @@ body {
     box-shadow: unset;
     border: unset;
     background: unset !important;
+}
+
+.ss-settings-server-action {
+    flex-shrink: 0;
+    cursor: pointer;
+    color: var(--vscode-textLink-foreground, #3794ff);
+    padding: 0 4px;
+    box-shadow: unset;
+    border: unset;
+    background: unset !important;
+}
+
+.ss-settings-sync-info {
+    display: inline-block;
+    margin-left: 6px;
+    vertical-align: middle;
+    /* font-size: 13px; */
+    /* text-transform: none; */
+    color: var(--vscode-editorWarning-foreground, #cca700);
+    cursor: help;
+}
+
+.ss-settings-server-row-readonly {
+    border-style: dashed;
+
+    .ss-settings-server-action {
+        color: var(--vscode-descriptionForeground);
+    }
+}
+
+.ss-settings-server-edit {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.ss-settings-server-edit input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 2px 6px;
+    font-size: 11px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 2px;
 }
 
 .ss-settings-add-row {

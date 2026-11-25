@@ -14,11 +14,13 @@ class App {
         retryBtn: document.getElementById("ss-retry-btn"),
     }
     /**
-     * @type {Array<{name: string, url: string, status: "checking"|"online"|"offline", latencyMs: number|null}>}
+     * @type {Array<{name: string, url: string, readonly: boolean, status: "checking"|"online"|"offline", latencyMs: number|null}>}
      */
     servers = [];
     #timerId = null;
     #settingsFloater = null;
+    /** DEBUG build (from ServerStatus/GetServers): appsettings.json edits need a rebuild + restart */
+    #isDebug = false;
     constructor() {
         document.body.addEventListener("keydown", (e) => {
             if (e.ctrlKey && e.key == "r") {
@@ -36,19 +38,37 @@ class App {
 
         this.#createSettingsButton();
 
-        this.servers = (AppStatus.CheckForHealth ?? []).map((server) => ({
+        this.#loadServers();
+        setTimeout(() => {
+            Locale.setLang("it", true);
+            this.elements.page.style.opacity = 1;
+        }, 0);
+    }
+    // appsettings.json's CheckForHealth (readonly) followed by the user-added ones (UserSettings)
+    async #loadServers() {
+        const rsp = await Lobby.postAsync("ServerStatus/GetServers", {}, { timeout_ms: 5000 });
+        const servers = rsp.ok === false
+            ? (AppStatus.CheckForHealth ?? []).map((server) => ({ ...server, readonly: true }))
+            : rsp.servers;
+        this.#isDebug = rsp.debug === true;
+        this.servers = (servers ?? []).map((server) => ({
             name: server.name,
             url: server.url,
+            readonly: server.readonly === true,
             status: "checking",
             latencyMs: null,
         }));
         this.#render();
         this.#checkAll();
-        this.#timerId = setInterval(() => this.#checkAll(), SS_RECHECK_INTERVAL_MS);
-        setTimeout(() => {
-            Locale.setLang("it", true);
-            this.elements.page.style.opacity = 1;
-        }, 0);
+        this.#restartTimer();
+    }
+    #saveServers() {
+        const servers = this.servers.filter((server) => !server.readonly).map(({ name, url }) => ({ name, url }));
+        Lobby.postAsync("ServerStatus/SaveServers", { servers }, { timeout_ms: 5000 }).then((rsp) => {
+            if (rsp.ok === false) {
+                console.error("ServerStatus/SaveServers failed", rsp.error);
+            }
+        });
     }
     retryAll() {
         this.servers.forEach((server) => {
@@ -141,9 +161,96 @@ class App {
         const serversTitle = document.createElement("div");
         serversTitle.className = "ss-settings-section-title";
         serversTitle.innerText = Locale.at("servers");
+        if (owner.#isDebug) {
+            const syncInfo = Icons.create("e629");
+            syncInfo.classList.add("ss-settings-sync-info");
+            UiBuilder.addHint({
+                target: serversTitle,
+                hint: Locale.at("DEBUG: after editing appsettings.json, rebuild the app (the build copies it next to the exe), then restart ServerStatus"),
+                anchor: "bottom",
+            });
+            serversTitle.appendChild(syncInfo);
+        }
 
         const serversList = document.createElement("div");
         serversList.className = "ss-settings-servers";
+        // the check fetches the url as typed: without a scheme it'd be resolved against the page's own origin
+        const createUrlInput = () => {
+            const input = document.createElement("input");
+            input.type = "text";
+            input.placeholder = "https://…";
+            UiBuilder.addHint({
+                target: input,
+                hint: Locale.at("full url, including http:// or https://"),
+                anchor: "bottom",
+            });
+            return input;
+        };
+        // Enter on any input but the last moves focus to the next one; Enter on the last calls `submit`
+        const enterFocusesNextOrSubmits = (inputs, submit) => {
+            inputs.forEach((input, i) => input.addEventListener("keydown", (e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (i < inputs.length - 1) inputs[i + 1].focus();
+                else submit();
+            }));
+        };
+        const buildEditRow = (server) => {
+            const row = document.createElement("div");
+            row.className = "ss-settings-server-row ss-settings-server-row-editing";
+
+            const fields = document.createElement("div");
+            fields.className = "ss-settings-server-edit";
+            const editName = document.createElement("input");
+            editName.type = "text";
+            editName.placeholder = Locale.at("name");
+            editName.value = server.name;
+            const editUrl = createUrlInput();
+            editUrl.value = server.url;
+            fields.append(editName, editUrl);
+
+            const save = () => {
+                const name = editName.value.trim();
+                const url = editUrl.value.trim();
+                if (!name) { editName.focus(); return; }
+                if (!url) { editUrl.focus(); return; }
+                const urlChanged = url !== server.url;
+                server.name = name;
+                server.url = url;
+                owner.#saveServers();
+                renderServersList();
+                if (urlChanged) {
+                    server.status = "checking";
+                    server.latencyMs = null;
+                    owner.#render();
+                    owner.#checkOne(server);
+                } else {
+                    owner.#render();
+                }
+            };
+            const cancel = () => renderServersList();
+
+            enterFocusesNextOrSubmits([editName, editUrl], save);
+            [editName, editUrl].forEach((input) => input.addEventListener("keydown", (e) => {
+                if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
+            }));
+
+            const saveBtn = UiBuilder.createButton({
+                hint: Locale.at("save"),
+                icon_code: "e5ca",
+                class: "ss-settings-server-action",
+                onClick: save,
+            });
+            const cancelBtn = UiBuilder.createButton({
+                hint: Locale.at("cancel"),
+                icon_code: "e5cd",
+                class: "ss-settings-server-remove",
+                onClick: cancel,
+            });
+            row.append(fields, saveBtn, cancelBtn);
+            setTimeout(() => editName.focus(), 0);
+            return row;
+        };
         const renderServersList = () => {
             serversList.replaceChildren();
             owner.servers.forEach((server, index) => {
@@ -160,17 +267,37 @@ class App {
                 url.innerText = server.url;
                 info.append(name, url);
 
+                if (server.readonly) {
+                    row.classList.add("ss-settings-server-row-readonly");
+                    const locked = UiBuilder.createButton({
+                        hint: Locale.at("defined in appsettings.json: click to open it"),
+                        icon_code: "e950",
+                        class: "ss-settings-server-action",
+                        onClick: () => Lobby.postAsync("Windows/OpenAppSettings", {}),
+                    });
+                    row.append(info, locked);
+                    serversList.appendChild(row);
+                    return;
+                }
+
+                const edit = UiBuilder.createButton({
+                    hint: Locale.at("edit server"),
+                    icon_code: "e3c9",
+                    class: "ss-settings-server-action",
+                    onClick: () => row.replaceWith(buildEditRow(server)),
+                });
                 const remove = UiBuilder.createButton({
                     hint: Locale.at("remove server"),
                     icon_code: "e5cd",
                     class: "ss-settings-server-remove",
                     onClick: () => {
                         owner.servers.splice(index, 1);
+                        owner.#saveServers();
                         renderServersList();
                         owner.#render();
                     }
                 });
-                row.append(info, remove);
+                row.append(info, edit, remove);
                 serversList.appendChild(row);
             });
         };
@@ -185,22 +312,25 @@ class App {
         const nameInput = document.createElement("input");
         nameInput.type = "text";
         nameInput.placeholder = Locale.at("name");
-        const urlInput = document.createElement("input");
-        urlInput.type = "text";
-        urlInput.placeholder = Locale.at("url");
+        const urlInput = createUrlInput();
+        const addServer = () => {
+            const name = nameInput.value.trim();
+            const url = urlInput.value.trim();
+            if (!name) { nameInput.focus(); return; }
+            if (!url) { urlInput.focus(); return; }
+            const server = { name, url, readonly: false, status: "checking", latencyMs: null };
+            owner.servers.push(server);
+            owner.#saveServers();
+            nameInput.value = "";
+            urlInput.value = "";
+            renderServersList();
+            owner.#render();
+            owner.#checkOne(server);
+            nameInput.focus();
+        };
+        enterFocusesNextOrSubmits([nameInput, urlInput], addServer);
         const addBtn = UiBuilder.createButton({
-            onClick: () => {
-                const name = nameInput.value.trim();
-                const url = urlInput.value.trim();
-                if (!name || !url) return;
-                const server = { name, url, status: "checking", latencyMs: null };
-                owner.servers.push(server);
-                nameInput.value = "";
-                urlInput.value = "";
-                renderServersList();
-                owner.#render();
-                owner.#checkOne(server);
-            },
+            onClick: addServer,
             title: Locale.at("add"),
         });
         addRow.append(nameInput, urlInput, addBtn);
@@ -275,7 +405,14 @@ class App {
         }
         this.elements.list.replaceChildren(...this.servers.map((server) => {
             const info = node("ss-row-info");
-            info.append(node("ss-row-name", UiBuilder.decodeHTMLEntities(server.name)), node("ss-row-url", UiBuilder.decodeHTMLEntities(server.url)));
+            const url = node("ss-row-url");
+            url.append(node("ss-row-url-text", UiBuilder.decodeHTMLEntities(server.url)), Icons.create("e89e"));
+            UiBuilder.addHint({ target: url, hint: Locale.at("open in browser"), anchor: "bottom" });
+            url.addEventListener("click", () => {
+                Lobby.postAsync("Windows/OpenInBrowser", { url: server.url })
+                    .catch((err) => console.error("OpenInBrowser failed", err));
+            });
+            info.append(node("ss-row-name", UiBuilder.decodeHTMLEntities(server.name)), url);
             const status = node("ss-row-status");
             const badge = node("ss-badge", Locale.at(server.status));
             badge.classList.add(`ss-badge-${server.status}`);
